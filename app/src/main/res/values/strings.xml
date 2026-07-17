@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">CinéLog</string>
+    <string name="nav_home">Accueil</string>
+    <string name="nav_discover">Découvrir</string>
+    <string name="nav_search">Recherche</string>
+    <string name="nav_watchlist">Watchlist</string>
+    <string name="nav_lists">Mes listes</string>
+    <string name="nav_profile">Profil</string>
+    <string name="nav_settings">Paramètres</string>
+</resources>
