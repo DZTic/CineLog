@@ -41,18 +41,13 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      # The app's debug build type points to "${rootDir}/debug.keystore".
-      # That file is gitignored, so we generate a standard Android debug
-      # keystore here (same alias/passwords Android Studio uses).
-      - name: Generate debug keystore
-        run: |
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+      # debug.keystore is now committed to the repo (see .gitignore), so
+      # every CI build shares the same signing certificate. This lets
+      # freshly built APKs update an already-installed one instead of
+      # hitting Android's "package conflicts with an existing package"
+      # error, which happens when signatures differ between installs.
+      - name: Verify debug keystore is present
+        run: test -f debug.keystore
 
       # The Secrets Gradle Plugin falls back to .env.example when .env is
       # absent, so the build succeeds without a real Gemini key. If you've

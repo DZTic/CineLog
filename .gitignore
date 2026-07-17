@@ -15,4 +15,6 @@
 .cxx
 local.properties
 .env
-debug.keystore
+# debug.keystore is intentionally committed so CI builds share a stable
+# signing certificate across runs (see .github/workflows/android-build.yml).
+# It is NOT the release signing key and holds no sensitive value.
