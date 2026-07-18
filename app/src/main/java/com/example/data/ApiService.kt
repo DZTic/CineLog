@@ -87,7 +87,10 @@ data class TmdbTvResult(
     @Json(name = "overview") val overview: String?,
     @Json(name = "first_air_date") val firstAirDate: String?,
     @Json(name = "poster_path") val posterPath: String?,
-    @Json(name = "vote_average") val voteAverage: Float?
+    @Json(name = "vote_average") val voteAverage: Float?,
+    @Json(name = "genre_ids") val genreIds: List<Int>? = null,
+    @Json(name = "origin_country") val originCountry: List<String>? = null,
+    @Json(name = "original_language") val originalLanguage: String? = null
 )
 
 data class TmdbTvSearchResponse(
@@ -139,7 +142,9 @@ data class TmdbTvDetail(
     @Json(name = "vote_average") val voteAverage: Float?,
     @Json(name = "genres") val genres: List<TmdbGenre>?,
     @Json(name = "seasons") val seasons: List<TmdbSeason>?,
-    @Json(name = "credits") val credits: TmdbCredits?
+    @Json(name = "credits") val credits: TmdbCredits?,
+    @Json(name = "origin_country") val originCountry: List<String>? = null,
+    @Json(name = "original_language") val originalLanguage: String? = null
 )
 
 // Standard Trending responses

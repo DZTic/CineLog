@@ -152,6 +152,18 @@ class Repository(
         return preferenceManager.getTmdbApiKey()
     }
 
+    // TMDB has no reliable "is this anime" flag, so TV results also surface
+    // Japanese animation (e.g. searching "MHA" returns My Hero Academia as
+    // a TMDB TV show, duplicating the ANIME result already returned by
+    // Jikan). Genre 16 = Animation on TMDB; combined with a Japanese origin
+    // this is the standard heuristic to detect anime and exclude it from
+    // the SERIE bucket so it only shows up once, correctly typed as ANIME.
+    private fun TmdbTvResult.isLikelyAnime(): Boolean {
+        val isAnimation = genreIds?.contains(16) == true
+        val isJapaneseOrigin = originalLanguage == "ja" || originCountry?.contains("JP") == true
+        return isAnimation && isJapaneseOrigin
+    }
+
     /**
      * Search movies, TV series, or anime dynamically.
      */
@@ -179,7 +191,7 @@ class Repository(
             async(Dispatchers.IO) {
                 try {
                     val response = tmdbApi.searchTv(tmdbKey, query)
-                    response.results.map { it.toCineTitle() }
+                    response.results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB TV: ${e.localizedMessage}")
                     emptyList()
@@ -264,7 +276,7 @@ class Repository(
                     return@withContext getFallbackSeries()
                 }
                 try {
-                    tmdbApi.getTrendingTv(tmdbKey).results.map { it.toCineTitle() }
+                    tmdbApi.getTrendingTv(tmdbKey).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error fetching trending TV: ${e.localizedMessage}")
                     getFallbackSeries()
