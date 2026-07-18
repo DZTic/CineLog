@@ -200,7 +200,7 @@ class Repository(
                     tmdbApi.searchTv(tmdbKey, query).results
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB TV: ${e.localizedMessage}")
-                    emptyList()
+                    emptyList<TmdbTvResult>()
                 }
             }
         } else {
