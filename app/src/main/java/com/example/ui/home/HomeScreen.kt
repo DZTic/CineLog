@@ -144,11 +144,33 @@ fun HomeScreen(
                     }
                 }
             } else {
-                items(logs) { log ->
-                    RecentActivityRow(
-                        log = log,
-                        onTitleClick = { onTitleClick(log.titleId) }
-                    )
+                // Group by category (Films / Séries / Animes) for readability,
+                // most-recently-watched first within each group.
+                val groupedLogs = remember(logs) {
+                    logs
+                        .sortedByDescending { it.dateVue }
+                        .groupBy { TitleType.valueOf(it.titleType) }
+                }
+                val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
+
+                categoryOrder.forEach { type ->
+                    val logsForType = groupedLogs[type]
+                    if (!logsForType.isNullOrEmpty()) {
+                        item(key = "header_${type.name}") {
+                            Text(
+                                text = "${type.displayName}s (${logsForType.size})",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                color = GrayText
+                            )
+                        }
+                        items(logsForType, key = { "log_${it.id}" }) { log ->
+                            RecentActivityRow(
+                                log = log,
+                                onTitleClick = { onTitleClick(log.titleId) }
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -126,7 +126,15 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             // Only show bottom navigation on primary tabs
             val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
             if (isPrimaryTab) {
-                NavigationBar {
+                // Material3's active-indicator pill has a fixed ~64dp width.
+                // With 6 tabs, each column is narrower than that on most
+                // phones, so the pill for the edge tabs (Accueil, Profil)
+                // overflows past the screen edge since there's no neighbor
+                // column to absorb it. A small horizontal inset gives it
+                // room without touching the true screen bounds.
+                NavigationBar(
+                    modifier = Modifier.padding(horizontal = 6.dp)
+                ) {
                     bottomNavItems.forEach { screen ->
                         val selected = currentRoute == screen.route
                         val icon = when (screen) {
