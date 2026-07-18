@@ -87,6 +87,10 @@ class CineViewModel(
     private val _collectionTitles = MutableStateFlow<List<CineTitle>>(emptyList())
     val collectionTitles: StateFlow<List<CineTitle>> = _collectionTitles.asStateFlow()
 
+    // Maps season number -> status, for the title currently on screen.
+    private val _currentSeasonProgress = MutableStateFlow<Map<Int, SeasonStatus>>(emptyMap())
+    val currentSeasonProgress: StateFlow<Map<Int, SeasonStatus>> = _currentSeasonProgress.asStateFlow()
+
     // ==========================================
     // API KEY MANAGEMENT
     // ==========================================
@@ -162,6 +166,7 @@ class CineViewModel(
             _detailError.value = null
             _currentTitle.value = null
             _collectionTitles.value = emptyList()
+            _currentSeasonProgress.value = emptyMap()
             try {
                 // Read details from API
                 val detail = repository.getTitleDetail(titleId)
@@ -171,6 +176,22 @@ class CineViewModel(
                 viewModelScope.launch {
                     repository.getLogsForTitle(titleId).collect { logs ->
                         _currentTitleLogs.value = logs
+                    }
+                }
+
+                if (detail.seasons.isNotEmpty()) {
+                    viewModelScope.launch {
+                        repository.getSeasonProgressForTitle(titleId).collect { progress ->
+                            _currentSeasonProgress.value = progress.associate { entry ->
+                                entry.seasonNumber to (
+                                    try {
+                                        SeasonStatus.valueOf(entry.status)
+                                    } catch (e: Exception) {
+                                        SeasonStatus.NOT_WATCHED
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -238,6 +259,16 @@ class CineViewModel(
                 repository.deleteLogById(id)
             } catch (e: Exception) {
                 Log.e(tag, "Error deleting log: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun setSeasonStatus(titleId: String, seasonNumber: Int, status: SeasonStatus) {
+        viewModelScope.launch {
+            try {
+                repository.setSeasonStatus(titleId, seasonNumber, status)
+            } catch (e: Exception) {
+                Log.e(tag, "Error updating season $seasonNumber status: ${e.localizedMessage}")
             }
         }
     }

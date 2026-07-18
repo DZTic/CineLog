@@ -28,6 +28,17 @@ data class CineSeason(
     val episodeCount: Int
 )
 
+enum class SeasonStatus {
+    NOT_WATCHED, WATCHING, WATCHED;
+
+    val displayName: String
+        get() = when (this) {
+            NOT_WATCHED -> "Non vue"
+            WATCHING -> "En cours"
+            WATCHED -> "Vue"
+        }
+}
+
 data class CineTitle(
     val id: String,          // e.g., "movie_123", "tv_456", "anime_789"
     val type: TitleType,     // FILM, SERIE, ANIME
@@ -47,6 +58,7 @@ class Repository(
     private val logDao: LogDao,
     private val watchlistDao: WatchlistDao,
     private val customListDao: CustomListDao,
+    private val seasonProgressDao: SeasonProgressDao,
     private val preferenceManager: PreferenceManager
 ) {
     private val tag = "Repository"
@@ -110,6 +122,29 @@ class Repository(
     suspend fun removeFromWatchlist(titleId: String) = withContext(Dispatchers.IO) {
         watchlistDao.deleteFromWatchlist(titleId)
     }
+
+    // ==========================================
+    // SEASON WATCH PROGRESS (series & anime only)
+    // ==========================================
+
+    fun getSeasonProgressForTitle(titleId: String): Flow<List<DbSeasonProgress>> =
+        seasonProgressDao.getForTitle(titleId)
+
+    suspend fun setSeasonStatus(titleId: String, seasonNumber: Int, status: SeasonStatus) =
+        withContext(Dispatchers.IO) {
+            if (status == SeasonStatus.NOT_WATCHED) {
+                // Nothing to track for the default state — keep the table lean.
+                seasonProgressDao.deleteForSeason(titleId, seasonNumber)
+            } else {
+                seasonProgressDao.upsert(
+                    DbSeasonProgress(
+                        titleId = titleId,
+                        seasonNumber = seasonNumber,
+                        status = status.name
+                    )
+                )
+            }
+        }
 
     val allCustomLists: Flow<List<DbCustomList>> = customListDao.getAllCustomLists()
 

@@ -1,7 +1,9 @@
 package com.example.ui.detail
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbLogEntry
+import com.example.data.SeasonStatus
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.HalfStarRatingBar
@@ -60,6 +63,7 @@ fun DetailScreen(
 
     val watchlist by viewModel.allWatchlist.collectAsState()
     val collectionTitles by viewModel.collectionTitles.collectAsState()
+    val seasonProgress by viewModel.currentSeasonProgress.collectAsState()
     val isInWatchlist = remember(watchlist, titleId) {
         watchlist.any { it.titleId == titleId }
     }
@@ -451,29 +455,80 @@ fun DetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 title.seasons.forEach { season ->
+                                    val status = seasonProgress[season.seasonNumber] ?: SeasonStatus.NOT_WATCHED
+                                    val accentColor = when (status) {
+                                        SeasonStatus.WATCHED -> Color(0xFF4CAF50)
+                                        SeasonStatus.WATCHING -> Color(0xFFFFA726)
+                                        SeasonStatus.NOT_WATCHED -> CinemaSurfaceVariant
+                                    }
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp),
-                                        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
+                                        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+                                        border = if (status != SeasonStatus.NOT_WATCHED) {
+                                            BorderStroke(1.dp, accentColor.copy(alpha = 0.6f))
+                                        } else {
+                                            null
+                                        }
                                     ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(12.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = season.name,
-                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                color = Color.White
-                                            )
-                                            Text(
-                                                text = "${season.episodeCount} épisodes",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = GrayText
-                                            )
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = season.name,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                    color = Color.White
+                                                )
+                                                Text(
+                                                    text = "${season.episodeCount} épisodes",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = GrayText
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                SeasonStatus.values().forEach { option ->
+                                                    val selected = option == status
+                                                    val optionColor = when (option) {
+                                                        SeasonStatus.WATCHED -> Color(0xFF4CAF50)
+                                                        SeasonStatus.WATCHING -> Color(0xFFFFA726)
+                                                        SeasonStatus.NOT_WATCHED -> GrayText
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(12.dp))
+                                                            .background(
+                                                                if (selected) optionColor.copy(alpha = 0.18f)
+                                                                else Color.Transparent
+                                                            )
+                                                            .border(
+                                                                width = 1.dp,
+                                                                color = if (selected) optionColor else GrayText.copy(alpha = 0.4f),
+                                                                shape = RoundedCornerShape(12.dp)
+                                                            )
+                                                            .clickable {
+                                                                viewModel.setSeasonStatus(
+                                                                    title.id,
+                                                                    season.seasonNumber,
+                                                                    option
+                                                                )
+                                                            }
+                                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = option.displayName,
+                                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                                            ),
+                                                            color = if (selected) optionColor else GrayText
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

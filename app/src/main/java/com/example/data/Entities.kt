@@ -44,3 +44,13 @@ data class DbCustomListTitle(
     val titlePosterUrl: String?,
     val orderIndex: Int
 )
+
+// Tracks per-season watch progress for series/anime (movies have no seasons).
+// status is one of SeasonStatus's enum names: NOT_WATCHED, WATCHING, WATCHED.
+@Entity(tableName = "season_progress", primaryKeys = ["titleId", "seasonNumber"])
+data class DbSeasonProgress(
+    val titleId: String,
+    val seasonNumber: Int,
+    val status: String,
+    val dateUpdated: Long = System.currentTimeMillis()
+)

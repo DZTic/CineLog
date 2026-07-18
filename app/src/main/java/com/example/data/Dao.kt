@@ -66,3 +66,15 @@ interface CustomListDao {
     @Query("UPDATE custom_list_titles SET orderIndex = :newOrderIndex WHERE id = :id")
     suspend fun updateCustomListTitleOrder(id: Int, newOrderIndex: Int)
 }
+
+@Dao
+interface SeasonProgressDao {
+    @Query("SELECT * FROM season_progress WHERE titleId = :titleId")
+    fun getForTitle(titleId: String): Flow<List<DbSeasonProgress>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(progress: DbSeasonProgress)
+
+    @Query("DELETE FROM season_progress WHERE titleId = :titleId AND seasonNumber = :seasonNumber")
+    suspend fun deleteForSeason(titleId: String, seasonNumber: Int)
+}

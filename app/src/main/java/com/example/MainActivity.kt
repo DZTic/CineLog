@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
             logDao = database.logDao(),
             watchlistDao = database.watchlistDao(),
             customListDao = database.customListDao(),
+            seasonProgressDao = database.seasonProgressDao(),
             preferenceManager = preferenceManager
         )
 

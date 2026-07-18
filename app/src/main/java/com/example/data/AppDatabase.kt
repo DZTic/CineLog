@@ -10,15 +10,17 @@ import androidx.room.RoomDatabase
         DbLogEntry::class,
         DbWatchlist::class,
         DbCustomList::class,
-        DbCustomListTitle::class
+        DbCustomListTitle::class,
+        DbSeasonProgress::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     abstract fun watchlistDao(): WatchlistDao
     abstract fun customListDao(): CustomListDao
+    abstract fun seasonProgressDao(): SeasonProgressDao
 
     companion object {
         @Volatile
