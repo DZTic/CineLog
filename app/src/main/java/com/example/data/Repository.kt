@@ -152,6 +152,11 @@ class Repository(
         return preferenceManager.getTmdbApiKey()
     }
 
+    private fun List<CineTitle>.dedupeByTitle(): List<CineTitle> {
+        val seen = HashSet<String>()
+        return filter { seen.add(it.title.trim().lowercase()) }
+    }
+
     // TMDB has no reliable "is this anime" flag, so TV results also surface
     // Japanese animation (e.g. searching "MHA" returns My Hero Academia as
     // a TMDB TV show, duplicating the ANIME result already returned by
@@ -187,14 +192,15 @@ class Repository(
             null
         }
 
-        val seriesDeferred = if (hasTmdbKey && (typeFilter == null || typeFilter == TitleType.SERIE)) {
+        // Fetched for SERIE (kept as-is) and ANIME (reclassified matches
+        // merged in below) filters, not just when there's no filter.
+        val seriesResultDeferred = if (hasTmdbKey && (typeFilter == null || typeFilter == TitleType.SERIE || typeFilter == TitleType.ANIME)) {
             async(Dispatchers.IO) {
                 try {
-                    val response = tmdbApi.searchTv(tmdbKey, query)
-                    response.results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
+                    tmdbApi.searchTv(tmdbKey, query).results
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB TV: ${e.localizedMessage}")
-                    emptyList()
+                    emptyList<TmdbTvResult>()
                 }
             }
         } else {
@@ -216,8 +222,26 @@ class Repository(
         }
 
         val films = filmsDeferred?.await() ?: emptyList()
-        val series = seriesDeferred?.await() ?: emptyList()
-        val anime = animeDeferred?.await() ?: emptyList()
+        val tvResults = seriesResultDeferred?.await() ?: emptyList()
+        val jikanAnime = animeDeferred?.await() ?: emptyList()
+
+        // Split TMDB TV results: real series stay SERIE, anime gets
+        // relabeled ANIME instead of dropped, so shows Jikan's title
+        // search misses (e.g. abbreviations like "MHA") still show up.
+        // Only keep the reclassified ones when the caller isn't
+        // restricting to SERIE, and dedupe against Jikan by title so a
+        // show found by both sources doesn't appear twice.
+        val (animeFromTmdb, pureSeries) = tvResults.partition { it.isLikelyAnime() }
+        val series = if (typeFilter == null || typeFilter == TitleType.SERIE) {
+            pureSeries.map { it.toCineTitle() }
+        } else {
+            emptyList()
+        }
+        val anime = if (typeFilter == null || typeFilter == TitleType.ANIME) {
+            (jikanAnime + animeFromTmdb.map { it.toAnimeCineTitle() }).dedupeByTitle()
+        } else {
+            emptyList()
+        }
 
         return@coroutineScope (films + series + anime).sortedByDescending { it.voteAverage }
     }
@@ -327,6 +351,26 @@ class Repository(
         )
     }
 
+    // Same fields as toCineTitle(), but typed ANIME. Used for TMDB TV
+    // results that isLikelyAnime() flags: rather than dropping them (which
+    // hides shows Jikan's stricter title search fails to match, e.g.
+    // abbreviations like "MHA"), we relabel them as ANIME so they still
+    // surface, then dedupe against real Jikan results by title.
+    private fun TmdbTvResult.toAnimeCineTitle(): CineTitle {
+        val y = firstAirDate?.take(4) ?: "N/A"
+        val poster = if (posterPath != null) "https://image.tmdb.org/t/p/w500$posterPath" else null
+        return CineTitle(
+            id = "tv_$id",
+            type = TitleType.ANIME,
+            title = name,
+            year = y,
+            posterUrl = poster,
+            synopsis = overview ?: "",
+            genres = emptyList(),
+            voteAverage = (voteAverage ?: 0f) / 2f // Scale from TMDB's 0-10 to 0-5
+        )
+    }
+
     private fun TmdbMovieDetail.toCineTitle(): CineTitle {
         val y = releaseDate?.take(4) ?: "N/A"
         val poster = if (posterPath != null) "https://image.tmdb.org/t/p/w500$posterPath" else null
@@ -344,13 +388,20 @@ class Repository(
         )
     }
 
+    // Same heuristic as TmdbTvResult.isLikelyAnime(), for the detail response shape.
+    private fun TmdbTvDetail.isLikelyAnime(): Boolean {
+        val isAnimation = genres?.any { it.id == 16 } == true
+        val isJapaneseOrigin = originalLanguage == "ja" || originCountry?.contains("JP") == true
+        return isAnimation && isJapaneseOrigin
+    }
+
     private fun TmdbTvDetail.toCineTitle(): CineTitle {
         val y = firstAirDate?.take(4) ?: "N/A"
         val poster = if (posterPath != null) "https://image.tmdb.org/t/p/w500$posterPath" else null
         val director = credits?.cast?.take(3)?.joinToString { it.name } ?: "N/A"
         return CineTitle(
             id = "tv_$id",
-            type = TitleType.SERIE,
+            type = if (isLikelyAnime()) TitleType.ANIME else TitleType.SERIE,
             title = name,
             year = y,
             posterUrl = poster,
