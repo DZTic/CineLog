@@ -2,12 +2,14 @@ package com.example.ui.watchlist
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -18,6 +20,7 @@ import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.TitleCard
+import com.example.ui.theme.GrayText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +60,19 @@ fun WatchlistScreen(
                 )
             }
         } else {
+            // Group by category (Films / Séries / Animes) for readability,
+            // same approach as the "Activité Récente" grouping on Home.
+            val groupedWatchlist = remember(watchlist) {
+                watchlist.groupBy {
+                    try {
+                        TitleType.valueOf(it.titleType)
+                    } catch (e: Exception) {
+                        TitleType.FILM
+                    }
+                }
+            }
+            val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
+
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 contentPadding = PaddingValues(16.dp),
@@ -66,12 +82,31 @@ fun WatchlistScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                items(watchlist) { item ->
-                    val title = item.toCineTitle()
-                    TitleCard(
-                        title = title,
-                        onClick = { onTitleClick(title.id) }
-                    )
+                categoryOrder.forEach { type ->
+                    val itemsForType = groupedWatchlist[type]
+                    if (!itemsForType.isNullOrEmpty()) {
+                        item(
+                            key = "header_${type.name}",
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            Text(
+                                text = "${type.displayName}s (${itemsForType.size})",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                color = GrayText,
+                                modifier = Modifier.padding(
+                                    top = if (type == categoryOrder.first()) 0.dp else 8.dp,
+                                    bottom = 4.dp
+                                )
+                            )
+                        }
+                        items(itemsForType, key = { it.titleId }) { item ->
+                            val title = item.toCineTitle()
+                            TitleCard(
+                                title = title,
+                                onClick = { onTitleClick(title.id) }
+                            )
+                        }
+                    }
                 }
             }
         }

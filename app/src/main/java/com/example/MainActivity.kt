@@ -24,12 +24,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.Person
@@ -169,7 +171,7 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                             val selected = currentRoute == screen.route
                             val icon = when (screen) {
                                 Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
-                                Screen.Discover -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
+                                Screen.Discover -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
                                 Screen.Search -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
                                 Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
                                 Screen.Lists -> if (selected) Icons.Filled.List else Icons.Outlined.List
