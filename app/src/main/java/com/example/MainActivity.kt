@@ -269,7 +269,10 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
             // Settings View (API configuration)
             composable(Screen.Settings.route) {
-                SettingsScreen(viewModel = viewModel)
+                SettingsScreen(
+                    viewModel = viewModel,
+                    onCloseClick = { navController.popBackStack() }
+                )
             }
 
             // Detail View
