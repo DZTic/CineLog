@@ -54,6 +54,17 @@ fun HomeScreen(
     }
     val watchlistCount = watchlist.size
 
+    // Group by category (Films / Séries / Animes) for readability, most
+    // recently watched first within each group. Computed here (not inside
+    // LazyColumn's content lambda, which isn't a @Composable context) so
+    // remember() is valid.
+    val groupedLogs = remember(logs) {
+        logs
+            .sortedByDescending { it.dateVue }
+            .groupBy { TitleType.valueOf(it.titleType) }
+    }
+    val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
+
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
         topBar = {
@@ -144,11 +155,24 @@ fun HomeScreen(
                     }
                 }
             } else {
-                items(logs) { log ->
-                    RecentActivityRow(
-                        log = log,
-                        onTitleClick = { onTitleClick(log.titleId) }
-                    )
+                categoryOrder.forEach { type ->
+                    val logsForType = groupedLogs[type]
+                    if (!logsForType.isNullOrEmpty()) {
+                        item(key = "header_${type.name}") {
+                            Text(
+                                text = "${type.displayName}s (${logsForType.size})",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                color = GrayText
+                            )
+                        }
+                        items(logsForType, key = { "log_${it.id}" }) { log ->
+                            RecentActivityRow(
+                                log = log,
+                                onTitleClick = { onTitleClick(log.titleId) }
+                            )
+                        }
+                    }
                 }
             }
         }
