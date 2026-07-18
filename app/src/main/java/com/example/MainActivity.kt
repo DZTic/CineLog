@@ -4,12 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
@@ -26,17 +38,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
@@ -128,64 +141,106 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             // Only show bottom navigation on primary tabs
             val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
             if (isPrimaryTab) {
-                // A 6dp inset alone wasn't enough: the active-indicator
-                // pill (fixed ~64dp width) still bled past the true screen
-                // edge on the leftmost/rightmost tabs. clipToBounds() forces
-                // a hard cut at the bar's own bounds so nothing can render
-                // outside it, regardless of the pill's computed size.
-                NavigationBar(
-                    modifier = Modifier
-                        .padding(horizontal = 6.dp)
-                        .clipToBounds()
+                // Material3's NavigationBar/NavigationBarItem uses a fixed
+                // ~64dp active-indicator pill regardless of how narrow each
+                // column is. With 6 tabs, columns are narrower than that on
+                // basically every phone, so the pill for the edge tabs
+                // (Accueil, Profil) always bled past the screen edge no
+                // matter how much outer padding/clipping was added, since
+                // outer padding doesn't change the pill's fixed width vs.
+                // the column's available width.
+                //
+                // This custom bar sizes the selection pill from its own
+                // content (icon + small padding) instead of a fixed token,
+                // so it's always narrower than its column and can never
+                // overflow, regardless of screen width or item count.
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 3.dp
                 ) {
-                    bottomNavItems.forEach { screen ->
-                        val selected = currentRoute == screen.route
-                        val icon = when (screen) {
-                            Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
-                            Screen.Discover -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
-                            Screen.Search -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
-                            Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
-                            Screen.Lists -> if (selected) Icons.Filled.List else Icons.Outlined.List
-                            Screen.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
-                            else -> Icons.Filled.Home
-                        }
-                        
-                        val label = when (screen) {
-                            Screen.Home -> "Accueil"
-                            Screen.Discover -> "Découvrir"
-                            Screen.Search -> "Recherche"
-                            Screen.Watchlist -> "À Voir"
-                            Screen.Lists -> "Listes"
-                            Screen.Profile -> "Profil"
-                            else -> screen.title
-                        }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .height(72.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        bottomNavItems.forEach { screen ->
+                            val selected = currentRoute == screen.route
+                            val icon = when (screen) {
+                                Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
+                                Screen.Discover -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
+                                Screen.Search -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
+                                Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
+                                Screen.Lists -> if (selected) Icons.Filled.List else Icons.Outlined.List
+                                Screen.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
+                                else -> Icons.Filled.Home
+                            }
 
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
+                            val label = when (screen) {
+                                Screen.Home -> "Accueil"
+                                Screen.Discover -> "Découvrir"
+                                Screen.Search -> "Recherche"
+                                Screen.Watchlist -> "À Voir"
+                                Screen.Lists -> "Listes"
+                                Screen.Profile -> "Profil"
+                                else -> screen.title
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        if (currentRoute != screen.route) {
+                                            navController.navigate(screen.route) {
+                                                popUpTo(navController.graph.findStartDestination().id) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                                    },
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (selected) MaterialTheme.colorScheme.secondaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = label,
+                                        tint = if (selected) {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        }
+                                    )
                                 }
-                            },
-                            icon = { Icon(imageVector = icon, contentDescription = label) },
-                            label = {
-                                Text(
-                                    text = label,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            alwaysShowLabel = false
-                        )
+                                if (selected) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
