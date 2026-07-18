@@ -36,6 +36,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
@@ -127,14 +128,15 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             // Only show bottom navigation on primary tabs
             val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
             if (isPrimaryTab) {
-                // Material3's active-indicator pill has a fixed ~64dp width.
-                // With 6 tabs, each column is narrower than that on most
-                // phones, so the pill for the edge tabs (Accueil, Profil)
-                // overflows past the screen edge since there's no neighbor
-                // column to absorb it. A small horizontal inset gives it
-                // room without touching the true screen bounds.
+                // A 6dp inset alone wasn't enough: the active-indicator
+                // pill (fixed ~64dp width) still bled past the true screen
+                // edge on the leftmost/rightmost tabs. clipToBounds() forces
+                // a hard cut at the bar's own bounds so nothing can render
+                // outside it, regardless of the pill's computed size.
                 NavigationBar(
-                    modifier = Modifier.padding(horizontal = 6.dp)
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp)
+                        .clipToBounds()
                 ) {
                     bottomNavItems.forEach { screen ->
                         val selected = currentRoute == screen.route
