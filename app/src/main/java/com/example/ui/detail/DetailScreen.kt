@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +33,7 @@ import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.components.TypeBadge
+import com.example.ui.components.WatchedBadge
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.StarGold
@@ -45,6 +48,7 @@ fun DetailScreen(
     viewModel: CineViewModel,
     onBackClick: () -> Unit,
     onLogClick: (CineTitle) -> Unit,
+    onTitleClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -55,6 +59,7 @@ fun DetailScreen(
     val customLists by viewModel.allCustomLists.collectAsState()
 
     val watchlist by viewModel.allWatchlist.collectAsState()
+    val collectionTitles by viewModel.collectionTitles.collectAsState()
     val isInWatchlist = remember(watchlist, titleId) {
         watchlist.any { it.titleId == titleId }
     }
@@ -164,7 +169,13 @@ fun DetailScreen(
 
                             // Metadata
                             Column(modifier = Modifier.weight(1f)) {
-                                TypeBadge(type = title.type)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    TypeBadge(type = title.type)
+                                    if (logs.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        WatchedBadge()
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = title.title,
@@ -324,6 +335,102 @@ fun DetailScreen(
                                     color = Color.LightGray,
                                     lineHeight = 20.sp
                                 )
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    }
+
+                    // Saga Section — only for movies belonging to a TMDB collection
+                    if (title.collectionId != null && collectionTitles.isNotEmpty()) {
+                        item {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Saga",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                        if (!title.collectionName.isNullOrBlank()) {
+                                            Text(
+                                                text = title.collectionName,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = GrayText,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.addAllToWatchlist(collectionTitles)
+                                            Toast.makeText(
+                                                context,
+                                                "Saga ajoutée à la Watchlist",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Tout ajouter", fontSize = 13.sp)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(collectionTitles, key = { it.id }) { sagaTitle ->
+                                        Column(
+                                            modifier = Modifier
+                                                .width(100.dp)
+                                                .clickable { onTitleClick(sagaTitle.id) },
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .aspectRatio(2f / 3f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(CinemaSurfaceVariant)
+                                            ) {
+                                                if (sagaTitle.posterUrl != null) {
+                                                    AsyncImage(
+                                                        model = sagaTitle.posterUrl,
+                                                        contentDescription = sagaTitle.title,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = sagaTitle.title,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onBackground,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
+                                            )
+                                            Text(
+                                                text = sagaTitle.year,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = GrayText
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.height(24.dp))
                         }

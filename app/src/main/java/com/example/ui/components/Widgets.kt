@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StarHalf
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -81,6 +82,48 @@ fun TypeBadge(
         Text(
             text = label,
             color = textColor,
+            fontSize = fontSize,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        )
+    }
+}
+
+/**
+ * Badge visuel affiché sur la fiche détail quand le titre a déjà été
+ * journalisé au moins une fois, pour le voir en un coup d'œil sans avoir
+ * à faire défiler jusqu'à la section "Vos visionnages".
+ */
+@Composable
+fun WatchedBadge(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
+) {
+    val watchedGreen = Color(0xFF4CAF50)
+    val paddingValues = if (compact) {
+        Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+    } else {
+        Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+    }
+    val fontSize = if (compact) 9.sp else 11.sp
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(watchedGreen.copy(alpha = 0.15f))
+            .then(paddingValues),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.CheckCircle,
+            contentDescription = null,
+            tint = watchedGreen,
+            modifier = Modifier.size(if (compact) 11.dp else 13.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "DÉJÀ VU",
+            color = watchedGreen,
             fontSize = fontSize,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp

@@ -351,7 +351,10 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     titleId = titleId,
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
-                    onLogClick = { title -> loggingTitle = title }
+                    onLogClick = { title -> loggingTitle = title },
+                    onTitleClick = { otherTitleId ->
+                        navController.navigate(Screen.Detail.createRoute(otherTitleId))
+                    }
                 )
             }
         }

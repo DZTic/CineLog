@@ -38,7 +38,9 @@ data class CineTitle(
     val genres: List<String>,
     val voteAverage: Float,
     val studioOrDirector: String? = null,
-    val seasons: List<CineSeason> = emptyList()
+    val seasons: List<CineSeason> = emptyList(),
+    val collectionId: Int? = null,   // TMDB "saga" this movie belongs to, if any
+    val collectionName: String? = null
 )
 
 class Repository(
@@ -279,6 +281,27 @@ class Repository(
     }
 
     /**
+     * Fetch every movie in a TMDB "saga" (collection), for display on a
+     * movie's detail screen and bulk-adding to the watchlist. Excludes
+     * the movie the user is already looking at.
+     */
+    suspend fun getCollectionTitles(collectionId: Int, excludeTitleId: String? = null): List<CineTitle> =
+        withContext(Dispatchers.IO) {
+            val tmdbKey = getTmdbKey()
+            if (tmdbKey.isEmpty()) return@withContext emptyList()
+            try {
+                val collection = tmdbApi.getCollection(collectionId, tmdbKey)
+                collection.parts
+                    .map { it.toCineTitle() }
+                    .filter { it.id != excludeTitleId }
+                    .sortedBy { it.year }
+            } catch (e: Exception) {
+                Log.e(tag, "Error fetching collection $collectionId: ${e.localizedMessage}")
+                emptyList()
+            }
+        }
+
+    /**
      * Get popular/trending content (Accueil / Découverte).
      */
     suspend fun getTrendingOrPopular(type: TitleType): List<CineTitle> = withContext(Dispatchers.IO) {
@@ -384,7 +407,9 @@ class Repository(
             synopsis = overview ?: "",
             genres = genres?.map { it.name } ?: emptyList(),
             voteAverage = (voteAverage ?: 0f) / 2f, // Scale from TMDB's 0-10 to 0-5
-            studioOrDirector = director
+            studioOrDirector = director,
+            collectionId = belongsToCollection?.id,
+            collectionName = belongsToCollection?.name
         )
     }
 

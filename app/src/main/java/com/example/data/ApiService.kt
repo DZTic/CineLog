@@ -121,6 +121,12 @@ data class TmdbSeason(
     @Json(name = "poster_path") val posterPath: String?
 )
 
+data class TmdbCollectionRef(
+    @Json(name = "id") val id: Int,
+    @Json(name = "name") val name: String,
+    @Json(name = "poster_path") val posterPath: String?
+)
+
 data class TmdbMovieDetail(
     @Json(name = "id") val id: Int,
     @Json(name = "title") val title: String,
@@ -130,7 +136,16 @@ data class TmdbMovieDetail(
     @Json(name = "vote_average") val voteAverage: Float?,
     @Json(name = "genres") val genres: List<TmdbGenre>?,
     @Json(name = "runtime") val runtime: Int?,
-    @Json(name = "credits") val credits: TmdbCredits?
+    @Json(name = "credits") val credits: TmdbCredits?,
+    @Json(name = "belongs_to_collection") val belongsToCollection: TmdbCollectionRef? = null
+)
+
+data class TmdbCollectionDetail(
+    @Json(name = "id") val id: Int,
+    @Json(name = "name") val name: String,
+    @Json(name = "overview") val overview: String?,
+    @Json(name = "poster_path") val posterPath: String?,
+    @Json(name = "parts") val parts: List<TmdbMovieResult>
 )
 
 data class TmdbTvDetail(
@@ -186,6 +201,13 @@ interface TmdbApiService {
         @Query("append_to_response") appendToResponse: String = "credits",
         @Query("language") language: String = "fr-FR"
     ): TmdbTvDetail
+
+    @GET("collection/{id}")
+    suspend fun getCollection(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "fr-FR"
+    ): TmdbCollectionDetail
 
     @GET("trending/movie/week")
     suspend fun getTrendingMovies(

@@ -84,6 +84,9 @@ class CineViewModel(
     private val _currentTitleLogs = MutableStateFlow<List<DbLogEntry>>(emptyList())
     val currentTitleLogs: StateFlow<List<DbLogEntry>> = _currentTitleLogs.asStateFlow()
 
+    private val _collectionTitles = MutableStateFlow<List<CineTitle>>(emptyList())
+    val collectionTitles: StateFlow<List<CineTitle>> = _collectionTitles.asStateFlow()
+
     // ==========================================
     // API KEY MANAGEMENT
     // ==========================================
@@ -158,6 +161,7 @@ class CineViewModel(
             _detailLoading.value = true
             _detailError.value = null
             _currentTitle.value = null
+            _collectionTitles.value = emptyList()
             try {
                 // Read details from API
                 val detail = repository.getTitleDetail(titleId)
@@ -167,6 +171,18 @@ class CineViewModel(
                 viewModelScope.launch {
                     repository.getLogsForTitle(titleId).collect { logs ->
                         _currentTitleLogs.value = logs
+                    }
+                }
+
+                // If this movie belongs to a saga, fetch the rest of it separately
+                // so a slow/failed collection lookup never blocks the main detail.
+                val collectionId = detail.collectionId
+                if (collectionId != null) {
+                    viewModelScope.launch {
+                        _collectionTitles.value = repository.getCollectionTitles(
+                            collectionId,
+                            excludeTitleId = titleId
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -238,6 +254,32 @@ class CineViewModel(
             }
         }
         return flow
+    }
+
+    // Adds every given title to the watchlist that isn't already in it or
+    // already logged as watched (unlike toggleWatchlist, this never
+    // removes anything — used by the "Add saga to watchlist" action so
+    // repeated taps stay safe).
+    fun addAllToWatchlist(titles: List<CineTitle>) {
+        viewModelScope.launch {
+            titles.forEach { title ->
+                try {
+                    val alreadyIn = repository.isInWatchlist(title.id).first()
+                    if (!alreadyIn) {
+                        repository.addToWatchlist(
+                            DbWatchlist(
+                                titleId = title.id,
+                                titleType = title.type.name,
+                                titleName = title.title,
+                                titlePosterUrl = title.posterUrl
+                            )
+                        )
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "Error adding ${title.title} to watchlist: ${e.localizedMessage}")
+                }
+            }
+        }
     }
 
     fun toggleWatchlist(titleId: String, type: TitleType, name: String, posterUrl: String?) {
