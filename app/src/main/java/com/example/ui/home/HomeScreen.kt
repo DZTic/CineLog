@@ -54,6 +54,17 @@ fun HomeScreen(
     }
     val watchlistCount = watchlist.size
 
+    // Group by category (Films / Séries / Animes) for readability, most
+    // recently watched first within each group. Computed here (not inside
+    // LazyColumn's content lambda, which isn't a @Composable context) so
+    // remember() is valid.
+    val groupedLogs = remember(logs) {
+        logs
+            .sortedByDescending { it.dateVue }
+            .groupBy { TitleType.valueOf(it.titleType) }
+    }
+    val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
+
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
         topBar = {
@@ -144,15 +155,6 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // Group by category (Films / Séries / Animes) for readability,
-                // most-recently-watched first within each group.
-                val groupedLogs = remember(logs) {
-                    logs
-                        .sortedByDescending { it.dateVue }
-                        .groupBy { TitleType.valueOf(it.titleType) }
-                }
-                val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
-
                 categoryOrder.forEach { type ->
                     val logsForType = groupedLogs[type]
                     if (!logsForType.isNullOrEmpty()) {
