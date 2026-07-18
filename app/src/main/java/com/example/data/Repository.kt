@@ -296,7 +296,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = emptyList(),
-            voteAverage = voteAverage ?: 0f
+            voteAverage = (voteAverage ?: 0f) / 2f // Scale from TMDB's 0-10 to 0-5
         )
     }
 
@@ -311,7 +311,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = emptyList(),
-            voteAverage = voteAverage ?: 0f
+            voteAverage = (voteAverage ?: 0f) / 2f // Scale from TMDB's 0-10 to 0-5
         )
     }
 
@@ -327,7 +327,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = genres?.map { it.name } ?: emptyList(),
-            voteAverage = voteAverage ?: 0f,
+            voteAverage = (voteAverage ?: 0f) / 2f, // Scale from TMDB's 0-10 to 0-5
             studioOrDirector = director
         )
     }
@@ -344,7 +344,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = genres?.map { it.name } ?: emptyList(),
-            voteAverage = voteAverage ?: 0f,
+            voteAverage = (voteAverage ?: 0f) / 2f, // Scale from TMDB's 0-10 to 0-5
             studioOrDirector = director,
             seasons = seasons?.map { CineSeason(it.seasonNumber, it.name, it.episodeCount) } ?: emptyList()
         )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Visibility
@@ -31,7 +32,8 @@ import com.example.ui.theme.GrayText
 @Composable
 fun SettingsScreen(
     viewModel: CineViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onCloseClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val savedKey by viewModel.tmdbApiKey.collectAsState()
@@ -52,6 +54,14 @@ fun SettingsScreen(
                         "Paramètres",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onCloseClick) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Fermer les paramètres"
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
