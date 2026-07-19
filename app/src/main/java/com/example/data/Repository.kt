@@ -341,9 +341,15 @@ class Repository(
             try {
                 val collection = tmdbApi.getCollection(collectionId, tmdbKey)
                 collection.parts
-                    .map { it.toCineTitle() }
+                    .map { it.toCineTitle().copy(collectionId = collection.id, collectionName = collection.name) }
                     .filter { it.id != excludeTitleId }
                     .sortedBy { it.year }
+                    .also { titles ->
+                        // Also warm the local saga cache for these titles, so
+                        // they're grouped even if their detail page is never
+                        // opened individually (e.g. Search screen results).
+                        titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name) }
+                    }
             } catch (e: Exception) {
                 Log.e(tag, "Error fetching collection $collectionId: ${e.localizedMessage}")
                 emptyList()

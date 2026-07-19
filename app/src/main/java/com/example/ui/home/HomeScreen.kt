@@ -46,8 +46,23 @@ fun HomeScreen(
     onNavigateToDiscover: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val logs by viewModel.allLogs.collectAsState()
+    val logsRaw by viewModel.allLogs.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
+    val collectionCache by viewModel.collectionCache.collectAsState()
+
+    // Backfill collectionId for log entries recorded before the saga cache
+    // existed, so they regroup as soon as their saga is known locally.
+    val logs = remember(logsRaw, collectionCache) {
+        logsRaw.map { entry ->
+            if (entry.collectionId == null) {
+                collectionCache[entry.titleId]?.let { (id, name) ->
+                    entry.copy(collectionId = id, collectionName = name)
+                } ?: entry
+            } else {
+                entry
+            }
+        }
+    }
 
     // Calculated Statistics
     val totalWatched = logs.size

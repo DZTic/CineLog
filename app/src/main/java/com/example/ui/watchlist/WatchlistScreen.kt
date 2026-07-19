@@ -31,7 +31,24 @@ fun WatchlistScreen(
     onTitleClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val watchlist by viewModel.allWatchlist.collectAsState()
+    val watchlistRaw by viewModel.allWatchlist.collectAsState()
+    val collectionCache by viewModel.collectionCache.collectAsState()
+
+    // Entries added before the saga cache existed (or via the "Tout
+    // ajouter" bug) may have no collectionId stored yet. Backfill it from
+    // the local cache at read time so they regroup as soon as their saga is
+    // known, without needing to be re-added.
+    val watchlist = remember(watchlistRaw, collectionCache) {
+        watchlistRaw.map { entry ->
+            if (entry.collectionId == null) {
+                collectionCache[entry.titleId]?.let { (id, name) ->
+                    entry.copy(collectionId = id, collectionName = name)
+                } ?: entry
+            } else {
+                entry
+            }
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
