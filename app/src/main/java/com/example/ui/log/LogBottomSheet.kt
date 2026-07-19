@@ -302,7 +302,8 @@ fun LogDialog(
                                 revisionnage = isRevisionnage,
                                 spoiler = isSpoiler,
                                 collectionId = title.collectionId,
-                                collectionName = title.collectionName
+                                collectionName = title.collectionName,
+                                collectionPosterUrl = title.collectionPosterUrl
                             )
                             onDismiss()
                         },

@@ -51,7 +51,8 @@ data class CineTitle(
     val studioOrDirector: String? = null,
     val seasons: List<CineSeason> = emptyList(),
     val collectionId: Int? = null,   // TMDB "saga" this movie belongs to, if any
-    val collectionName: String? = null
+    val collectionName: String? = null,
+    val collectionPosterUrl: String? = null // official saga poster, distinct from this movie's own poster
 )
 
 class Repository(
@@ -151,10 +152,15 @@ class Repository(
     // movies without needing a network call per title (see DbCollectionCache).
     val collectionCache: Flow<List<DbCollectionCache>> = collectionCacheDao.getAll()
 
-    private suspend fun cacheCollectionInfo(titleId: String, collectionId: Int?, collectionName: String?) {
+    private suspend fun cacheCollectionInfo(
+        titleId: String,
+        collectionId: Int?,
+        collectionName: String?,
+        collectionPosterUrl: String?
+    ) {
         if (collectionId == null || collectionName.isNullOrBlank()) return
         withContext(Dispatchers.IO) {
-            collectionCacheDao.upsert(DbCollectionCache(titleId, collectionId, collectionName))
+            collectionCacheDao.upsert(DbCollectionCache(titleId, collectionId, collectionName, collectionPosterUrl))
         }
     }
 
@@ -312,7 +318,7 @@ class Repository(
                 if (tmdbKey.isEmpty()) throw IllegalStateException("Clé API TMDB manquante dans les Paramètres.")
                 val movie = tmdbApi.getMovieDetail(rawId, tmdbKey)
                 val cineTitle = movie.toCineTitle()
-                cacheCollectionInfo(cineTitle.id, cineTitle.collectionId, cineTitle.collectionName)
+                cacheCollectionInfo(cineTitle.id, cineTitle.collectionId, cineTitle.collectionName, cineTitle.collectionPosterUrl)
                 cineTitle
             }
             "tv" -> {
@@ -334,26 +340,75 @@ class Repository(
      * movie's detail screen and bulk-adding to the watchlist. Excludes
      * the movie the user is already looking at.
      */
+    private suspend fun fetchCollectionDetail(collectionId: Int): TmdbCollectionDetail? {
+        val tmdbKey = getTmdbKey()
+        if (tmdbKey.isEmpty()) return null
+        return try {
+            tmdbApi.getCollection(collectionId, tmdbKey)
+        } catch (e: Exception) {
+            Log.e(tag, "Error fetching collection $collectionId: ${e.localizedMessage}")
+            null
+        }
+    }
+
     suspend fun getCollectionTitles(collectionId: Int, excludeTitleId: String? = null): List<CineTitle> =
         withContext(Dispatchers.IO) {
-            val tmdbKey = getTmdbKey()
-            if (tmdbKey.isEmpty()) return@withContext emptyList()
-            try {
-                val collection = tmdbApi.getCollection(collectionId, tmdbKey)
-                collection.parts
-                    .map { it.toCineTitle().copy(collectionId = collection.id, collectionName = collection.name) }
-                    .filter { it.id != excludeTitleId }
-                    .sortedBy { it.year }
-                    .also { titles ->
-                        // Also warm the local saga cache for these titles, so
-                        // they're grouped even if their detail page is never
-                        // opened individually (e.g. Search screen results).
-                        titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name) }
-                    }
-            } catch (e: Exception) {
-                Log.e(tag, "Error fetching collection $collectionId: ${e.localizedMessage}")
-                emptyList()
-            }
+            val collection = fetchCollectionDetail(collectionId) ?: return@withContext emptyList()
+            val posterUrl = collection.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+            collection.parts
+                .map {
+                    it.toCineTitle().copy(
+                        collectionId = collection.id,
+                        collectionName = collection.name,
+                        collectionPosterUrl = posterUrl
+                    )
+                }
+                .filter { it.id != excludeTitleId }
+                .sortedBy { it.year }
+                .also { titles ->
+                    // Also warm the local saga cache for these titles, so
+                    // they're grouped even if their detail page is never
+                    // opened individually (e.g. Search screen results).
+                    titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name, posterUrl) }
+                }
+        }
+
+    /**
+     * Metadata describing a saga (TMDB "collection") itself, as opposed to
+     * one of the movies in it: its own name, synopsis and official poster.
+     */
+    data class SagaInfo(
+        val id: Int,
+        val name: String,
+        val overview: String?,
+        val posterUrl: String?
+    )
+
+    /**
+     * Fetches everything needed to render a dedicated saga screen: the
+     * saga's own metadata plus every movie that belongs to it.
+     */
+    suspend fun getSagaDetail(collectionId: Int): Pair<SagaInfo, List<CineTitle>>? =
+        withContext(Dispatchers.IO) {
+            val collection = fetchCollectionDetail(collectionId) ?: return@withContext null
+            val posterUrl = collection.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+            val info = SagaInfo(
+                id = collection.id,
+                name = collection.name,
+                overview = collection.overview,
+                posterUrl = posterUrl
+            )
+            val titles = collection.parts
+                .map {
+                    it.toCineTitle().copy(
+                        collectionId = collection.id,
+                        collectionName = collection.name,
+                        collectionPosterUrl = posterUrl
+                    )
+                }
+                .sortedBy { it.year }
+            titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name, posterUrl) }
+            info to titles
         }
 
     /**
@@ -464,7 +519,8 @@ class Repository(
             voteAverage = (voteAverage ?: 0f) / 2f, // Scale from TMDB's 0-10 to 0-5
             studioOrDirector = director,
             collectionId = belongsToCollection?.id,
-            collectionName = belongsToCollection?.name
+            collectionName = belongsToCollection?.name,
+            collectionPosterUrl = belongsToCollection?.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
         )
     }
 

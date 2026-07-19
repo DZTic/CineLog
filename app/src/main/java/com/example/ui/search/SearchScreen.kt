@@ -21,11 +21,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.groupBySaga
 
@@ -34,6 +34,7 @@ import com.example.ui.components.groupBySaga
 fun SearchScreen(
     viewModel: CineViewModel,
     onTitleClick: (String) -> Unit,
+    onSagaClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var query by remember { mutableStateOf("") }
@@ -53,7 +54,7 @@ fun SearchScreen(
         searchResults.groupBySaga(
             collectionId = { it.collectionId },
             collectionName = { it.collectionName },
-            posterUrl = { it.posterUrl }
+            posterUrl = { it.collectionPosterUrl }
         ).sortedByDescending { display ->
             when (display) {
                 is GroupedDisplay.Single -> display.item.voteAverage
@@ -244,23 +245,11 @@ fun SearchScreen(
                                 }
                                 is GroupedDisplay.Grouped -> {
                                     val group = display.group
-                                    // Open the best-rated (most relevant) movie of
-                                    // the saga; its detail page shows the rest.
-                                    val target = group.items.maxByOrNull { it.voteAverage }!!
-                                    val sagaTitle = CineTitle(
-                                        id = target.id,
-                                        type = TitleType.FILM,
-                                        title = group.collectionName,
-                                        year = "",
+                                    SagaCard(
+                                        name = group.collectionName,
                                         posterUrl = group.posterUrl,
-                                        synopsis = "",
-                                        genres = emptyList(),
-                                        voteAverage = group.items.map { it.voteAverage }.average().toFloat()
-                                    )
-                                    TitleCard(
-                                        title = sagaTitle,
-                                        onClick = { onTitleClick(target.id) },
-                                        sagaCount = group.items.size
+                                        filmCount = group.items.size,
+                                        onClick = { onSagaClick(group.collectionId) }
                                     )
                                 }
                             }

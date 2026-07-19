@@ -20,6 +20,7 @@ import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.groupBySaga
 import com.example.ui.theme.GrayText
@@ -29,6 +30,7 @@ import com.example.ui.theme.GrayText
 fun WatchlistScreen(
     viewModel: CineViewModel,
     onTitleClick: (String) -> Unit,
+    onSagaClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val watchlistRaw by viewModel.allWatchlist.collectAsState()
@@ -41,8 +43,12 @@ fun WatchlistScreen(
     val watchlist = remember(watchlistRaw, collectionCache) {
         watchlistRaw.map { entry ->
             if (entry.collectionId == null) {
-                collectionCache[entry.titleId]?.let { (id, name) ->
-                    entry.copy(collectionId = id, collectionName = name)
+                collectionCache[entry.titleId]?.let { cached ->
+                    entry.copy(
+                        collectionId = cached.collectionId,
+                        collectionName = cached.collectionName,
+                        collectionPosterUrl = cached.posterUrl
+                    )
                 } ?: entry
             } else {
                 entry
@@ -97,7 +103,7 @@ fun WatchlistScreen(
                     items.groupBySaga(
                         collectionId = { it.collectionId },
                         collectionName = { it.collectionName },
-                        posterUrl = { it.titlePosterUrl }
+                        posterUrl = { it.collectionPosterUrl }
                     ).sortedByDescending { display ->
                         when (display) {
                             is GroupedDisplay.Single -> display.item.dateAdded
@@ -154,24 +160,11 @@ fun WatchlistScreen(
                                 }
                                 is GroupedDisplay.Grouped -> {
                                     val group = display.group
-                                    // Navigate to the most recently added movie of
-                                    // the saga; its detail page already surfaces the
-                                    // full saga list to browse the rest.
-                                    val target = group.items.maxByOrNull { it.dateAdded }!!
-                                    val sagaTitle = CineTitle(
-                                        id = target.titleId,
-                                        type = TitleType.FILM,
-                                        title = group.collectionName,
-                                        year = "",
+                                    SagaCard(
+                                        name = group.collectionName,
                                         posterUrl = group.posterUrl,
-                                        synopsis = "",
-                                        genres = emptyList(),
-                                        voteAverage = 0f
-                                    )
-                                    TitleCard(
-                                        title = sagaTitle,
-                                        onClick = { onTitleClick(target.titleId) },
-                                        sagaCount = group.items.size
+                                        filmCount = group.items.size,
+                                        onClick = { onSagaClick(group.collectionId) }
                                     )
                                 }
                             }

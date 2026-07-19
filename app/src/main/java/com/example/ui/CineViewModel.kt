@@ -37,15 +37,17 @@ class CineViewModel(
     val allCustomLists: StateFlow<List<DbCustomList>> = repository.allCustomLists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // titleId -> (collectionId, collectionName), for movies whose saga is
-    // already known locally (visited at least once). Lets Search group a
+    // Local cache of movies whose saga is already known (visited at least
+    // once, or fetched as part of a saga listing). Lets Search group a
     // franchise together without extra network calls (TMDB's search
-    // endpoint doesn't return saga info, only the detail endpoint does).
-    // Uses Eagerly (not WhileSubscribed) because it's read via `.value` from
-    // performSearch rather than observed with collectAsState, so it must
-    // stay live even with no UI subscriber.
-    val collectionCache: StateFlow<Map<String, Pair<Int, String>>> = repository.collectionCache
-        .map { list -> list.associate { it.titleId to (it.collectionId to it.collectionName) } }
+    // endpoint doesn't return saga info, only the detail/collection
+    // endpoints do). Uses Eagerly (not WhileSubscribed) because it's read
+    // via `.value` from performSearch rather than observed with
+    // collectAsState, so it must stay live even with no UI subscriber.
+    data class CachedSaga(val collectionId: Int, val collectionName: String, val posterUrl: String?)
+
+    val collectionCache: StateFlow<Map<String, CachedSaga>> = repository.collectionCache
+        .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     // ==========================================
@@ -98,6 +100,45 @@ class CineViewModel(
 
     private val _collectionTitles = MutableStateFlow<List<CineTitle>>(emptyList())
     val collectionTitles: StateFlow<List<CineTitle>> = _collectionTitles.asStateFlow()
+
+    // ==========================================
+    // SAGA DETAIL STATE (dedicated screen for a whole TMDB collection)
+    // ==========================================
+
+    private val _sagaLoading = MutableStateFlow(false)
+    val sagaLoading: StateFlow<Boolean> = _sagaLoading.asStateFlow()
+
+    private val _sagaError = MutableStateFlow<String?>(null)
+    val sagaError: StateFlow<String?> = _sagaError.asStateFlow()
+
+    private val _sagaInfo = MutableStateFlow<Repository.SagaInfo?>(null)
+    val sagaInfo: StateFlow<Repository.SagaInfo?> = _sagaInfo.asStateFlow()
+
+    private val _sagaTitles = MutableStateFlow<List<CineTitle>>(emptyList())
+    val sagaTitles: StateFlow<List<CineTitle>> = _sagaTitles.asStateFlow()
+
+    fun loadSagaDetail(collectionId: Int) {
+        viewModelScope.launch {
+            _sagaLoading.value = true
+            _sagaError.value = null
+            _sagaInfo.value = null
+            _sagaTitles.value = emptyList()
+            try {
+                val result = repository.getSagaDetail(collectionId)
+                if (result != null) {
+                    _sagaInfo.value = result.first
+                    _sagaTitles.value = result.second
+                } else {
+                    _sagaError.value = "Impossible de charger cette saga."
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "Error loading saga detail: ${e.localizedMessage}")
+                _sagaError.value = e.localizedMessage ?: "Erreur de chargement de la saga."
+            } finally {
+                _sagaLoading.value = false
+            }
+        }
+    }
 
     // Maps season number -> status, for the title currently on screen.
     private val _currentSeasonProgress = MutableStateFlow<Map<Int, SeasonStatus>>(emptyMap())
@@ -160,7 +201,15 @@ class CineViewModel(
                 _searchResults.value = results.map { title ->
                     if (title.collectionId == null) {
                         val cached = cache[title.id]
-                        if (cached != null) title.copy(collectionId = cached.first, collectionName = cached.second) else title
+                        if (cached != null) {
+                            title.copy(
+                                collectionId = cached.collectionId,
+                                collectionName = cached.collectionName,
+                                collectionPosterUrl = cached.posterUrl
+                            )
+                        } else {
+                            title
+                        }
                     } else {
                         title
                     }
@@ -250,7 +299,8 @@ class CineViewModel(
         revisionnage: Boolean,
         spoiler: Boolean,
         collectionId: Int? = null,
-        collectionName: String? = null
+        collectionName: String? = null,
+        collectionPosterUrl: String? = null
     ) {
         viewModelScope.launch {
             try {
@@ -265,7 +315,8 @@ class CineViewModel(
                     revisionnage = revisionnage,
                     spoiler = spoiler,
                     collectionId = collectionId,
-                    collectionName = collectionName
+                    collectionName = collectionName,
+                    collectionPosterUrl = collectionPosterUrl
                 )
                 repository.insertLog(entry)
                 
@@ -328,7 +379,8 @@ class CineViewModel(
                                 titleName = title.title,
                                 titlePosterUrl = title.posterUrl,
                                 collectionId = title.collectionId,
-                                collectionName = title.collectionName
+                                collectionName = title.collectionName,
+                                collectionPosterUrl = title.collectionPosterUrl
                             )
                         )
                     }
@@ -345,7 +397,8 @@ class CineViewModel(
         name: String,
         posterUrl: String?,
         collectionId: Int? = null,
-        collectionName: String? = null
+        collectionName: String? = null,
+        collectionPosterUrl: String? = null
     ) {
         viewModelScope.launch {
             try {
@@ -360,7 +413,8 @@ class CineViewModel(
                             titleName = name,
                             titlePosterUrl = posterUrl,
                             collectionId = collectionId,
-                            collectionName = collectionName
+                            collectionName = collectionName,
+                            collectionPosterUrl = collectionPosterUrl
                         )
                     )
                 }

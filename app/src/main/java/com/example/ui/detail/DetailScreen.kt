@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -52,6 +53,7 @@ fun DetailScreen(
     onBackClick: () -> Unit,
     onLogClick: (CineTitle) -> Unit,
     onTitleClick: (String) -> Unit = {},
+    onSagaClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -286,7 +288,8 @@ fun DetailScreen(
                                             name = title.title,
                                             posterUrl = title.posterUrl,
                                             collectionId = title.collectionId,
-                                            collectionName = title.collectionName
+                                            collectionName = title.collectionName,
+                                            collectionPosterUrl = title.collectionPosterUrl
                                         )
                                         val msg = if (isInWatchlist) "Retiré de la Watchlist" else "Ajouté à la Watchlist"
                                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -357,12 +360,25 @@ fun DetailScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Saga",
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onSagaClick(title.collectionId!!) }
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = "Saga",
+                                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onBackground
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                                contentDescription = "Voir toute la saga",
+                                                tint = GrayText,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
                                         if (!title.collectionName.isNullOrBlank()) {
                                             Text(
                                                 text = title.collectionName,

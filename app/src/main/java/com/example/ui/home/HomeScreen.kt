@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -31,6 +32,7 @@ import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.components.TypeBadge
 import com.example.ui.components.groupBySaga
+import com.example.ui.theme.CinemaSecondary
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.StarGold
@@ -43,6 +45,7 @@ import java.util.Locale
 fun HomeScreen(
     viewModel: CineViewModel,
     onTitleClick: (String) -> Unit,
+    onSagaClick: (Int) -> Unit,
     onNavigateToDiscover: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -55,8 +58,12 @@ fun HomeScreen(
     val logs = remember(logsRaw, collectionCache) {
         logsRaw.map { entry ->
             if (entry.collectionId == null) {
-                collectionCache[entry.titleId]?.let { (id, name) ->
-                    entry.copy(collectionId = id, collectionName = name)
+                collectionCache[entry.titleId]?.let { cached ->
+                    entry.copy(
+                        collectionId = cached.collectionId,
+                        collectionName = cached.collectionName,
+                        collectionPosterUrl = cached.posterUrl
+                    )
                 } ?: entry
             } else {
                 entry
@@ -87,7 +94,7 @@ fun HomeScreen(
             logsForType.groupBySaga(
                 collectionId = { it.collectionId },
                 collectionName = { it.collectionName },
-                posterUrl = { it.titlePosterUrl }
+                posterUrl = { it.collectionPosterUrl }
             ).sortedByDescending { display ->
                 when (display) {
                     is GroupedDisplay.Single -> display.item.dateVue
@@ -222,11 +229,10 @@ fun HomeScreen(
                                     SagaActivityRow(
                                         collectionName = group.collectionName,
                                         posterUrl = group.posterUrl,
-                                        titleType = TitleType.valueOf(latest.titleType),
                                         count = group.items.size,
                                         averageNote = group.items.map { it.note }.average().toFloat(),
                                         latestDateVue = latest.dateVue,
-                                        onTitleClick = { onTitleClick(latest.titleId) }
+                                        onClick = { onSagaClick(group.collectionId) }
                                     )
                                 }
                             }
@@ -395,11 +401,10 @@ fun RecentActivityRow(
 fun SagaActivityRow(
     collectionName: String,
     posterUrl: String?,
-    titleType: TitleType,
     count: Int,
     averageNote: Float,
     latestDateVue: Long,
-    onTitleClick: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
@@ -409,7 +414,7 @@ fun SagaActivityRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onTitleClick() },
+            .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
     ) {
@@ -418,7 +423,7 @@ fun SagaActivityRow(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Mini Poster
+            // Affiche de la saga (pas celle d'un film en particulier)
             Box(
                 modifier = Modifier
                     .size(width = 50.dp, height = 75.dp)
@@ -438,7 +443,7 @@ fun SagaActivityRow(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Movie,
+                            imageVector = Icons.Default.Collections,
                             contentDescription = null,
                             tint = GrayText.copy(alpha = 0.5f),
                             modifier = Modifier.size(24.dp)
@@ -455,7 +460,20 @@ fun SagaActivityRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    TypeBadge(type = titleType, compact = true)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(CinemaSecondary.copy(alpha = 0.15f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "SAGA",
+                            color = CinemaSecondary,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                     Text(
                         text = "Dernier vu le $formattedDate",
                         style = MaterialTheme.typography.bodySmall,

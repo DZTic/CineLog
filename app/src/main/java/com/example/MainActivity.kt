@@ -72,6 +72,7 @@ import com.example.ui.home.HomeScreen
 import com.example.ui.lists.ListsScreen
 import com.example.ui.log.LogDialog
 import com.example.ui.profile.ProfileScreen
+import com.example.ui.saga.SagaDetailScreen
 import com.example.ui.search.SearchScreen
 import com.example.ui.settings.SettingsScreen
 import com.example.ui.watchlist.WatchlistScreen
@@ -117,6 +118,9 @@ sealed class Screen(val route: String, val title: String) {
     object Settings : Screen("settings", "Paramètres")
     object Detail : Screen("detail/{titleId}", "Détails") {
         fun createRoute(titleId: String) = "detail/$titleId"
+    }
+    object SagaDetail : Screen("saga/{collectionId}", "Saga") {
+        fun createRoute(collectionId: Int) = "saga/$collectionId"
     }
 }
 
@@ -262,6 +266,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
                     },
+                    onSagaClick = { collectionId ->
+                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
+                    },
                     onNavigateToDiscover = {
                         navController.navigate(Screen.Discover.route)
                     }
@@ -284,6 +291,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     viewModel = viewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
+                    },
+                    onSagaClick = { collectionId ->
+                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
                     }
                 )
             }
@@ -294,6 +304,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     viewModel = viewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
+                    },
+                    onSagaClick = { collectionId ->
+                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
                     }
                 )
             }
@@ -358,6 +371,25 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     onLogClick = { title -> loggingTitle = title },
                     onTitleClick = { otherTitleId ->
                         navController.navigate(Screen.Detail.createRoute(otherTitleId))
+                    },
+                    onSagaClick = { collectionId ->
+                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
+                    }
+                )
+            }
+
+            // Saga (TMDB collection) Detail View
+            composable(
+                route = Screen.SagaDetail.route,
+                arguments = listOf(navArgument("collectionId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getInt("collectionId") ?: 0
+                SagaDetailScreen(
+                    collectionId = collectionId,
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onTitleClick = { titleId ->
+                        navController.navigate(Screen.Detail.createRoute(titleId))
                     }
                 )
             }

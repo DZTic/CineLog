@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StarHalf
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
@@ -194,8 +195,7 @@ fun HalfStarRatingBar(
 fun TitleCard(
     title: CineTitle,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    sagaCount: Int? = null
+    modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
@@ -244,24 +244,6 @@ fun TitleCard(
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                 )
-
-                // Badge "saga" indiquant le nombre de films regroupés
-                if (sagaCount != null && sagaCount > 1) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(4.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.Black.copy(alpha = 0.65f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "×$sagaCount",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
-                        )
-                    }
-                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -296,6 +278,96 @@ fun TitleCard(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Carte dédiée à une saga (collection TMDB regroupant plusieurs films),
+ * utilisée à la place de TitleCard dans Watchlist, Activité Récente et
+ * Recherche quand plusieurs films d'une même franchise sont regroupés.
+ * Contrairement à TitleCard : badge "SAGA" (pas le type du dernier film
+ * consulté), affiche l'affiche officielle de la saga elle-même (pas celle
+ * d'un film en particulier), et indique le nombre de films en texte sous
+ * le titre plutôt que via un badge superposé sur l'affiche.
+ */
+@Composable
+fun SagaCard(
+    name: String,
+    posterUrl: String?,
+    filmCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        )
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (posterUrl != null) {
+                    AsyncImage(
+                        model = posterUrl,
+                        contentDescription = name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Collections,
+                            contentDescription = null,
+                            tint = GrayText.copy(alpha = 0.5f),
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
+
+                // Badge "SAGA", visuellement distinct des badges FILM/SÉRIE/ANIME
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(CinemaSecondary.copy(alpha = 0.9f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "SAGA",
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (filmCount > 1) "$filmCount films" else "$filmCount film",
+                style = MaterialTheme.typography.bodySmall,
+                color = GrayText
+            )
         }
     }
 }

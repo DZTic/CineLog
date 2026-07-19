@@ -16,7 +16,8 @@ data class DbLogEntry(
     val revisionnage: Boolean,
     val spoiler: Boolean,
     val collectionId: Int? = null,     // TMDB "saga" this movie belongs to, if any
-    val collectionName: String? = null
+    val collectionName: String? = null,
+    val collectionPosterUrl: String? = null
 )
 
 @Entity(tableName = "watchlist")
@@ -27,7 +28,8 @@ data class DbWatchlist(
     val titlePosterUrl: String?,
     val dateAdded: Long = System.currentTimeMillis(),
     val collectionId: Int? = null,     // TMDB "saga" this movie belongs to, if any
-    val collectionName: String? = null
+    val collectionName: String? = null,
+    val collectionPosterUrl: String? = null
 )
 
 // Lightweight local cache of titleId -> TMDB "saga" (collection), populated
@@ -39,7 +41,8 @@ data class DbWatchlist(
 data class DbCollectionCache(
     @PrimaryKey val titleId: String,
     val collectionId: Int,
-    val collectionName: String
+    val collectionName: String,
+    val collectionPosterUrl: String? = null
 )
 
 @Entity(tableName = "custom_lists")
