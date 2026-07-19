@@ -19,7 +19,9 @@ import com.example.data.DbWatchlist
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
+import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.TitleCard
+import com.example.ui.components.groupBySaga
 import com.example.ui.theme.GrayText
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,13 +63,29 @@ fun WatchlistScreen(
             }
         } else {
             // Group by category (Films / Séries / Animes) for readability,
-            // same approach as the "Activité Récente" grouping on Home.
+            // same approach as the "Activité Récente" grouping on Home. Within
+            // each category, movies that belong to the same TMDB saga are
+            // further collapsed into a single entry.
             val groupedWatchlist = remember(watchlist) {
                 watchlist.groupBy {
                     try {
                         TitleType.valueOf(it.titleType)
                     } catch (e: Exception) {
                         TitleType.FILM
+                    }
+                }
+            }
+            val displayItemsByType = remember(groupedWatchlist) {
+                groupedWatchlist.mapValues { (_, items) ->
+                    items.groupBySaga(
+                        collectionId = { it.collectionId },
+                        collectionName = { it.collectionName },
+                        posterUrl = { it.titlePosterUrl }
+                    ).sortedByDescending { display ->
+                        when (display) {
+                            is GroupedDisplay.Single -> display.item.dateAdded
+                            is GroupedDisplay.Grouped -> display.group.items.maxOf { it.dateAdded }
+                        }
                     }
                 }
             }
@@ -84,7 +102,8 @@ fun WatchlistScreen(
             ) {
                 categoryOrder.forEach { type ->
                     val itemsForType = groupedWatchlist[type]
-                    if (!itemsForType.isNullOrEmpty()) {
+                    val displayItems = displayItemsByType[type]
+                    if (!itemsForType.isNullOrEmpty() && !displayItems.isNullOrEmpty()) {
                         item(
                             key = "header_${type.name}",
                             span = { GridItemSpan(maxLineSpan) }
@@ -99,12 +118,46 @@ fun WatchlistScreen(
                                 )
                             )
                         }
-                        items(itemsForType, key = { it.titleId }) { item ->
-                            val title = item.toCineTitle()
-                            TitleCard(
-                                title = title,
-                                onClick = { onTitleClick(title.id) }
-                            )
+                        items(
+                            displayItems,
+                            key = { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> display.item.titleId
+                                    is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
+                                }
+                            }
+                        ) { display ->
+                            when (display) {
+                                is GroupedDisplay.Single -> {
+                                    val title = display.item.toCineTitle()
+                                    TitleCard(
+                                        title = title,
+                                        onClick = { onTitleClick(title.id) }
+                                    )
+                                }
+                                is GroupedDisplay.Grouped -> {
+                                    val group = display.group
+                                    // Navigate to the most recently added movie of
+                                    // the saga; its detail page already surfaces the
+                                    // full saga list to browse the rest.
+                                    val target = group.items.maxByOrNull { it.dateAdded }!!
+                                    val sagaTitle = CineTitle(
+                                        id = target.titleId,
+                                        type = TitleType.FILM,
+                                        title = group.collectionName,
+                                        year = "",
+                                        posterUrl = group.posterUrl,
+                                        synopsis = "",
+                                        genres = emptyList(),
+                                        voteAverage = 0f
+                                    )
+                                    TitleCard(
+                                        title = sagaTitle,
+                                        onClick = { onTitleClick(target.titleId) },
+                                        sagaCount = group.items.size
+                                    )
+                                }
+                            }
                         }
                     }
                 }

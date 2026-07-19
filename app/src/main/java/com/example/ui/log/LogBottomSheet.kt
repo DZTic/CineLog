@@ -300,7 +300,9 @@ fun LogDialog(
                                 note = rating,
                                 critique = critiqueText,
                                 revisionnage = isRevisionnage,
-                                spoiler = isSpoiler
+                                spoiler = isSpoiler,
+                                collectionId = title.collectionId,
+                                collectionName = title.collectionName
                             )
                             onDismiss()
                         },

@@ -21,10 +21,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
+import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.TitleCard
+import com.example.ui.components.groupBySaga
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +44,23 @@ fun SearchScreen(
     val loading by viewModel.searchLoading.collectAsState()
     val error by viewModel.searchError.collectAsState()
     val apiKey by viewModel.tmdbApiKey.collectAsState()
+
+    // Movies from the same saga (TMDB collection) are collapsed into a
+    // single result, so a franchise shows up once instead of cluttering the
+    // grid with every film in it. Order is kept close to the original
+    // relevance ranking (best vote average first).
+    val displayResults = remember(searchResults) {
+        searchResults.groupBySaga(
+            collectionId = { it.collectionId },
+            collectionName = { it.collectionName },
+            posterUrl = { it.posterUrl }
+        ).sortedByDescending { display ->
+            when (display) {
+                is GroupedDisplay.Single -> display.item.voteAverage
+                is GroupedDisplay.Grouped -> display.group.items.maxOf { it.voteAverage }
+            }
+        }
+    }
 
     // Perform search whenever query or filter changes
     LaunchedEffect(query, selectedFilter) {
@@ -206,11 +226,44 @@ fun SearchScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(searchResults) { title ->
-                            TitleCard(
-                                title = title,
-                                onClick = { onTitleClick(title.id) }
-                            )
+                        items(
+                            displayResults,
+                            key = { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> display.item.id
+                                    is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
+                                }
+                            }
+                        ) { display ->
+                            when (display) {
+                                is GroupedDisplay.Single -> {
+                                    TitleCard(
+                                        title = display.item,
+                                        onClick = { onTitleClick(display.item.id) }
+                                    )
+                                }
+                                is GroupedDisplay.Grouped -> {
+                                    val group = display.group
+                                    // Open the best-rated (most relevant) movie of
+                                    // the saga; its detail page shows the rest.
+                                    val target = group.items.maxByOrNull { it.voteAverage }!!
+                                    val sagaTitle = CineTitle(
+                                        id = target.id,
+                                        type = TitleType.FILM,
+                                        title = group.collectionName,
+                                        year = "",
+                                        posterUrl = group.posterUrl,
+                                        synopsis = "",
+                                        genres = emptyList(),
+                                        voteAverage = group.items.map { it.voteAverage }.average().toFloat()
+                                    )
+                                    TitleCard(
+                                        title = sagaTitle,
+                                        onClick = { onTitleClick(target.id) },
+                                        sagaCount = group.items.size
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -59,6 +59,7 @@ class Repository(
     private val watchlistDao: WatchlistDao,
     private val customListDao: CustomListDao,
     private val seasonProgressDao: SeasonProgressDao,
+    private val collectionCacheDao: CollectionCacheDao,
     private val preferenceManager: PreferenceManager
 ) {
     private val tag = "Repository"
@@ -145,6 +146,17 @@ class Repository(
                 )
             }
         }
+
+    // Local cache mapping titleId -> saga (TMDB collection), used to group
+    // movies without needing a network call per title (see DbCollectionCache).
+    val collectionCache: Flow<List<DbCollectionCache>> = collectionCacheDao.getAll()
+
+    private suspend fun cacheCollectionInfo(titleId: String, collectionId: Int?, collectionName: String?) {
+        if (collectionId == null || collectionName.isNullOrBlank()) return
+        withContext(Dispatchers.IO) {
+            collectionCacheDao.upsert(DbCollectionCache(titleId, collectionId, collectionName))
+        }
+    }
 
     val allCustomLists: Flow<List<DbCustomList>> = customListDao.getAllCustomLists()
 
@@ -299,7 +311,9 @@ class Repository(
                 val tmdbKey = getTmdbKey()
                 if (tmdbKey.isEmpty()) throw IllegalStateException("Clé API TMDB manquante dans les Paramètres.")
                 val movie = tmdbApi.getMovieDetail(rawId, tmdbKey)
-                movie.toCineTitle()
+                val cineTitle = movie.toCineTitle()
+                cacheCollectionInfo(cineTitle.id, cineTitle.collectionId, cineTitle.collectionName)
+                cineTitle
             }
             "tv" -> {
                 val tmdbKey = getTmdbKey()

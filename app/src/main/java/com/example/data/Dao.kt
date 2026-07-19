@@ -68,6 +68,15 @@ interface CustomListDao {
 }
 
 @Dao
+interface CollectionCacheDao {
+    @Query("SELECT * FROM collection_cache")
+    fun getAll(): Flow<List<DbCollectionCache>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: DbCollectionCache)
+}
+
+@Dao
 interface SeasonProgressDao {
     @Query("SELECT * FROM season_progress WHERE titleId = :titleId")
     fun getForTitle(titleId: String): Flow<List<DbSeasonProgress>>

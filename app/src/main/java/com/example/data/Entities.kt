@@ -14,7 +14,9 @@ data class DbLogEntry(
     val note: Float,           // 0.5 to 5.0
     val critique: String,
     val revisionnage: Boolean,
-    val spoiler: Boolean
+    val spoiler: Boolean,
+    val collectionId: Int? = null,     // TMDB "saga" this movie belongs to, if any
+    val collectionName: String? = null
 )
 
 @Entity(tableName = "watchlist")
@@ -23,7 +25,21 @@ data class DbWatchlist(
     val titleType: String,
     val titleName: String,
     val titlePosterUrl: String?,
-    val dateAdded: Long = System.currentTimeMillis()
+    val dateAdded: Long = System.currentTimeMillis(),
+    val collectionId: Int? = null,     // TMDB "saga" this movie belongs to, if any
+    val collectionName: String? = null
+)
+
+// Lightweight local cache of titleId -> TMDB "saga" (collection), populated
+// every time a movie's detail page is loaded. TMDB's search endpoints don't
+// return belongs_to_collection (only the detail endpoint does), so this
+// cache lets the Search screen group already-seen movies into their saga
+// without an extra network round-trip per result.
+@Entity(tableName = "collection_cache")
+data class DbCollectionCache(
+    @PrimaryKey val titleId: String,
+    val collectionId: Int,
+    val collectionName: String
 )
 
 @Entity(tableName = "custom_lists")

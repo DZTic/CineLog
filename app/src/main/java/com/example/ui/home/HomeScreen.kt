@@ -27,8 +27,10 @@ import com.example.data.DbLogEntry
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
+import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.components.TypeBadge
+import com.example.ui.components.groupBySaga
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.StarGold
@@ -62,6 +64,22 @@ fun HomeScreen(
         logs
             .sortedByDescending { it.dateVue }
             .groupBy { TitleType.valueOf(it.titleType) }
+    }
+    // Within each category, movies from the same TMDB saga are collapsed
+    // into a single "Activité Récente" row instead of one row per film.
+    val displayItemsByType = remember(groupedLogs) {
+        groupedLogs.mapValues { (_, logsForType) ->
+            logsForType.groupBySaga(
+                collectionId = { it.collectionId },
+                collectionName = { it.collectionName },
+                posterUrl = { it.titlePosterUrl }
+            ).sortedByDescending { display ->
+                when (display) {
+                    is GroupedDisplay.Single -> display.item.dateVue
+                    is GroupedDisplay.Grouped -> display.group.items.maxOf { it.dateVue }
+                }
+            }
+        }
     }
     val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
 
@@ -157,7 +175,8 @@ fun HomeScreen(
             } else {
                 categoryOrder.forEach { type ->
                     val logsForType = groupedLogs[type]
-                    if (!logsForType.isNullOrEmpty()) {
+                    val displayItems = displayItemsByType[type]
+                    if (!logsForType.isNullOrEmpty() && !displayItems.isNullOrEmpty()) {
                         item(key = "header_${type.name}") {
                             Text(
                                 text = "${type.displayName}s (${logsForType.size})",
@@ -166,11 +185,36 @@ fun HomeScreen(
                                 color = GrayText
                             )
                         }
-                        items(logsForType, key = { "log_${it.id}" }) { log ->
-                            RecentActivityRow(
-                                log = log,
-                                onTitleClick = { onTitleClick(log.titleId) }
-                            )
+                        items(
+                            displayItems,
+                            key = { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> "log_${display.item.id}"
+                                    is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
+                                }
+                            }
+                        ) { display ->
+                            when (display) {
+                                is GroupedDisplay.Single -> {
+                                    RecentActivityRow(
+                                        log = display.item,
+                                        onTitleClick = { onTitleClick(display.item.titleId) }
+                                    )
+                                }
+                                is GroupedDisplay.Grouped -> {
+                                    val group = display.group
+                                    val latest = group.items.maxByOrNull { it.dateVue }!!
+                                    SagaActivityRow(
+                                        collectionName = group.collectionName,
+                                        posterUrl = group.posterUrl,
+                                        titleType = TitleType.valueOf(latest.titleType),
+                                        count = group.items.size,
+                                        averageNote = group.items.map { it.note }.average().toFloat(),
+                                        latestDateVue = latest.dateVue,
+                                        onTitleClick = { onTitleClick(latest.titleId) }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -322,6 +366,117 @@ fun RecentActivityRow(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Row for a whole saga (TMDB collection): shown instead of one
+ * RecentActivityRow per movie once two or more films from the same
+ * franchise have been logged.
+ */
+@Composable
+fun SagaActivityRow(
+    collectionName: String,
+    posterUrl: String?,
+    titleType: TitleType,
+    count: Int,
+    averageNote: Float,
+    latestDateVue: Long,
+    onTitleClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
+    val formattedDate = remember(latestDateVue) { formatter.format(Date(latestDateVue)) }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable { onTitleClick() },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            // Mini Poster
+            Box(
+                modifier = Modifier
+                    .size(width = 50.dp, height = 75.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                if (posterUrl != null) {
+                    AsyncImage(
+                        model = posterUrl,
+                        contentDescription = collectionName,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Movie,
+                            contentDescription = null,
+                            tint = GrayText.copy(alpha = 0.5f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TypeBadge(type = titleType, compact = true)
+                    Text(
+                        text = "Dernier vu le $formattedDate",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = GrayText
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = collectionName,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HalfStarRatingBar(rating = averageNote, starSize = 14.dp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${String.format("%.1f", averageNote)} ★ moy.",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = StarGold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "$count films vus de la saga",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = GrayText
+                )
             }
         }
     }

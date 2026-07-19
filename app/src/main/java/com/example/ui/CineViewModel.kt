@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class CineViewModel(
@@ -35,6 +36,17 @@ class CineViewModel(
 
     val allCustomLists: StateFlow<List<DbCustomList>> = repository.allCustomLists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // titleId -> (collectionId, collectionName), for movies whose saga is
+    // already known locally (visited at least once). Lets Search group a
+    // franchise together without extra network calls (TMDB's search
+    // endpoint doesn't return saga info, only the detail endpoint does).
+    // Uses Eagerly (not WhileSubscribed) because it's read via `.value` from
+    // performSearch rather than observed with collectAsState, so it must
+    // stay live even with no UI subscriber.
+    val collectionCache: StateFlow<Map<String, Pair<Int, String>>> = repository.collectionCache
+        .map { list -> list.associate { it.titleId to (it.collectionId to it.collectionName) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     // ==========================================
     // DISCOVER / COLD-START SCREEN STATE
@@ -144,7 +156,15 @@ class CineViewModel(
             _searchError.value = null
             try {
                 val results = repository.searchTitles(query, filter)
-                _searchResults.value = results
+                val cache = collectionCache.value
+                _searchResults.value = results.map { title ->
+                    if (title.collectionId == null) {
+                        val cached = cache[title.id]
+                        if (cached != null) title.copy(collectionId = cached.first, collectionName = cached.second) else title
+                    } else {
+                        title
+                    }
+                }
                 if (results.isEmpty() && filter != TitleType.ANIME && _tmdbApiKey.value.isEmpty()) {
                     _searchError.value = "Aucun résultat TMDB. Configurez votre clé API TMDB dans les paramètres !"
                 }
@@ -228,7 +248,9 @@ class CineViewModel(
         note: Float,
         critique: String,
         revisionnage: Boolean,
-        spoiler: Boolean
+        spoiler: Boolean,
+        collectionId: Int? = null,
+        collectionName: String? = null
     ) {
         viewModelScope.launch {
             try {
@@ -241,7 +263,9 @@ class CineViewModel(
                     note = note,
                     critique = critique,
                     revisionnage = revisionnage,
-                    spoiler = spoiler
+                    spoiler = spoiler,
+                    collectionId = collectionId,
+                    collectionName = collectionName
                 )
                 repository.insertLog(entry)
                 
@@ -302,7 +326,9 @@ class CineViewModel(
                                 titleId = title.id,
                                 titleType = title.type.name,
                                 titleName = title.title,
-                                titlePosterUrl = title.posterUrl
+                                titlePosterUrl = title.posterUrl,
+                                collectionId = title.collectionId,
+                                collectionName = title.collectionName
                             )
                         )
                     }
@@ -313,7 +339,14 @@ class CineViewModel(
         }
     }
 
-    fun toggleWatchlist(titleId: String, type: TitleType, name: String, posterUrl: String?) {
+    fun toggleWatchlist(
+        titleId: String,
+        type: TitleType,
+        name: String,
+        posterUrl: String?,
+        collectionId: Int? = null,
+        collectionName: String? = null
+    ) {
         viewModelScope.launch {
             try {
                 val isIn = repository.isInWatchlist(titleId).first()
@@ -325,7 +358,9 @@ class CineViewModel(
                             titleId = titleId,
                             titleType = type.name,
                             titleName = name,
-                            titlePosterUrl = posterUrl
+                            titlePosterUrl = posterUrl,
+                            collectionId = collectionId,
+                            collectionName = collectionName
                         )
                     )
                 }

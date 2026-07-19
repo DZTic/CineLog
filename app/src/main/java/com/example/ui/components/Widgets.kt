@@ -194,7 +194,8 @@ fun HalfStarRatingBar(
 fun TitleCard(
     title: CineTitle,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sagaCount: Int? = null
 ) {
     Card(
         modifier = modifier
@@ -243,6 +244,24 @@ fun TitleCard(
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                 )
+
+                // Badge "saga" indiquant le nombre de films regroupés
+                if (sagaCount != null && sagaCount > 1) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "×$sagaCount",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
