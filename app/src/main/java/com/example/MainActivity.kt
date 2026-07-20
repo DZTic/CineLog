@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -257,7 +260,16 @@ fun MainAppScaffold(viewModel: CineViewModel) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding()),
+            // Sans ceci, Navigation Compose ne joue AUCUNE animation par
+            // défaut : chaque écran (changement d'onglet, ouverture d'une
+            // fiche détail...) remplace l'écran précédent d'un coup sec.
+            // Un fondu court garde la navigation perçue comme rapide tout
+            // en la rendant fluide plutôt que brutale.
+            enterTransition = { fadeIn(animationSpec = tween(180)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(180)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
             // Home View
             composable(Screen.Home.route) {
