@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,7 +43,7 @@ fun DiscoverScreen(
     val error by viewModel.discoverError.collectAsState()
     val apiKey by viewModel.tmdbApiKey.collectAsState()
 
-    var selectedFilter by remember { mutableStateOf<TitleType?>(null) }
+    var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),

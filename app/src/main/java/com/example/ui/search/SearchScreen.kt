@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,8 +38,8 @@ fun SearchScreen(
     onSagaClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var query by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf<TitleType?>(null) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
     val focusManager = LocalFocusManager.current
 
     val searchResults by viewModel.searchResults.collectAsState()
