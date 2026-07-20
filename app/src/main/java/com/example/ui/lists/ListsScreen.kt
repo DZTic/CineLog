@@ -197,8 +197,10 @@ fun ListsScreen(
     } else {
         // DETAIL VIEW: Content of a specific List
         val listId = activeListId!!
-        val listDetail by viewModel.getCustomListDetail(listId).collectAsState(null)
-        val listTitles by viewModel.getCustomListTitlesFlow(listId).collectAsState(emptyList())
+        val listDetailFlow = remember(listId) { viewModel.getCustomListDetail(listId) }
+        val listTitlesFlow = remember(listId) { viewModel.getCustomListTitlesFlow(listId) }
+        val listDetail by listDetailFlow.collectAsState(null)
+        val listTitles by listTitlesFlow.collectAsState(emptyList())
         val context = LocalContext.current
 
         Scaffold(

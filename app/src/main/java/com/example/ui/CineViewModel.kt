@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -226,15 +228,31 @@ class CineViewModel(
         }
     }
 
+    // Tracks the background collectors started by loadTitleDetail() so a
+    // previous title's collector can be cancelled before starting a new
+    // one. Without this, navigating between titles piles up collectors
+    // that never stop, and an old one can overwrite the currently
+    // displayed title's state with another title's data whenever the
+    // underlying table changes (stale/wrong "déjà vu" badge, wrong
+    // rating, etc.).
+    private var logsJob: Job? = null
+    private var seasonProgressJob: Job? = null
+    private var collectionJob: Job? = null
+
     /**
      * Fetch Details of movie, show, or anime
      */
     fun loadTitleDetail(titleId: String) {
+        logsJob?.cancel()
+        seasonProgressJob?.cancel()
+        collectionJob?.cancel()
+
         viewModelScope.launch {
             _detailLoading.value = true
             _detailError.value = null
             _currentTitle.value = null
             _collectionTitles.value = emptyList()
+            _currentTitleLogs.value = emptyList()
             _currentSeasonProgress.value = emptyMap()
             try {
                 // Read details from API
@@ -242,14 +260,14 @@ class CineViewModel(
                 _currentTitle.value = detail
 
                 // Read local journal logs for this title in a separate coroutine to avoid blocking
-                viewModelScope.launch {
+                logsJob = viewModelScope.launch {
                     repository.getLogsForTitle(titleId).collect { logs ->
                         _currentTitleLogs.value = logs
                     }
                 }
 
                 if (detail.seasons.isNotEmpty()) {
-                    viewModelScope.launch {
+                    seasonProgressJob = viewModelScope.launch {
                         repository.getSeasonProgressForTitle(titleId).collect { progress ->
                             _currentSeasonProgress.value = progress.associate { entry ->
                                 entry.seasonNumber to (
@@ -268,7 +286,7 @@ class CineViewModel(
                 // so a slow/failed collection lookup never blocks the main detail.
                 val collectionId = detail.collectionId
                 if (collectionId != null) {
-                    viewModelScope.launch {
+                    collectionJob = viewModelScope.launch {
                         _collectionTitles.value = repository.getCollectionTitles(
                             collectionId,
                             excludeTitleId = titleId
@@ -352,15 +370,7 @@ class CineViewModel(
     // WATCHLIST MANAGEMENT
     // ==========================================
 
-    fun isTitleInWatchlist(titleId: String): StateFlow<Boolean> {
-        val flow = MutableStateFlow(false)
-        viewModelScope.launch {
-            repository.isInWatchlist(titleId).collect {
-                flow.value = it
-            }
-        }
-        return flow
-    }
+    fun isTitleInWatchlist(titleId: String): Flow<Boolean> = repository.isInWatchlist(titleId)
 
     // Adds every given title to the watchlist that isn't already in it or
     // already logged as watched (unlike toggleWatchlist, this never
@@ -467,25 +477,17 @@ class CineViewModel(
         }
     }
 
-    fun getCustomListDetail(listId: Int): StateFlow<DbCustomList?> {
-        val state = MutableStateFlow<DbCustomList?>(null)
-        viewModelScope.launch {
-            repository.getCustomListById(listId).collect {
-                state.value = it
-            }
-        }
-        return state
-    }
+    // Returns the Flow directly rather than manually collecting it into a
+    // freshly-created MutableStateFlow: these getters are called straight
+    // from Composable bodies (ListsScreen), so a manual
+    // `viewModelScope.launch { flow.collect { ... } } ` here would start a
+    // brand new, never-cancelled collector on every recomposition and pile
+    // up leaked coroutines over a session. collectAsState() on the Composable
+    // side already manages subscription/cancellation safely tied to
+    // composition, so this is the correct place to let it do that.
+    fun getCustomListDetail(listId: Int): Flow<DbCustomList?> = repository.getCustomListById(listId)
 
-    fun getCustomListTitlesFlow(listId: Int): StateFlow<List<DbCustomListTitle>> {
-        val state = MutableStateFlow<List<DbCustomListTitle>>(emptyList())
-        viewModelScope.launch {
-            repository.getCustomListTitles(listId).collect {
-                state.value = it
-            }
-        }
-        return state
-    }
+    fun getCustomListTitlesFlow(listId: Int): Flow<List<DbCustomListTitle>> = repository.getCustomListTitles(listId)
 
     fun removeTitleFromCustomList(id: Int) {
         viewModelScope.launch {
