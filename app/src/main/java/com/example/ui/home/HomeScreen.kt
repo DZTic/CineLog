@@ -1,21 +1,28 @@
 package com.example.ui.home
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -24,12 +31,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.data.CineTitle
 import com.example.data.DbLogEntry
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
+import com.example.ui.HomeViewMode
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.HalfStarRatingBar
+import com.example.ui.components.SagaCard
+import com.example.ui.components.TitleCard
 import com.example.ui.components.TypeBadge
 import com.example.ui.components.groupBySaga
 import com.example.ui.theme.CinemaSecondary
@@ -52,6 +63,8 @@ fun HomeScreen(
     val logsRaw by viewModel.allLogs.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
     val collectionCache by viewModel.collectionCache.collectAsState()
+    val viewMode by viewModel.homeViewMode.collectAsState()
+    val collapsedCategories by viewModel.homeCollapsedCategories.collectAsState()
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
@@ -126,18 +139,27 @@ fun HomeScreen(
         },
         modifier = modifier
     ) { innerPadding ->
-        LazyColumn(
+        // Le nombre de colonnes pilote à la fois la mise en page ET le
+        // style de carte utilisé plus bas (lignes pleine largeur en mode
+        // Liste, affiches compactes en mode Grille) : garder les deux
+        // synchronisés au même endroit évite qu'ils se désaccordent.
+        val columnCount = if (viewMode == HomeViewMode.GRID) 3 else 1
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columnCount),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             // Stats Panel
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     StatCard(
@@ -164,18 +186,29 @@ fun HomeScreen(
                 }
             }
 
-            // Recent activity header
-            item {
-                Text(
-                    text = "Activité Récente",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+            // Recent activity header, with the list/grid display switch
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Activité Récente",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    HomeViewModeToggle(
+                        viewMode = viewMode,
+                        onViewModeChange = { viewModel.setHomeViewMode(it) }
+                    )
+                }
             }
 
             if (logs.isEmpty()) {
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -199,41 +232,67 @@ fun HomeScreen(
                     val logsForType = groupedLogs[type]
                     val displayItems = displayItemsByType[type]
                     if (!logsForType.isNullOrEmpty() && !displayItems.isNullOrEmpty()) {
-                        item(key = "header_${type.name}") {
-                            Text(
-                                text = "${type.displayName}s (${logsForType.size})",
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                color = GrayText
+                        val isCollapsed = collapsedCategories.contains(type.name)
+                        item(
+                            key = "header_${type.name}",
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            CategoryHeader(
+                                label = "${type.displayName}s (${logsForType.size})",
+                                collapsed = isCollapsed,
+                                onToggle = { viewModel.toggleHomeCategoryCollapsed(type.name) }
                             )
                         }
-                        items(
-                            displayItems,
-                            key = { display ->
+                        // Catégorie réduite : on n'émet aucun item, ce qui
+                        // libère immédiatement la place à l'écran pour les
+                        // catégories suivantes, sans les recharger.
+                        if (!isCollapsed) {
+                            items(
+                                displayItems,
+                                key = { display ->
+                                    when (display) {
+                                        is GroupedDisplay.Single -> "log_${display.item.id}"
+                                        is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
+                                    }
+                                }
+                            ) { display ->
                                 when (display) {
-                                    is GroupedDisplay.Single -> "log_${display.item.id}"
-                                    is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
-                                }
-                            }
-                        ) { display ->
-                            when (display) {
-                                is GroupedDisplay.Single -> {
-                                    RecentActivityRow(
-                                        log = display.item,
-                                        onTitleClick = { onTitleClick(display.item.titleId) }
-                                    )
-                                }
-                                is GroupedDisplay.Grouped -> {
-                                    val group = display.group
-                                    val latest = group.items.maxByOrNull { it.dateVue }!!
-                                    SagaActivityRow(
-                                        collectionName = group.collectionName,
-                                        posterUrl = group.posterUrl,
-                                        count = group.items.size,
-                                        averageNote = group.items.map { it.note }.average().toFloat(),
-                                        latestDateVue = latest.dateVue,
-                                        onClick = { onSagaClick(group.collectionId) }
-                                    )
+                                    is GroupedDisplay.Single -> {
+                                        if (viewMode == HomeViewMode.GRID) {
+                                            TitleCard(
+                                                title = display.item.toCineTitle(),
+                                                onClick = { onTitleClick(display.item.titleId) },
+                                                modifier = Modifier.padding(vertical = 6.dp)
+                                            )
+                                        } else {
+                                            RecentActivityRow(
+                                                log = display.item,
+                                                onTitleClick = { onTitleClick(display.item.titleId) }
+                                            )
+                                        }
+                                    }
+                                    is GroupedDisplay.Grouped -> {
+                                        val group = display.group
+                                        if (viewMode == HomeViewMode.GRID) {
+                                            SagaCard(
+                                                name = group.collectionName,
+                                                posterUrl = group.posterUrl,
+                                                filmCount = group.items.size,
+                                                onClick = { onSagaClick(group.collectionId) },
+                                                modifier = Modifier.padding(vertical = 6.dp)
+                                            )
+                                        } else {
+                                            val latest = group.items.maxByOrNull { it.dateVue }!!
+                                            SagaActivityRow(
+                                                collectionName = group.collectionName,
+                                                posterUrl = group.posterUrl,
+                                                count = group.items.size,
+                                                averageNote = group.items.map { it.note }.average().toFloat(),
+                                                latestDateVue = latest.dateVue,
+                                                onClick = { onSagaClick(group.collectionId) }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -242,6 +301,126 @@ fun HomeScreen(
             }
         }
     }
+}
+
+/**
+ * Petit sélecteur Liste / Grille pour la page d'accueil : une carte pleine
+ * largeur par titre (facile à lire, note et critique visibles) contre une
+ * grille d'affiches à 3 colonnes (vue d'ensemble plus dense, comme sur
+ * Watchlist/Découvrir).
+ */
+@Composable
+private fun HomeViewModeToggle(
+    viewMode: HomeViewMode,
+    onViewModeChange: (HomeViewMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+    ) {
+        HomeViewModeButton(
+            icon = Icons.Default.ViewList,
+            contentDescription = "Afficher en liste",
+            selected = viewMode == HomeViewMode.LIST,
+            onClick = { onViewModeChange(HomeViewMode.LIST) }
+        )
+        HomeViewModeButton(
+            icon = Icons.Default.GridView,
+            contentDescription = "Afficher en grille",
+            selected = viewMode == HomeViewMode.GRID,
+            onClick = { onViewModeChange(HomeViewMode.GRID) }
+        )
+    }
+}
+
+@Composable
+private fun HomeViewModeButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (selected) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+/**
+ * En-tête de catégorie cliquable : un chevron pivote pour indiquer si la
+ * section est développée ou réduite. Réduire une catégorie permet de faire
+ * de la place à l'écran pour mieux voir les autres, sans rien supprimer :
+ * l'état est retenu et les items réapparaissent en un tap.
+ */
+@Composable
+private fun CategoryHeader(
+    label: String,
+    collapsed: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val rotation by animateFloatAsState(targetValue = if (collapsed) -90f else 0f, label = "chevron_rotation")
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { onToggle() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            color = GrayText
+        )
+        Icon(
+            imageVector = Icons.Default.ExpandMore,
+            contentDescription = if (collapsed) "Développer la catégorie" else "Réduire la catégorie",
+            tint = GrayText,
+            modifier = Modifier
+                .size(20.dp)
+                .rotate(rotation)
+        )
+    }
+}
+
+private fun DbLogEntry.toCineTitle(): CineTitle {
+    val tType = try {
+        TitleType.valueOf(titleType)
+    } catch (e: Exception) {
+        TitleType.FILM
+    }
+    return CineTitle(
+        id = titleId,
+        type = tType,
+        title = titleName,
+        year = "",
+        posterUrl = titlePosterUrl,
+        synopsis = "",
+        genres = emptyList(),
+        voteAverage = 0f
+    )
 }
 
 @Composable
@@ -298,7 +477,10 @@ fun RecentActivityRow(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            // Pas de padding horizontal ici : le conteneur (LazyVerticalGrid
+            // sur Home) applique déjà une marge horizontale via son
+            // contentPadding, qu'on soit en mode Liste ou Grille.
+            .padding(vertical = 6.dp)
             .testTag("log_entry_row_${log.id}")
             .clickable { onTitleClick() },
         shape = RoundedCornerShape(8.dp),
@@ -413,7 +595,9 @@ fun SagaActivityRow(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            // Idem RecentActivityRow : la marge horizontale vient du
+            // contentPadding du conteneur, pas d'ici.
+            .padding(vertical = 6.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)

@@ -510,7 +510,43 @@ class CineViewModel(
             }
         }
     }
+
+    // ==========================================
+    // HOME SCREEN DISPLAY PREFERENCES
+    // ==========================================
+
+    // Persistée via PreferenceManager pour survivre à la fermeture de
+    // l'appli : l'utilisateur ne veut pas re-choisir "grille" à chaque
+    // ouverture.
+    private val _homeViewMode = MutableStateFlow(
+        runCatching { HomeViewMode.valueOf(preferenceManager.getHomeViewMode()) }
+            .getOrDefault(HomeViewMode.LIST)
+    )
+    val homeViewMode: StateFlow<HomeViewMode> = _homeViewMode.asStateFlow()
+
+    fun setHomeViewMode(mode: HomeViewMode) {
+        _homeViewMode.value = mode
+        preferenceManager.setHomeViewMode(mode.name)
+    }
+
+    // Catégories (Films / Séries / Animes) actuellement réduites sur
+    // l'accueil, pour laisser de la place aux autres quand la liste d'une
+    // catégorie est longue. Clé = TitleType.name.
+    private val _homeCollapsedCategories = MutableStateFlow(
+        preferenceManager.getHomeCollapsedCategories()
+    )
+    val homeCollapsedCategories: StateFlow<Set<String>> = _homeCollapsedCategories.asStateFlow()
+
+    fun toggleHomeCategoryCollapsed(categoryKey: String) {
+        val updated = _homeCollapsedCategories.value.toMutableSet().apply {
+            if (!add(categoryKey)) remove(categoryKey)
+        }
+        _homeCollapsedCategories.value = updated
+        preferenceManager.setHomeCollapsedCategories(updated)
+    }
 }
+
+enum class HomeViewMode { LIST, GRID }
 
 // Simple Factory provider
 class CineViewModelFactory(

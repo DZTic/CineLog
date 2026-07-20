@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -264,12 +265,28 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             // Sans ceci, Navigation Compose ne joue AUCUNE animation par
             // défaut : chaque écran (changement d'onglet, ouverture d'une
             // fiche détail...) remplace l'écran précédent d'un coup sec.
-            // Un fondu court garde la navigation perçue comme rapide tout
-            // en la rendant fluide plutôt que brutale.
-            enterTransition = { fadeIn(animationSpec = tween(180)) },
-            exitTransition = { fadeOut(animationSpec = tween(120)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(180)) },
-            popExitTransition = { fadeOut(animationSpec = tween(120)) }
+            //
+            // Le fondu croisé DOIT utiliser la même durée (et le même
+            // easing) pour l'entrée et la sortie. Avec des durées
+            // différentes (ex. 180ms/120ms), l'écran sortant devient
+            // totalement transparent avant que le nouvel écran ait fini
+            // d'apparaître : il y a alors une courte fenêtre où on ne voit
+            // ni l'un ni l'autre pleinement, ce qui donne exactement la
+            // sensation de "saccade" / "pas fluide" que l'on veut éviter.
+            // Un easing (au lieu d'un tween linéaire) adoucit aussi le
+            // début/la fin du mouvement.
+            enterTransition = {
+                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
+            }
         ) {
             // Home View
             composable(Screen.Home.route) {
