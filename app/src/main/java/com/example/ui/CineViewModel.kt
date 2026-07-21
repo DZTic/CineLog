@@ -519,12 +519,12 @@ class CineViewModel(
     // l'appli : l'utilisateur ne veut pas re-choisir "grille" à chaque
     // ouverture.
     private val _homeViewMode = MutableStateFlow(
-        runCatching { HomeViewMode.valueOf(preferenceManager.getHomeViewMode()) }
-            .getOrDefault(HomeViewMode.LIST)
+        runCatching { CollectionViewMode.valueOf(preferenceManager.getHomeViewMode()) }
+            .getOrDefault(CollectionViewMode.LIST)
     )
-    val homeViewMode: StateFlow<HomeViewMode> = _homeViewMode.asStateFlow()
+    val homeViewMode: StateFlow<CollectionViewMode> = _homeViewMode.asStateFlow()
 
-    fun setHomeViewMode(mode: HomeViewMode) {
+    fun setHomeViewMode(mode: CollectionViewMode) {
         _homeViewMode.value = mode
         preferenceManager.setHomeViewMode(mode.name)
     }
@@ -544,9 +544,43 @@ class CineViewModel(
         _homeCollapsedCategories.value = updated
         preferenceManager.setHomeCollapsedCategories(updated)
     }
+
+    // ==========================================
+    // WATCHLIST SCREEN DISPLAY PREFERENCES
+    // ==========================================
+    // Même principe que pour l'accueil, mais stocké séparément : rien
+    // n'oblige l'utilisateur à vouloir le même mode d'affichage ou les
+    // mêmes catégories réduites sur les deux écrans.
+
+    private val _watchlistViewMode = MutableStateFlow(
+        runCatching { CollectionViewMode.valueOf(preferenceManager.getWatchlistViewMode()) }
+            .getOrDefault(CollectionViewMode.GRID)
+    )
+    val watchlistViewMode: StateFlow<CollectionViewMode> = _watchlistViewMode.asStateFlow()
+
+    fun setWatchlistViewMode(mode: CollectionViewMode) {
+        _watchlistViewMode.value = mode
+        preferenceManager.setWatchlistViewMode(mode.name)
+    }
+
+    private val _watchlistCollapsedCategories = MutableStateFlow(
+        preferenceManager.getWatchlistCollapsedCategories()
+    )
+    val watchlistCollapsedCategories: StateFlow<Set<String>> = _watchlistCollapsedCategories.asStateFlow()
+
+    fun toggleWatchlistCategoryCollapsed(categoryKey: String) {
+        val updated = _watchlistCollapsedCategories.value.toMutableSet().apply {
+            if (!add(categoryKey)) remove(categoryKey)
+        }
+        _watchlistCollapsedCategories.value = updated
+        preferenceManager.setWatchlistCollapsedCategories(updated)
+    }
 }
 
-enum class HomeViewMode { LIST, GRID }
+// Partagé entre l'Accueil et la Watchlist (et potentiellement d'autres
+// écrans à l'avenir) : une simple préférence Liste/Grille n'a pas besoin
+// d'être dupliquée par écran.
+enum class CollectionViewMode { LIST, GRID }
 
 // Simple Factory provider
 class CineViewModelFactory(

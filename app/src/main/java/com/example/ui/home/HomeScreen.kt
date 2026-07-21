@@ -1,6 +1,5 @@
 package com.example.ui.home
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,17 +11,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -35,13 +30,15 @@ import com.example.data.CineTitle
 import com.example.data.DbLogEntry
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
-import com.example.ui.HomeViewMode
+import com.example.ui.CollectionViewMode
+import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.TypeBadge
+import com.example.ui.components.ViewModeToggle
 import com.example.ui.components.groupBySaga
 import com.example.ui.theme.CinemaSecondary
 import com.example.ui.theme.CinemaSurfaceVariant
@@ -143,7 +140,7 @@ fun HomeScreen(
         // style de carte utilisé plus bas (lignes pleine largeur en mode
         // Liste, affiches compactes en mode Grille) : garder les deux
         // synchronisés au même endroit évite qu'ils se désaccordent.
-        val columnCount = if (viewMode == HomeViewMode.GRID) 3 else 1
+        val columnCount = if (viewMode == CollectionViewMode.GRID) 3 else 1
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(columnCount),
@@ -200,7 +197,7 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    HomeViewModeToggle(
+                    ViewModeToggle(
                         viewMode = viewMode,
                         onViewModeChange = { viewModel.setHomeViewMode(it) }
                     )
@@ -237,7 +234,7 @@ fun HomeScreen(
                             key = "header_${type.name}",
                             span = { GridItemSpan(maxLineSpan) }
                         ) {
-                            CategoryHeader(
+                            CollapsibleCategoryHeader(
                                 label = "${type.displayName}s (${logsForType.size})",
                                 collapsed = isCollapsed,
                                 onToggle = { viewModel.toggleHomeCategoryCollapsed(type.name) }
@@ -258,7 +255,7 @@ fun HomeScreen(
                             ) { display ->
                                 when (display) {
                                     is GroupedDisplay.Single -> {
-                                        if (viewMode == HomeViewMode.GRID) {
+                                        if (viewMode == CollectionViewMode.GRID) {
                                             TitleCard(
                                                 title = display.item.toCineTitle(),
                                                 onClick = { onTitleClick(display.item.titleId) },
@@ -273,7 +270,7 @@ fun HomeScreen(
                                     }
                                     is GroupedDisplay.Grouped -> {
                                         val group = display.group
-                                        if (viewMode == HomeViewMode.GRID) {
+                                        if (viewMode == CollectionViewMode.GRID) {
                                             SagaCard(
                                                 name = group.collectionName,
                                                 posterUrl = group.posterUrl,
@@ -300,108 +297,6 @@ fun HomeScreen(
                 }
             }
         }
-    }
-}
-
-/**
- * Petit sélecteur Liste / Grille pour la page d'accueil : une carte pleine
- * largeur par titre (facile à lire, note et critique visibles) contre une
- * grille d'affiches à 3 colonnes (vue d'ensemble plus dense, comme sur
- * Watchlist/Découvrir).
- */
-@Composable
-private fun HomeViewModeToggle(
-    viewMode: HomeViewMode,
-    onViewModeChange: (HomeViewMode) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-    ) {
-        HomeViewModeButton(
-            icon = Icons.Default.ViewList,
-            contentDescription = "Afficher en liste",
-            selected = viewMode == HomeViewMode.LIST,
-            onClick = { onViewModeChange(HomeViewMode.LIST) }
-        )
-        HomeViewModeButton(
-            icon = Icons.Default.GridView,
-            contentDescription = "Afficher en grille",
-            selected = viewMode == HomeViewMode.GRID,
-            onClick = { onViewModeChange(HomeViewMode.GRID) }
-        )
-    }
-}
-
-@Composable
-private fun HomeViewModeButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (selected) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-/**
- * En-tête de catégorie cliquable : un chevron pivote pour indiquer si la
- * section est développée ou réduite. Réduire une catégorie permet de faire
- * de la place à l'écran pour mieux voir les autres, sans rien supprimer :
- * l'état est retenu et les items réapparaissent en un tap.
- */
-@Composable
-private fun CategoryHeader(
-    label: String,
-    collapsed: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val rotation by animateFloatAsState(targetValue = if (collapsed) -90f else 0f, label = "chevron_rotation")
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .clickable { onToggle() }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-            color = GrayText
-        )
-        Icon(
-            imageVector = Icons.Default.ExpandMore,
-            contentDescription = if (collapsed) "Développer la catégorie" else "Réduire la catégorie",
-            tint = GrayText,
-            modifier = Modifier
-                .size(20.dp)
-                .rotate(rotation)
-        )
     }
 }
 
