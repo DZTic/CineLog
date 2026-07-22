@@ -64,6 +64,9 @@ fun SagaDetailScreen(
     val watchedCount = remember(sagaTitles, watchedTitleIds) {
         sagaTitles.count { it.id in watchedTitleIds }
     }
+    val isSagaComplete = remember(sagaTitles, watchedCount) {
+        sagaTitles.isNotEmpty() && watchedCount == sagaTitles.size
+    }
 
     Scaffold(
         topBar = {
@@ -142,6 +145,28 @@ fun SagaDetailScreen(
                                     )
                                 }
                             }
+
+                            // Petit badge indiquant que tous les films de la
+                            // saga ont été vus, superposé en haut à droite de
+                            // l'affiche (même esprit que le badge "SAGA" des
+                            // cartes de la liste).
+                            if (isSagaComplete) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = "Saga vue en entier",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(16.dp))
@@ -167,11 +192,22 @@ fun SagaDetailScreen(
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "$watchedCount / ${sagaTitles.size} films vus",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = GrayText
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "$watchedCount / ${sagaTitles.size} films vus",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = GrayText
+                                )
+                                if (isSagaComplete) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = "Saga vue en entier",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
