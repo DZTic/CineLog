@@ -339,11 +339,13 @@ class CineViewModel(
         spoiler: Boolean,
         collectionId: Int? = null,
         collectionName: String? = null,
-        collectionPosterUrl: String? = null
+        collectionPosterUrl: String? = null,
+        id: Int = 0 // 0 = nouveau visionnage ; sinon, met à jour le visionnage existant portant cet id
     ) {
         viewModelScope.launch {
             try {
                 val entry = DbLogEntry(
+                    id = id,
                     titleId = titleId,
                     titleType = titleType,
                     titleName = titleName,

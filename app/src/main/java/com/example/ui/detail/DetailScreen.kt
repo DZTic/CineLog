@@ -54,6 +54,7 @@ fun DetailScreen(
     onLogClick: (CineTitle) -> Unit,
     onTitleClick: (String) -> Unit = {},
     onSagaClick: (Int) -> Unit = {},
+    onEditLogClick: (CineTitle, DbLogEntry) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -591,7 +592,8 @@ fun DetailScreen(
                         items(logs) { log ->
                             LogItemRow(
                                 log = log,
-                                onDelete = { viewModel.deleteLog(log.id) }
+                                onDelete = { viewModel.deleteLog(log.id) },
+                                onEdit = { onEditLogClick(title, log) }
                             )
                         }
                     }
@@ -659,6 +661,7 @@ fun DetailScreen(
 fun LogItemRow(
     log: DbLogEntry,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { SimpleDateFormat("dd MMMM yyyy", Locale.FRENCH) }
@@ -702,14 +705,25 @@ fun LogItemRow(
                     }
                 }
 
-                // Delete Button
-                IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Supprimer le log",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp)
-                    )
+                // Edit & Delete Buttons
+                Row {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Modifier le visionnage",
+                            tint = GrayText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Supprimer le log",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.CineTitle
+import com.example.data.DbLogEntry
 import com.example.ui.CineViewModel
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.theme.CinemaSurfaceVariant
@@ -37,17 +38,23 @@ fun LogDialog(
     title: CineTitle,
     viewModel: CineViewModel,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    existingLog: DbLogEntry? = null
 ) {
     val context = LocalContext.current
+    val isEditing = existingLog != null
 
-    var rating by remember { mutableStateOf(3.0f) }
-    var critiqueText by remember { mutableStateOf("") }
-    var isRevisionnage by remember { mutableStateOf(false) }
-    var isSpoiler by remember { mutableStateOf(false) }
+    var rating by remember { mutableStateOf(existingLog?.note ?: 3.0f) }
+    var critiqueText by remember { mutableStateOf(existingLog?.critique ?: "") }
+    var isRevisionnage by remember { mutableStateOf(existingLog?.revisionnage ?: false) }
+    var isSpoiler by remember { mutableStateOf(existingLog?.spoiler ?: false) }
 
     // Date Picker Management
-    val calendar = remember { Calendar.getInstance() }
+    val calendar = remember {
+        Calendar.getInstance().apply {
+            existingLog?.let { timeInMillis = it.dateVue }
+        }
+    }
     var dateSelected by remember { mutableStateOf(calendar.timeInMillis) }
     val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
 
@@ -95,7 +102,7 @@ fun LogDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Journaliser",
+                            text = if (isEditing) "Modifier le visionnage" else "Journaliser",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -292,6 +299,7 @@ fun LogDialog(
                     Button(
                         onClick = {
                             viewModel.logVisionnage(
+                                id = existingLog?.id ?: 0,
                                 titleId = title.id,
                                 titleType = title.type.name,
                                 titleName = title.title,
@@ -312,7 +320,11 @@ fun LogDialog(
                             .weight(1f)
                             .testTag("btn_save_log")
                     ) {
-                        Text("Enregistrer", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (isEditing) "Mettre à jour" else "Enregistrer",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

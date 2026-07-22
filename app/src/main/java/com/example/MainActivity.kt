@@ -138,6 +138,8 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
     // Logging sheet dialog trigger state
     var loggingTitle by remember { mutableStateOf<CineTitle?>(null) }
+    // When non-null, the Log dialog opens pre-filled to edit this existing entry instead of creating a new one
+    var editingLog by remember { mutableStateOf<DbLogEntry?>(null) }
 
     // Core Tab Routes for Bottom Navigation
     val bottomNavItems = listOf(
@@ -398,12 +400,19 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     titleId = titleId,
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
-                    onLogClick = { title -> loggingTitle = title },
+                    onLogClick = { title ->
+                        editingLog = null
+                        loggingTitle = title
+                    },
                     onTitleClick = { otherTitleId ->
                         navController.navigate(Screen.Detail.createRoute(otherTitleId))
                     },
                     onSagaClick = { collectionId ->
                         navController.navigate(Screen.SagaDetail.createRoute(collectionId))
+                    },
+                    onEditLogClick = { title, log ->
+                        loggingTitle = title
+                        editingLog = log
                     }
                 )
             }
@@ -431,7 +440,11 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             LogDialog(
                 title = logTitle,
                 viewModel = viewModel,
-                onDismiss = { loggingTitle = null }
+                existingLog = editingLog,
+                onDismiss = {
+                    loggingTitle = null
+                    editingLog = null
+                }
             )
         }
     }
