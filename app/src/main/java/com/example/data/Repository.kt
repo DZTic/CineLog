@@ -389,12 +389,7 @@ class Repository(
      */
     suspend fun ensureSagaSizeCached(collectionId: Int) {
         withContext(Dispatchers.IO) {
-            val alreadyCached = sagaSizeDao.getAll().let { flow ->
-                // Single read, not a collector: fine here since this Flow is
-                // backed by a Room query, which supports one-shot reads too.
-                kotlinx.coroutines.flow.first(flow).any { it.collectionId == collectionId }
-            }
-            if (alreadyCached) return@withContext
+            if (sagaSizeDao.exists(collectionId)) return@withContext
             val collection = fetchCollectionDetail(collectionId) ?: return@withContext
             sagaSizeDao.upsert(DbSagaSize(collectionId, collection.parts.size))
         }

@@ -81,6 +81,9 @@ interface SagaSizeDao {
     @Query("SELECT * FROM saga_size_cache")
     fun getAll(): Flow<List<DbSagaSize>>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM saga_size_cache WHERE collectionId = :collectionId)")
+    suspend fun exists(collectionId: Int): Boolean
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: DbSagaSize)
 }
