@@ -37,6 +37,11 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cinelog_database"
                 )
+                .addMigrations(MIGRATION_4_5)
+                // Safety net only: covers versions with no explicit migration
+                // written yet (or migrations from before this file existed).
+                // Every NEW version bump should get its own MIGRATION_x_y
+                // above and registered here, so this never has to run for it.
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
