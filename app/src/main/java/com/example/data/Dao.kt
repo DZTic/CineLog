@@ -77,6 +77,15 @@ interface CollectionCacheDao {
 }
 
 @Dao
+interface SagaSizeDao {
+    @Query("SELECT * FROM saga_size_cache")
+    fun getAll(): Flow<List<DbSagaSize>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: DbSagaSize)
+}
+
+@Dao
 interface SeasonProgressDao {
     @Query("SELECT * FROM season_progress WHERE titleId = :titleId")
     fun getForTitle(titleId: String): Flow<List<DbSeasonProgress>>

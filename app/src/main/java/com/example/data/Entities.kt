@@ -45,6 +45,16 @@ data class DbCollectionCache(
     val collectionPosterUrl: String? = null
 )
 
+// Caches the total number of films belonging to a TMDB saga (collection),
+// so screens showing a saga as a single grouped card (Accueil, Watchlist,
+// Recherche) can tell whether the user has watched it in its entirety
+// without re-fetching the collection from TMDB every time it's displayed.
+@Entity(tableName = "saga_size_cache")
+data class DbSagaSize(
+    @PrimaryKey val collectionId: Int,
+    val totalFilms: Int
+)
+
 @Entity(tableName = "custom_lists")
 data class DbCustomList(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

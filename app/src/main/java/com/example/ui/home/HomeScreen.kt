@@ -60,6 +60,7 @@ fun HomeScreen(
     val logsRaw by viewModel.allLogs.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
     val collectionCache by viewModel.collectionCache.collectAsState()
+    val sagaSizeCache by viewModel.sagaSizeCache.collectAsState()
     val viewMode by viewModel.homeViewMode.collectAsState()
     val collapsedCategories by viewModel.homeCollapsedCategories.collectAsState()
 
@@ -270,13 +271,22 @@ fun HomeScreen(
                                     }
                                     is GroupedDisplay.Grouped -> {
                                         val group = display.group
+                                        LaunchedEffect(group.collectionId) {
+                                            viewModel.ensureSagaSizeLoaded(group.collectionId)
+                                        }
+                                        val watchedInSaga = remember(group.items) {
+                                            group.items.map { it.titleId }.distinct().size
+                                        }
+                                        val isSagaComplete = sagaSizeCache[group.collectionId]
+                                            ?.let { total -> total > 0 && watchedInSaga >= total } == true
                                         if (viewMode == CollectionViewMode.GRID) {
                                             SagaCard(
                                                 name = group.collectionName,
                                                 posterUrl = group.posterUrl,
                                                 filmCount = group.items.size,
                                                 onClick = { onSagaClick(group.collectionId) },
-                                                modifier = Modifier.padding(vertical = 6.dp)
+                                                modifier = Modifier.padding(vertical = 6.dp),
+                                                isComplete = isSagaComplete
                                             )
                                         } else {
                                             val latest = group.items.maxByOrNull { it.dateVue }!!

@@ -297,7 +297,8 @@ fun SagaCard(
     posterUrl: String?,
     filmCount: Int,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isComplete: Boolean = false
 ) {
     Card(
         modifier = modifier
@@ -353,6 +354,25 @@ fun SagaCard(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
+                }
+
+                // Badge indiquant que tous les films de la saga ont été vus.
+                if (isComplete) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primary)
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Saga vue en entier",
+                            tint = Color.Black,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))

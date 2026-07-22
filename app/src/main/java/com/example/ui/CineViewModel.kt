@@ -52,6 +52,27 @@ class CineViewModel(
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
+    // Local cache of collectionId -> total number of films in that saga.
+    // Powers the "vue en entier" badge on grouped saga cards (Accueil,
+    // Watchlist, Recherche) without a network round-trip on every render.
+    val sagaSizeCache: StateFlow<Map<Int, Int>> = repository.sagaSizeCache
+        .map { list -> list.associate { it.collectionId to it.totalFilms } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    // Triggers a fetch of a saga's total film count if it isn't cached
+    // locally yet. Safe to call once per visible saga card: the repository
+    // skips the network call entirely when the value is already cached.
+    fun ensureSagaSizeLoaded(collectionId: Int) {
+        if (sagaSizeCache.value.containsKey(collectionId)) return
+        viewModelScope.launch {
+            try {
+                repository.ensureSagaSizeCached(collectionId)
+            } catch (e: Exception) {
+                Log.e(tag, "Error caching saga size for $collectionId: ${e.localizedMessage}")
+            }
+        }
+    }
+
     // ==========================================
     // DISCOVER / COLD-START SCREEN STATE
     // ==========================================

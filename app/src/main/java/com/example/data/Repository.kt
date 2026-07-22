@@ -61,6 +61,7 @@ class Repository(
     private val customListDao: CustomListDao,
     private val seasonProgressDao: SeasonProgressDao,
     private val collectionCacheDao: CollectionCacheDao,
+    private val sagaSizeDao: SagaSizeDao,
     private val preferenceManager: PreferenceManager
 ) {
     private val tag = "Repository"
@@ -370,8 +371,34 @@ class Repository(
                     // they're grouped even if their detail page is never
                     // opened individually (e.g. Search screen results).
                     titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name, posterUrl) }
+                    sagaSizeDao.upsert(DbSagaSize(collection.id, titles.size))
                 }
         }
+
+    // Local cache of collectionId -> total number of films in that TMDB
+    // saga. Used by the grouped "SAGA" cards (Accueil, Watchlist, Recherche)
+    // to show a "vue en entier" badge without a network call every time a
+    // card is displayed.
+    val sagaSizeCache: Flow<List<DbSagaSize>> = sagaSizeDao.getAll()
+
+    /**
+     * Makes sure the total film count for a saga is known locally, fetching
+     * it from TMDB only if it isn't already cached. Safe to call repeatedly
+     * (e.g. once per visible saga card): the network call only happens once
+     * per collection, ever, since the result is cached in Room afterwards.
+     */
+    suspend fun ensureSagaSizeCached(collectionId: Int) {
+        withContext(Dispatchers.IO) {
+            val alreadyCached = sagaSizeDao.getAll().let { flow ->
+                // Single read, not a collector: fine here since this Flow is
+                // backed by a Room query, which supports one-shot reads too.
+                kotlinx.coroutines.flow.first(flow).any { it.collectionId == collectionId }
+            }
+            if (alreadyCached) return@withContext
+            val collection = fetchCollectionDetail(collectionId) ?: return@withContext
+            sagaSizeDao.upsert(DbSagaSize(collectionId, collection.parts.size))
+        }
+    }
 
     /**
      * Metadata describing a saga (TMDB "collection") itself, as opposed to
@@ -408,6 +435,7 @@ class Repository(
                 }
                 .sortedBy { it.year }
             titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name, posterUrl) }
+            sagaSizeDao.upsert(DbSagaSize(collection.id, titles.size))
             info to titles
         }
 
