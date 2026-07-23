@@ -57,6 +57,20 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  sourceSets {
+    // Room migration tests read the exported schema JSON files from here.
+    getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+    getByName("test").assets.srcDirs("$projectDir/schemas")
+  }
+}
+
+ksp {
+  // Every time AppDatabase's version changes, Room writes a new
+  // schemas/com.example.data.AppDatabase/<version>.json file. Committing
+  // these makes it obvious in a PR diff when an entity changed without a
+  // matching version bump: you'll see an *existing* file modified instead
+  // of a *new* file added.
+  arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files

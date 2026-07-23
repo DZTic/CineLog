@@ -5,6 +5,20 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
+// ─────────────────────────────────────────────────────────────────────────
+// CHECKLIST — à chaque fois qu'un @Entity change (nouvelle table, nouvelle
+// colonne, renommage, etc.), les 3 étapes ci-dessous vont ensemble :
+//   1. Ajouter/modifier l'@Entity concerné (Entities.kt).
+//   2. Incrémenter `version` juste en dessous.
+//   3. Écrire un `MIGRATION_x_y` dans Migrations.kt et l'enregistrer dans
+//      `.addMigrations(...)` plus bas.
+// Oublier l'étape 2 ou 3 fait planter l'app au lancement pour un appareil
+// qui a déjà des données locales (Room valide le schéma à l'ouverture), ou,
+// pire, silencieusement effacer les données via fallbackToDestructiveMigration.
+// `exportSchema = true` laisse une trace dans schemas/ à chaque version :
+// vérifier qu'un commit ajoute bien un NOUVEAU fichier <version>.json plutôt
+// que de modifier un fichier existant en place.
+// ─────────────────────────────────────────────────────────────────────────
 @Database(
     entities = [
         DbLogEntry::class,
@@ -16,7 +30,7 @@ import androidx.room.RoomDatabase
         DbSagaSize::class
     ],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
