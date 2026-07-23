@@ -55,6 +55,7 @@ fun WatchlistScreen(
 ) {
     val watchlistRaw by viewModel.allWatchlist.collectAsState()
     val collectionCache by viewModel.collectionCache.collectAsState()
+    val allLogs by viewModel.allLogs.collectAsState()
     val viewMode by viewModel.watchlistViewMode.collectAsState()
     val collapsedCategories by viewModel.watchlistCollapsedCategories.collectAsState()
 
@@ -62,7 +63,7 @@ fun WatchlistScreen(
     // ajouter" bug) may have no collectionId stored yet. Backfill it from
     // the local cache at read time so they regroup as soon as their saga is
     // known, without needing to be re-added.
-    val watchlist = remember(watchlistRaw, collectionCache) {
+    val backfilledWatchlist = remember(watchlistRaw, collectionCache) {
         watchlistRaw.map { entry ->
             if (entry.collectionId == null) {
                 collectionCache[entry.titleId]?.let { cached ->
@@ -76,6 +77,17 @@ fun WatchlistScreen(
                 entry
             }
         }
+    }
+
+    // Un titre peut rester présent dans la table watchlist tout en étant
+    // déjà marqué comme vu (log_entries) — par exemple ré-ajouté manuellement
+    // depuis sa fiche détail après visionnage. On le masque ici pour que la
+    // Watchlist ne montre jamais de films déjà vus et que, par effet de bord,
+    // une saga entièrement vue disparaisse d'elle-même du regroupement par
+    // saga puisqu'il ne lui reste alors plus aucune entrée non vue.
+    val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
+    val watchlist = remember(backfilledWatchlist, watchedTitleIds) {
+        backfilledWatchlist.filter { it.titleId !in watchedTitleIds }
     }
 
     Scaffold(
