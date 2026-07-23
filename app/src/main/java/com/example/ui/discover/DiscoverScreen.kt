@@ -42,6 +42,8 @@ fun DiscoverScreen(
     val loading by viewModel.discoverLoading.collectAsState()
     val error by viewModel.discoverError.collectAsState()
     val apiKey by viewModel.tmdbApiKey.collectAsState()
+    val watchlist by viewModel.allWatchlist.collectAsState()
+    val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
     var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
 
@@ -186,7 +188,8 @@ fun DiscoverScreen(
                             title = "Films populaires",
                             items = trendingFilms,
                             onTitleClick = onTitleClick,
-                            onViewAll = { selectedFilter = TitleType.FILM }
+                            onViewAll = { selectedFilter = TitleType.FILM },
+                            watchlistTitleIds = watchlistTitleIds
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -195,7 +198,8 @@ fun DiscoverScreen(
                             title = "Séries populaires",
                             items = trendingSeries,
                             onTitleClick = onTitleClick,
-                            onViewAll = { selectedFilter = TitleType.SERIE }
+                            onViewAll = { selectedFilter = TitleType.SERIE },
+                            watchlistTitleIds = watchlistTitleIds
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -204,7 +208,8 @@ fun DiscoverScreen(
                             title = "Animes les mieux notés",
                             items = topAnime,
                             onTitleClick = onTitleClick,
-                            onViewAll = { selectedFilter = TitleType.ANIME }
+                            onViewAll = { selectedFilter = TitleType.ANIME },
+                            watchlistTitleIds = watchlistTitleIds
                         )
                     }
                 } else {
@@ -226,7 +231,8 @@ fun DiscoverScreen(
                         items(gridItems) { title ->
                             TitleCard(
                                 title = title,
-                                onClick = { onTitleClick(title.id) }
+                                onClick = { onTitleClick(title.id) },
+                                isInWatchlist = title.id in watchlistTitleIds
                             )
                         }
                     }
@@ -242,7 +248,8 @@ fun CarouselSection(
     items: List<CineTitle>,
     onTitleClick: (String) -> Unit,
     onViewAll: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    watchlistTitleIds: Set<String> = emptySet()
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -287,7 +294,8 @@ fun CarouselSection(
                 TitleCard(
                     title = title,
                     onClick = { onTitleClick(title.id) },
-                    modifier = Modifier.width(110.dp)
+                    modifier = Modifier.width(110.dp),
+                    isInWatchlist = title.id in watchlistTitleIds
                 )
             }
         }

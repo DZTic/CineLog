@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StarHalf
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Movie
@@ -195,7 +196,8 @@ fun HalfStarRatingBar(
 fun TitleCard(
     title: CineTitle,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isInWatchlist: Boolean = false
 ) {
     Card(
         modifier = modifier
@@ -244,6 +246,26 @@ fun TitleCard(
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
                 )
+
+                // Badge indiquant que le titre est déjà dans la watchlist,
+                // pour éviter de croire qu'on ne l'a pas encore ajouté.
+                if (isInWatchlist) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bookmark,
+                            contentDescription = "Dans la watchlist",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
