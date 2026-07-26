@@ -29,6 +29,7 @@ import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.groupBySaga
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,10 +65,20 @@ fun SearchScreen(
         }
     }
 
-    // Perform search whenever query or filter changes
+    // Perform search whenever query or filter changes, with a short debounce
+    // so a network call isn't fired on every keystroke. LaunchedEffect
+    // automatically cancels the previous coroutine (and its pending delay)
+    // as soon as `query`/`selectedFilter` changes again, so only the last
+    // keystroke of a fast typing burst actually triggers performSearch().
+    var isDebouncing by remember { mutableStateOf(false) }
     LaunchedEffect(query, selectedFilter) {
         if (query.trim().length >= 2) {
+            isDebouncing = true
+            delay(350)
+            isDebouncing = false
             viewModel.performSearch(query, selectedFilter)
+        } else {
+            isDebouncing = false
         }
     }
 
@@ -190,7 +201,7 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                if (loading) {
+                if (loading || isDebouncing) {
                     CircularProgressIndicator(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.align(Alignment.Center)
