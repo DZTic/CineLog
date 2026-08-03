@@ -46,7 +46,6 @@ fun SearchScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val loading by viewModel.searchLoading.collectAsState()
     val error by viewModel.searchError.collectAsState()
-    val apiKey by viewModel.tmdbApiKey.collectAsState()
 
     // Movies from the same saga (TMDB collection) are collapsed into a
     // single result, so a franchise shows up once instead of cluttering the

@@ -41,7 +41,6 @@ fun DiscoverScreen(
     val topAnime by viewModel.topAnime.collectAsState()
     val loading by viewModel.discoverLoading.collectAsState()
     val error by viewModel.discoverError.collectAsState()
-    val apiKey by viewModel.tmdbApiKey.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
     val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
@@ -148,33 +147,6 @@ fun DiscoverScreen(
                     }
                 }
             } else {
-                // If TMDB Key is empty, show a small helpful banner
-                if (apiKey.isEmpty() && (selectedFilter == null || selectedFilter == TitleType.FILM || selectedFilter == TitleType.SERIE)) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                "🎬 Clé API TMDB non configurée",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Allez dans l'onglet Paramètres pour coller votre clé API TMDB et débloquer le catalogue complet de films et séries. L'application affiche actuellement une liste de démonstration hors ligne.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.LightGray
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
 
                 if (selectedFilter == null) {
                     // "ALL" Layout with Carousel rows

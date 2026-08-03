@@ -237,9 +237,7 @@ class CineViewModel(
                         title
                     }
                 }
-                if (results.isEmpty() && filter != TitleType.ANIME && _tmdbApiKey.value.isEmpty()) {
-                    _searchError.value = "Aucun résultat TMDB. Configurez votre clé API TMDB dans les paramètres !"
-                }
+
             } catch (e: Exception) {
                 Log.e(tag, "Error performing search: ${e.localizedMessage}")
                 _searchError.value = "Erreur de connexion. Veuillez réessayer."
