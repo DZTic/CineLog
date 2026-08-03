@@ -104,7 +104,7 @@ class Repository(
     private val tmdbDirectApi: TmdbApiService by lazy { buildTmdbApi("https://api.themoviedb.org/3/") }
 
     // TODO: replace with the deployed URL of the proxy in backend/
-    private val tmdbProxyApi: TmdbApiService by lazy { buildTmdbApi("https://cinelog-tmdb-proxy.onrender.com/") }
+    private val tmdbProxyApi: TmdbApiService by lazy { buildTmdbApi("https://cinelog-5i8b.onrender.com/") }
 
     private val tmdbApi: TmdbApiService
         get() = if (getTmdbKey().isEmpty()) tmdbProxyApi else tmdbDirectApi
