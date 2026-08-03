@@ -100,7 +100,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Pour pouvoir rechercher des films et des séries et consulter leurs détails, vous devez posséder une clé API gratuite de The Movie Database (TMDB).\n\n" +
+                        text = "L'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre clé API ci-dessous.\n\n" +
                                 "💡 Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.LightGray,

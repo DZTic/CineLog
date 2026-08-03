@@ -1,0 +1,13 @@
+{
+  "name": "cinelog-tmdb-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Lightweight TMDB proxy so CineLog works out of the box",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

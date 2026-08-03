@@ -81,8 +81,11 @@ class Repository(
             .create(JikanApiService::class.java)
     }
 
-    // Set up Retrofit for TMDB (Movies / TV)
-    private val tmdbApi: TmdbApiService by lazy {
+    // Set up Retrofit for TMDB (Movies / TV).
+    // Without a personal key (the default), calls go through a lightweight
+    // proxy (see backend/) that injects the TMDB key server-side, so the app
+    // works out of the box. Users who set their own key call TMDB directly.
+    private fun buildTmdbApi(baseUrl: String): TmdbApiService {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
@@ -90,13 +93,21 @@ class Repository(
             .addInterceptor(logging)
             .build()
 
-        Retrofit.Builder()
-            .baseUrl("https://api.themoviedb.org/3/")
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(TmdbApiService::class.java)
     }
+
+    private val tmdbDirectApi: TmdbApiService by lazy { buildTmdbApi("https://api.themoviedb.org/3/") }
+
+    // TODO: replace with the deployed URL of the proxy in backend/
+    private val tmdbProxyApi: TmdbApiService by lazy { buildTmdbApi("https://cinelog-tmdb-proxy.onrender.com/") }
+
+    private val tmdbApi: TmdbApiService
+        get() = if (getTmdbKey().isEmpty()) tmdbProxyApi else tmdbDirectApi
 
     // ==========================================
     // LOCAL ROOM DATABASE QUERY FLOWS
@@ -232,9 +243,8 @@ class Repository(
         if (query.trim().isEmpty()) return@coroutineScope emptyList()
 
         val tmdbKey = getTmdbKey()
-        val hasTmdbKey = tmdbKey.isNotEmpty()
 
-        val filmsDeferred = if (hasTmdbKey && (typeFilter == null || typeFilter == TitleType.FILM)) {
+        val filmsDeferred = if (typeFilter == null || typeFilter == TitleType.FILM) {
             async(Dispatchers.IO) {
                 try {
                     val response = tmdbApi.searchMovie(tmdbKey, query)
@@ -250,7 +260,7 @@ class Repository(
 
         // Fetched for SERIE (kept as-is) and ANIME (reclassified matches
         // merged in below) filters, not just when there's no filter.
-        val seriesResultDeferred = if (hasTmdbKey && (typeFilter == null || typeFilter == TitleType.SERIE || typeFilter == TitleType.ANIME)) {
+        val seriesResultDeferred = if (typeFilter == null || typeFilter == TitleType.SERIE || typeFilter == TitleType.ANIME) {
             async(Dispatchers.IO) {
                 try {
                     tmdbApi.searchTv(tmdbKey, query).results
@@ -316,7 +326,6 @@ class Repository(
         when (prefix) {
             "movie" -> {
                 val tmdbKey = getTmdbKey()
-                if (tmdbKey.isEmpty()) throw IllegalStateException("Clé API TMDB manquante dans les Paramètres.")
                 val movie = tmdbApi.getMovieDetail(rawId, tmdbKey)
                 val cineTitle = movie.toCineTitle()
                 cacheCollectionInfo(cineTitle.id, cineTitle.collectionId, cineTitle.collectionName, cineTitle.collectionPosterUrl)
@@ -324,7 +333,6 @@ class Repository(
             }
             "tv" -> {
                 val tmdbKey = getTmdbKey()
-                if (tmdbKey.isEmpty()) throw IllegalStateException("Clé API TMDB manquante dans les Paramètres.")
                 val tv = tmdbApi.getTvDetail(rawId, tmdbKey)
                 tv.toCineTitle()
             }
@@ -343,7 +351,6 @@ class Repository(
      */
     private suspend fun fetchCollectionDetail(collectionId: Int): TmdbCollectionDetail? {
         val tmdbKey = getTmdbKey()
-        if (tmdbKey.isEmpty()) return null
         return try {
             tmdbApi.getCollection(collectionId, tmdbKey)
         } catch (e: Exception) {
@@ -441,9 +448,6 @@ class Repository(
         val tmdbKey = getTmdbKey()
         when (type) {
             TitleType.FILM -> {
-                if (tmdbKey.isEmpty()) {
-                    return@withContext getFallbackFilms()
-                }
                 try {
                     tmdbApi.getTrendingMovies(tmdbKey).results.map { it.toCineTitle() }
                 } catch (e: Exception) {
@@ -452,9 +456,6 @@ class Repository(
                 }
             }
             TitleType.SERIE -> {
-                if (tmdbKey.isEmpty()) {
-                    return@withContext getFallbackSeries()
-                }
                 try {
                     tmdbApi.getTrendingTv(tmdbKey).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
                 } catch (e: Exception) {
