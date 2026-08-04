@@ -1,6 +1,7 @@
 package com.example.ui.detail
 
 import android.widget.Toast
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -339,12 +342,35 @@ fun DetailScreen(
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = title.synopsis,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.LightGray,
-                                    lineHeight = 20.sp
-                                )
+                                var synopsisExpanded by rememberSaveable { mutableStateOf(false) }
+                                var synopsisOverflows by remember { mutableStateOf(false) }
+                                Column(modifier = Modifier.animateContentSize()) {
+                                    Text(
+                                        text = title.synopsis,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.LightGray,
+                                        lineHeight = 20.sp,
+                                        maxLines = if (synopsisExpanded) Int.MAX_VALUE else 4,
+                                        overflow = TextOverflow.Ellipsis,
+                                        onTextLayout = { result ->
+                                            if (!synopsisExpanded) synopsisOverflows = result.hasVisualOverflow
+                                        }
+                                    )
+                                    if (synopsisOverflows || synopsisExpanded) {
+                                        Text(
+                                            text = if (synopsisExpanded) "Réduire" else "Lire la suite",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                textDecoration = TextDecoration.Underline
+                                            ),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .padding(top = 4.dp)
+                                                .clickable { synopsisExpanded = !synopsisExpanded }
+                                                .testTag("synopsis_toggle")
+                                        )
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.height(24.dp))
                         }
