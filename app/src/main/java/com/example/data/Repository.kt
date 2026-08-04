@@ -1,6 +1,7 @@
 package com.example.data
 
 import android.util.Log
+import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -82,9 +83,10 @@ class Repository(
     }
 
     // Set up Retrofit for TMDB (Movies / TV).
-    // Without a personal key (the default), calls go through a lightweight
-    // proxy (see backend/) that injects the TMDB key server-side, so the app
-    // works out of the box. Users who set their own key call TMDB directly.
+    // Without a personal key (the default), calls go through our Cloudflare
+    // Worker proxy (see /proxy) that injects the TMDB key server-side, so
+    // the app works out of the box. Users who set their own key call TMDB
+    // directly.
     private fun buildTmdbApi(baseUrl: String): TmdbApiService {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -103,8 +105,13 @@ class Repository(
 
     private val tmdbDirectApi: TmdbApiService by lazy { buildTmdbApi("https://api.themoviedb.org/3/") }
 
-    // TODO: replace with the deployed URL of the proxy in backend/
-    private val tmdbProxyApi: TmdbApiService by lazy { buildTmdbApi("https://cinelog-5i8b.onrender.com/") }
+    // Configured via TMDB_PROXY_BASE_URL in .env (see proxy/README.md for
+    // deployment). Falls back to hitting TMDB directly with a placeholder
+    // key if the proxy hasn't been deployed yet — that call will simply
+    // fail with an auth error, caught like any other network error.
+    private val tmdbProxyApi: TmdbApiService by lazy {
+        buildTmdbApi(BuildConfig.TMDB_PROXY_BASE_URL.ifBlank { "https://api.themoviedb.org/3/" })
+    }
 
     private val tmdbApi: TmdbApiService
         get() = if (getTmdbKey().isEmpty()) tmdbProxyApi else tmdbDirectApi
