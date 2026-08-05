@@ -7,11 +7,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -129,9 +131,12 @@ fun SagaDetailScreen(
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             if (info.posterUrl != null) {
+                                val posterFallback = rememberVectorPainter(Icons.Default.Collections)
                                 AsyncImage(
                                     model = info.posterUrl,
                                     contentDescription = info.name,
+                                    placeholder = posterFallback,
+                                    error = posterFallback,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
@@ -293,9 +298,12 @@ private fun SagaMovieRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (movie.posterUrl != null) {
+                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
                     AsyncImage(
                         model = movie.posterUrl,
                         contentDescription = movie.title,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Movie
@@ -404,9 +405,12 @@ fun RecentActivityRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (log.titlePosterUrl != null) {
+                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
                     AsyncImage(
                         model = log.titlePosterUrl,
                         contentDescription = log.titleName,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -520,9 +524,12 @@ fun SagaActivityRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (posterUrl != null) {
+                    val posterFallback = rememberVectorPainter(Icons.Default.Collections)
                     AsyncImage(
                         model = posterUrl,
                         contentDescription = collectionName,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )

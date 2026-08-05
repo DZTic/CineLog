@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -218,9 +219,12 @@ fun TitleCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (title.posterUrl != null) {
+                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
                     AsyncImage(
                         model = title.posterUrl,
                         contentDescription = title.title,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -340,9 +344,12 @@ fun SagaCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (posterUrl != null) {
+                    val posterFallback = rememberVectorPainter(Icons.Default.Collections)
                     AsyncImage(
                         model = posterUrl,
                         contentDescription = name,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
