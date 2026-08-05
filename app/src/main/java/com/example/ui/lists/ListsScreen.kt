@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -294,9 +295,12 @@ fun ListsScreen(
                                         .clickable { onTitleClick(cineTitle.id) }
                                 ) {
                                     if (cineTitle.posterUrl != null) {
+                                        val posterFallback = rememberVectorPainter(Icons.Default.Movie)
                                         AsyncImage(
                                             model = cineTitle.posterUrl,
                                             contentDescription = cineTitle.title,
+                                            placeholder = posterFallback,
+                                            error = posterFallback,
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop
                                         )

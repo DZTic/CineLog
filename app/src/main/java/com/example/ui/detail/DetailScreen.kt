@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -154,9 +155,12 @@ fun DetailScreen(
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 if (title.posterUrl != null) {
+                                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
                                     AsyncImage(
                                         model = title.posterUrl,
                                         contentDescription = title.title,
+                                        placeholder = posterFallback,
+                                        error = posterFallback,
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop
                                     )
@@ -458,9 +462,12 @@ fun DetailScreen(
                                                     .background(CinemaSurfaceVariant)
                                             ) {
                                                 if (sagaTitle.posterUrl != null) {
+                                                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
                                                     AsyncImage(
                                                         model = sagaTitle.posterUrl,
                                                         contentDescription = sagaTitle.title,
+                                                        placeholder = posterFallback,
+                                                        error = posterFallback,
                                                         contentScale = ContentScale.Crop,
                                                         modifier = Modifier.fillMaxSize()
                                                     )
