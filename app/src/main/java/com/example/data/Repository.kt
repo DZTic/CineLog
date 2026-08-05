@@ -140,8 +140,43 @@ class Repository(
         watchlistDao.insertWatchlist(item)
     }
 
+    // Surcharge pratique a partir d'un CineTitle : copie directement ses
+    // metadonnees (annee, genres, note) dans l'entree watchlist pour que le
+    // tri/filtre de la Watchlist fonctionne sans attendre le backfill (#33).
+    suspend fun addToWatchlist(title: CineTitle) = withContext(Dispatchers.IO) {
+        watchlistDao.insertWatchlist(
+            DbWatchlist(
+                titleId = title.id,
+                titleType = title.type.name,
+                titleName = title.title,
+                titlePosterUrl = title.posterUrl,
+                titleYear = title.year.ifBlank { null },
+                titleGenres = title.genres.takeIf { it.isNotEmpty() }?.joinToString(","),
+                titleVoteAverage = title.voteAverage.takeIf { it > 0f },
+                collectionId = title.collectionId,
+                collectionName = title.collectionName,
+                collectionPosterUrl = title.collectionPosterUrl
+            )
+        )
+    }
+
     suspend fun removeFromWatchlist(titleId: String) = withContext(Dispatchers.IO) {
         watchlistDao.deleteFromWatchlist(titleId)
+    }
+
+    // Re-remplit les metadonnees de tri/filtre d'une entree watchlist qui
+    // n'a pas encore d'annee / note (entrees creees avant la v6, ou ajoutees
+    // sans detail). On lit l'annee via la note ET l'annee renvoyees par
+    // getTitleDetail, qui lui-meme sait resoudre movie_/tv_/anime_ (Jikan).
+    suspend fun backfillWatchlistMetadata(titleId: String) = withContext(Dispatchers.IO) {
+        val detail = getTitleDetail(titleId)
+        val genres = detail.genres.takeIf { it.isNotEmpty() }?.joinToString(",")
+        watchlistDao.updateWatchlistMetadata(
+            titleId = titleId,
+            year = detail.year.takeIf { it.isNotBlank() && it != "N/A" },
+            genres = genres,
+            voteAverage = detail.voteAverage.takeIf { it > 0f }
+        )
     }
 
     // ==========================================

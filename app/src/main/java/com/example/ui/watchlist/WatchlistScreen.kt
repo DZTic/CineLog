@@ -10,12 +10,18 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.PopupProperties
+import com.example.ui.WatchlistSortOrder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +64,10 @@ fun WatchlistScreen(
     val allLogs by viewModel.allLogs.collectAsState()
     val viewMode by viewModel.watchlistViewMode.collectAsState()
     val collapsedCategories by viewModel.watchlistCollapsedCategories.collectAsState()
+    val sortOrder by viewModel.watchlistSort.collectAsState()
+    val typeFilter by viewModel.watchlistTypeFilter.collectAsState()
+    val genreFilter by viewModel.watchlistGenreFilter.collectAsState()
+    val yearFilter by viewModel.watchlistYearFilter.collectAsState()
 
     // Entries added before the saga cache existed (or via the "Tout
     // ajouter" bug) may have no collectionId stored yet. Backfill it from
@@ -86,8 +96,51 @@ fun WatchlistScreen(
     // une saga entièrement vue disparaisse d'elle-même du regroupement par
     // saga puisqu'il ne lui reste alors plus aucune entrée non vue.
     val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
-    val watchlist = remember(backfilledWatchlist, watchedTitleIds) {
+    val watchedFiltered = remember(backfilledWatchlist, watchedTitleIds) {
         backfilledWatchlist.filter { it.titleId !in watchedTitleIds }
+    }
+
+    // Filtres de la Watchlist (issue #33). Appliques avant le regroupement
+    // par type/saga pour que le nombre affiche dans chaque en-tete reflete
+    // bien ce qui reste apres filtrage.
+    val watchlist = remember(watchedFiltered, typeFilter, genreFilter, yearFilter) {
+        watchedFiltered.filter { entry ->
+            val matchesType = typeFilter == null ||
+                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == typeFilter
+            val entryGenres = entry.titleGenres?.split(",")?.map { it.trim() } ?: emptyList()
+            val matchesGenre = genreFilter == null || entryGenres.contains(genreFilter)
+            val matchesYear = yearFilter == null || entry.titleYear == yearFilter
+            matchesType && matchesGenre && matchesYear
+        }
+    }
+
+    // Genres et annees disponibles : calcules sur la watchlist filtree par
+    // type uniquement, pour que les menus ne montrent que des options qui
+    // ont encore au moins un resultat.
+    val typeScopedEntries = remember(watchedFiltered, typeFilter) {
+        watchedFiltered.filter { entry ->
+            typeFilter == null ||
+                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == typeFilter
+        }
+    }
+    val availableGenres = remember(typeScopedEntries) {
+        typeScopedEntries
+            .flatMap { it.titleGenres?.split(",")?.map { g -> g.trim() } ?: emptyList() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+    val availableYears = remember(typeScopedEntries) {
+        typeScopedEntries
+            .mapNotNull { it.titleYear }
+            .distinct()
+            .sortedDescending()
+    }
+
+    // Backfill en arriere-plan : les entrees sans metadonnees (creees avant
+    // la v6) sont enrichies depuis l'API au premier affichage de l'ecran.
+    androidx.compose.runtime.LaunchedEffect(watchedFiltered.map { it.titleId }) {
+        viewModel.backfillWatchlistMetadata(watchedFiltered)
     }
 
     Scaffold(
@@ -132,17 +185,47 @@ fun WatchlistScreen(
                     }
                 }
             }
-            val displayItemsByType = remember(groupedWatchlist) {
+            val displayItemsByType = remember(groupedWatchlist, sortOrder) {
                 groupedWatchlist.mapValues { (_, items) ->
-                    items.groupBySaga(
+                    val grouped = items.groupBySaga(
                         collectionId = { it.collectionId },
                         collectionName = { it.collectionName },
                         posterUrl = { it.collectionPosterUrl }
-                    ).sortedByDescending { display ->
-                        when (display) {
-                            is GroupedDisplay.Single -> display.item.dateAdded
-                            is GroupedDisplay.Grouped -> display.group.items.maxOf { it.dateAdded }
-                        }
+                    )
+                    // Une saga est un element composite : pour le tri, on
+                    // utilise ses items (ex. annee/note min ou max du groupe),
+                    // avec les entrees sans metadonnee triees en dernier.
+                    when (sortOrder) {
+                        WatchlistSortOrder.DATE_ADDED ->
+                            grouped.sortedByDescending { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> display.item.dateAdded
+                                    is GroupedDisplay.Grouped -> display.group.items.maxOf { it.dateAdded }
+                                }
+                            }
+                        WatchlistSortOrder.TITLE_AZ ->
+                            grouped.sortedBy { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> display.item.titleName.lowercase()
+                                    is GroupedDisplay.Grouped -> display.group.collectionName.lowercase()
+                                }
+                            }
+                        WatchlistSortOrder.RELEASE_YEAR ->
+                            grouped.sortedByDescending { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> display.item.titleYear?.toIntOrNull() ?: Int.MIN_VALUE
+                                    is GroupedDisplay.Grouped ->
+                                        display.group.items.mapNotNull { it.titleYear?.toIntOrNull() }.maxOrNull() ?: Int.MIN_VALUE
+                                }
+                            }
+                        WatchlistSortOrder.COMMUNITY_RATING ->
+                            grouped.sortedByDescending { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> display.item.titleVoteAverage ?: Float.MIN_VALUE
+                                    is GroupedDisplay.Grouped ->
+                                        display.group.items.mapNotNull { it.titleVoteAverage }.maxOrNull() ?: Float.MIN_VALUE
+                                }
+                            }
                     }
                 }
             }
@@ -162,24 +245,71 @@ fun WatchlistScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Sélecteur Liste / Grille, en haut de la page
+                // Barre du haut : compteur + tri + filtres + vue Liste/Grille.
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${watchlist.size} titre${if (watchlist.size > 1) "s" else ""}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = GrayText
-                        )
-                        ViewModeToggle(
-                            viewMode = viewMode,
-                            onViewModeChange = { viewModel.setWatchlistViewMode(it) }
-                        )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${watchlist.size} titre${if (watchlist.size > 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = GrayText
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                SortMenuButton(
+                                    current = sortOrder,
+                                    onSelect = { viewModel.setWatchlistSort(it) }
+                                )
+                                FilterMenuButton(
+                                    typeFilter = typeFilter,
+                                    genreFilter = genreFilter,
+                                    yearFilter = yearFilter,
+                                    availableGenres = availableGenres,
+                                    availableYears = availableYears,
+                                    onTypeChange = { viewModel.setWatchlistTypeFilter(it) },
+                                    onGenreChange = { viewModel.setWatchlistGenreFilter(it) },
+                                    onYearChange = { viewModel.setWatchlistYearFilter(it) },
+                                    onClearAll = { viewModel.clearWatchlistFilters() }
+                                )
+                                ViewModeToggle(
+                                    viewMode = viewMode,
+                                    onViewModeChange = { viewModel.setWatchlistViewMode(it) }
+                                )
+                            }
+                        }
+
+                        // Chips des filtres actifs : l'utilisateur voit en un
+                        // coup d'oeil ce qui est applique et peut retirer
+                        // chaque filtre d'un tap, sans re-ouvrir le menu.
+                        val activeChips = buildList {
+                            typeFilter?.let { add("Type: ${it.displayName}" to { viewModel.setWatchlistTypeFilter(null) }) }
+                            genreFilter?.let { add("Genre: $it" to { viewModel.setWatchlistGenreFilter(null) }) }
+                            yearFilter?.let { add("Ann\u00e9e: $it" to { viewModel.setWatchlistYearFilter(null) }) }
+                        }
+                        if (activeChips.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                activeChips.forEach { (label, onRemove) ->
+                                    InputChip(
+                                        selected = true,
+                                        onClick = onRemove,
+                                        label = { Text(label) },
+                                        trailingIcon = {
+                                            Text("\u00d7", color = GrayText)
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -440,6 +570,159 @@ private fun SagaWatchlistRow(
     }
 }
 
+
+/**
+ * Bouton ouvrant le menu de tri de la Watchlist (issue #33). L'option
+ * active est marquee d'une coche ; le tri est persiste dans les preferences.
+ */
+@Composable
+private fun SortMenuButton(
+    current: WatchlistSortOrder,
+    onSelect: (WatchlistSortOrder) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.SwapVert,
+                contentDescription = "Trier la watchlist",
+                tint = GrayText,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            properties = PopupProperties(focusable = true)
+        ) {
+            WatchlistSortOrder.entries.forEach { order ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = order.displayName + if (order == current) "  \u2713" else "",
+                            color = if (order == current) MaterialTheme.colorScheme.primary else Color.White
+                        )
+                    },
+                    onClick = {
+                        onSelect(order)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Bouton ouvrant le menu des filtres (type / genre / annee). Les filtres
+ * nullables representent "aucun filtre" ; le bouton est colore quand au
+ * moins un filtre est actif pour le rappeler visuellement.
+ */
+@Composable
+private fun FilterMenuButton(
+    typeFilter: TitleType?,
+    genreFilter: String?,
+    yearFilter: String?,
+    availableGenres: List<String>,
+    availableYears: List<String>,
+    onTypeChange: (TitleType?) -> Unit,
+    onGenreChange: (String?) -> Unit,
+    onYearChange: (String?) -> Unit,
+    onClearAll: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val hasActive = typeFilter != null || genreFilter != null || yearFilter != null
+
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Default.FilterList,
+                contentDescription = "Filtrer la watchlist",
+                tint = if (hasActive) MaterialTheme.colorScheme.primary else GrayText,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            properties = PopupProperties(focusable = true)
+        ) {
+            // --- Type ---
+            Text(
+                text = "Type",
+                style = MaterialTheme.typography.labelSmall,
+                color = GrayText,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+            DropdownMenuItem(
+                text = { Text("Tous" + if (typeFilter == null) "  \u2713" else "") },
+                onClick = { onTypeChange(null) }
+            )
+            listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME).forEach { type ->
+                DropdownMenuItem(
+                    text = {
+                        Text("${type.displayName}s" + if (typeFilter == type) "  \u2713" else "")
+                    },
+                    onClick = { onTypeChange(type) }
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // --- Genre ---
+            Text(
+                text = "Genre",
+                style = MaterialTheme.typography.labelSmall,
+                color = GrayText,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+            DropdownMenuItem(
+                text = { Text("Tous" + if (genreFilter == null) "  \u2713" else "") },
+                onClick = { onGenreChange(null) }
+            )
+            availableGenres.forEach { genre ->
+                DropdownMenuItem(
+                    text = { Text(genre + if (genreFilter == genre) "  \u2713" else "") },
+                    onClick = { onGenreChange(genre) }
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // --- Annee ---
+            Text(
+                text = "Ann\u00e9e",
+                style = MaterialTheme.typography.labelSmall,
+                color = GrayText,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+            DropdownMenuItem(
+                text = { Text("Toutes" + if (yearFilter == null) "  \u2713" else "") },
+                onClick = { onYearChange(null) }
+            )
+            availableYears.forEach { year ->
+                DropdownMenuItem(
+                    text = { Text(year + if (yearFilter == year) "  \u2713" else "") },
+                    onClick = { onYearChange(year) }
+                )
+            }
+
+            if (hasActive) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                DropdownMenuItem(
+                    text = {
+                        Text("R\u00e9initialiser les filtres", color = MaterialTheme.colorScheme.primary)
+                    },
+                    onClick = {
+                        onClearAll()
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 private fun DbWatchlist.toCineTitle(): CineTitle {
     val tType = try {
         TitleType.valueOf(titleType)
@@ -450,10 +733,10 @@ private fun DbWatchlist.toCineTitle(): CineTitle {
         id = titleId,
         type = tType,
         title = titleName,
-        year = "",
+        year = titleYear ?: "",
         posterUrl = titlePosterUrl,
         synopsis = "",
-        genres = emptyList(),
-        voteAverage = 0f
+        genres = titleGenres?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList(),
+        voteAverage = titleVoteAverage ?: 0f
     )
 }

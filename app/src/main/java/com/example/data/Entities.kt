@@ -27,6 +27,12 @@ data class DbWatchlist(
     val titleName: String,
     val titlePosterUrl: String?,
     val dateAdded: Long = System.currentTimeMillis(),
+    // Metadonnees de tri/filtre (issue #33). Nullables car les entrees
+    // existantes avant cette version n'ont pas ces infos : elles sont
+    // progressivement re-remplies depuis l'API quand elles manquent.
+    val titleYear: String? = null,
+    val titleGenres: String? = null,      // stocke CSV ("Action,Drame")
+    val titleVoteAverage: Float? = null,  // echelle 0-5 comme partout dans l'app
     val collectionId: Int? = null,     // TMDB "saga" this movie belongs to, if any
     val collectionName: String? = null,
     val collectionPosterUrl: String? = null
