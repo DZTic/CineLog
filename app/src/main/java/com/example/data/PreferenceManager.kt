@@ -12,6 +12,10 @@ class PreferenceManager(context: Context) {
         private const val KEY_HOME_COLLAPSED_CATEGORIES = "home_collapsed_categories"
         private const val KEY_WATCHLIST_VIEW_MODE = "watchlist_view_mode"
         private const val KEY_WATCHLIST_COLLAPSED_CATEGORIES = "watchlist_collapsed_categories"
+        private const val KEY_WATCHLIST_SORT = "watchlist_sort"
+        private const val KEY_WATCHLIST_TYPE_FILTER = "watchlist_type_filter"
+        private const val KEY_WATCHLIST_GENRE_FILTER = "watchlist_genre_filter"
+        private const val KEY_WATCHLIST_YEAR_FILTER = "watchlist_year_filter"
     }
 
     fun getTmdbApiKey(): String {
@@ -61,5 +65,41 @@ class PreferenceManager(context: Context) {
 
     fun setWatchlistCollapsedCategories(categories: Set<String>) {
         prefs.edit().putStringSet(KEY_WATCHLIST_COLLAPSED_CATEGORIES, HashSet(categories)).apply()
+    }
+
+    // Tri et filtres de la Watchlist (issue #33). Tous stockes en String
+    // (noms d'enum ou "" pour "aucun filtre"), ce qui reste tolerant aux
+    // valeurs ajoutees ou retirees plus tard : cote lecture on fait un
+    // runCatching valueOf.
+    fun getWatchlistSort(): String {
+        return prefs.getString(KEY_WATCHLIST_SORT, "DATE_ADDED") ?: "DATE_ADDED"
+    }
+
+    fun setWatchlistSort(sort: String) {
+        prefs.edit().putString(KEY_WATCHLIST_SORT, sort).apply()
+    }
+
+    fun getWatchlistTypeFilter(): String {
+        return prefs.getString(KEY_WATCHLIST_TYPE_FILTER, "") ?: ""
+    }
+
+    fun setWatchlistTypeFilter(type: String) {
+        prefs.edit().putString(KEY_WATCHLIST_TYPE_FILTER, type).apply()
+    }
+
+    fun getWatchlistGenreFilter(): String {
+        return prefs.getString(KEY_WATCHLIST_GENRE_FILTER, "") ?: ""
+    }
+
+    fun setWatchlistGenreFilter(genre: String) {
+        prefs.edit().putString(KEY_WATCHLIST_GENRE_FILTER, genre).apply()
+    }
+
+    fun getWatchlistYearFilter(): String {
+        return prefs.getString(KEY_WATCHLIST_YEAR_FILTER, "") ?: ""
+    }
+
+    fun setWatchlistYearFilter(year: String) {
+        prefs.edit().putString(KEY_WATCHLIST_YEAR_FILTER, year).apply()
     }
 }

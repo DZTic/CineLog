@@ -293,7 +293,10 @@ fun DetailScreen(
                                             posterUrl = title.posterUrl,
                                             collectionId = title.collectionId,
                                             collectionName = title.collectionName,
-                                            collectionPosterUrl = title.collectionPosterUrl
+                                            collectionPosterUrl = title.collectionPosterUrl,
+                                            year = title.year,
+                                            genres = title.genres,
+                                            voteAverage = title.voteAverage
                                         )
                                         val msg = if (isInWatchlist) "Retiré de la Watchlist" else "Ajouté à la Watchlist"
                                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()

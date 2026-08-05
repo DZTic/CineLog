@@ -403,20 +403,32 @@ class CineViewModel(
                 try {
                     val alreadyIn = repository.isInWatchlist(title.id).first()
                     if (!alreadyIn) {
-                        repository.addToWatchlist(
-                            DbWatchlist(
-                                titleId = title.id,
-                                titleType = title.type.name,
-                                titleName = title.title,
-                                titlePosterUrl = title.posterUrl,
-                                collectionId = title.collectionId,
-                                collectionName = title.collectionName,
-                                collectionPosterUrl = title.collectionPosterUrl
-                            )
-                        )
+                        // La surcharge CineTitle copie aussi annee/genres/note
+                        // pour que le tri/filtre de la Watchlist marche des
+                        // l'ajout (#33).
+                        repository.addToWatchlist(title)
                     }
                 } catch (e: Exception) {
                     Log.e(tag, "Error adding ${title.title} to watchlist: ${e.localizedMessage}")
+                }
+            }
+        }
+    }
+
+    // Re-remplit en arriere-plan les entrees watchlist sans annee / note /
+    // genres (entrees creees avant la v6 ou ajoutees sans detail). Appele
+    // quand la Watchlist s'affiche ; volontairement tolerant aux erreurs
+    // reseau : un titre sans connexion gardera simplement ses metadonnees
+    // null et sera trie/filtre "en dernier".
+    fun backfillWatchlistMetadata(entries: List<DbWatchlist>) {
+        val missing = entries.filter { it.titleYear == null }
+        if (missing.isEmpty()) return
+        viewModelScope.launch {
+            missing.forEach { entry ->
+                try {
+                    repository.backfillWatchlistMetadata(entry.titleId)
+                } catch (e: Exception) {
+                    Log.e(tag, "Error backfilling ${entry.titleId} metadata: ${e.localizedMessage}")
                 }
             }
         }
@@ -429,7 +441,10 @@ class CineViewModel(
         posterUrl: String?,
         collectionId: Int? = null,
         collectionName: String? = null,
-        collectionPosterUrl: String? = null
+        collectionPosterUrl: String? = null,
+        year: String? = null,
+        genres: List<String> = emptyList(),
+        voteAverage: Float = 0f
     ) {
         viewModelScope.launch {
             try {
@@ -443,6 +458,9 @@ class CineViewModel(
                             titleType = type.name,
                             titleName = name,
                             titlePosterUrl = posterUrl,
+                            titleYear = year?.takeIf { it.isNotBlank() && it != "N/A" },
+                            titleGenres = genres.takeIf { it.isNotEmpty() }?.joinToString(","),
+                            titleVoteAverage = voteAverage.takeIf { it > 0f },
                             collectionId = collectionId,
                             collectionName = collectionName,
                             collectionPosterUrl = collectionPosterUrl
@@ -596,6 +614,79 @@ class CineViewModel(
         _watchlistCollapsedCategories.value = updated
         preferenceManager.setWatchlistCollapsedCategories(updated)
     }
+
+    // Tri et filtres de la Watchlist (issue #33). Persistes exactement
+    // comme le mode d'affichage : l'utilisateur retrouve ses preferences a
+    // la reouverture.
+    private val _watchlistSort = MutableStateFlow(
+        runCatching { WatchlistSortOrder.valueOf(preferenceManager.getWatchlistSort()) }
+            .getOrDefault(WatchlistSortOrder.DATE_ADDED)
+    )
+    val watchlistSort: StateFlow<WatchlistSortOrder> = _watchlistSort.asStateFlow()
+
+    fun setWatchlistSort(sort: WatchlistSortOrder) {
+        _watchlistSort.value = sort
+        preferenceManager.setWatchlistSort(sort.name)
+    }
+
+    private val _watchlistTypeFilter = MutableStateFlow(
+        preferenceManager.getWatchlistTypeFilter()
+            .takeIf { it.isNotBlank() }
+            ?.let { runCatching { TitleType.valueOf(it) }.getOrNull() }
+    )
+    val watchlistTypeFilter: StateFlow<TitleType?> = _watchlistTypeFilter.asStateFlow()
+
+    fun setWatchlistTypeFilter(type: TitleType?) {
+        _watchlistTypeFilter.value = type
+        preferenceManager.setWatchlistTypeFilter(type?.name ?: "")
+    }
+
+    private val _watchlistGenreFilter = MutableStateFlow(
+        preferenceManager.getWatchlistGenreFilter().takeIf { it.isNotBlank() }
+    )
+    val watchlistGenreFilter: StateFlow<String?> = _watchlistGenreFilter.asStateFlow()
+
+    fun setWatchlistGenreFilter(genre: String?) {
+        _watchlistGenreFilter.value = genre
+        preferenceManager.setWatchlistGenreFilter(genre ?: "")
+    }
+
+    private val _watchlistYearFilter = MutableStateFlow(
+        preferenceManager.getWatchlistYearFilter().takeIf { it.isNotBlank() }
+    )
+    val watchlistYearFilter: StateFlow<String?> = _watchlistYearFilter.asStateFlow()
+
+    fun setWatchlistYearFilter(year: String?) {
+        _watchlistYearFilter.value = year
+        preferenceManager.setWatchlistYearFilter(year ?: "")
+    }
+
+    val watchlistHasActiveFilters: Flow<Boolean> = kotlinx.coroutines.flow.combine(
+        _watchlistTypeFilter, _watchlistGenreFilter, _watchlistYearFilter
+    ) { type, genre, year ->
+        type != null || genre != null || year != null
+    }
+
+    fun clearWatchlistFilters() {
+        setWatchlistTypeFilter(null)
+        setWatchlistGenreFilter(null)
+        setWatchlistYearFilter(null)
+    }
+}
+
+// Ordre de tri de la Watchlist (issue #33). DATE_ADDED reste le defaut pour
+// preserver le comportement actuel ; les autres tris se basent sur les
+// metadonnees copiees dans la table watchlist (annee de sortie, note TMDB).
+enum class WatchlistSortOrder {
+    DATE_ADDED, TITLE_AZ, RELEASE_YEAR, COMMUNITY_RATING;
+
+    val displayName: String
+        get() = when (this) {
+            DATE_ADDED -> "Date d'ajout"
+            TITLE_AZ -> "Nom (A-Z)"
+            RELEASE_YEAR -> "Annee de sortie"
+            COMMUNITY_RATING -> "Note communaute"
+        }
 }
 
 // Partagé entre l'Accueil et la Watchlist (et potentiellement d'autres

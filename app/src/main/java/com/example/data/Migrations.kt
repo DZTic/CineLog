@@ -31,3 +31,14 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+// v5 -> v6: ajoute les colonnes de tri/filtre a la table watchlist
+// (annee de sortie, genres, note communaute). Toutes nullables : les
+// entrees existantes les gardent a NULL jusqu'a ce que le code les
+// re-remplisse progressivement depuis l'API.
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `watchlist` ADD COLUMN `titleYear` TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE `watchlist` ADD COLUMN `titleGenres` TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE `watchlist` ADD COLUMN `titleVoteAverage` REAL DEFAULT NULL")
+    }
+}

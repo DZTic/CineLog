@@ -35,6 +35,11 @@ interface WatchlistDao {
 
     @Query("DELETE FROM watchlist WHERE titleId = :titleId")
     suspend fun deleteFromWatchlist(titleId: String)
+
+    // Re-remplit les metadonnees de tri/filtre pour une entree existante
+    // (ajoutee avant l'arrivee de ces colonnes, voir issue #33).
+    @Query("UPDATE watchlist SET titleYear = :year, titleGenres = :genres, titleVoteAverage = :voteAverage WHERE titleId = :titleId")
+    suspend fun updateWatchlistMetadata(titleId: String, year: String?, genres: String?, voteAverage: Float?)
 }
 
 @Dao
