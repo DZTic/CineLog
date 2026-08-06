@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+package com.example.ui.lists
+=======
 ﻿package com.example.ui.lists
+>>>>>>> origin/main
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -31,6 +35,7 @@ import com.example.data.CineTitle
 import com.example.data.DbCustomListTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
+import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.EmptyState
 import com.example.ui.components.TypeBadge
 import com.example.ui.theme.CinemaSurfaceVariant
@@ -104,45 +109,50 @@ fun ListsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(customLists) { list ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("custom_list_item_${list.id}")
-                                .clickable { activeListId = list.id },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
+                    items(customLists, key = { it.id }) { list ->
+                        SwipeToDismissContainer(
+                            onDelete = { viewModel.deleteCustomList(list.id) },
+                            cornerRadius = 12.dp
                         ) {
-                            Column(
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    .testTag("custom_list_item_${list.id}")
+                                    .clickable { activeListId = list.id },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
                                 ) {
-                                    Text(
-                                        text = list.name,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = Color.White
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                if (list.description.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = list.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = GrayText,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = list.name,
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = Color.White
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    if (list.description.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = list.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = GrayText,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -284,9 +294,13 @@ fun ListsScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        itemsIndexed(listTitles) { index, item ->
+                        itemsIndexed(listTitles, key = { _, item -> item.id }) { index, item ->
                             val cineTitle = item.toCineTitle()
-                            Row(
+                            SwipeToDismissContainer(
+                                onDelete = { viewModel.removeTitleFromCustomList(item.id) },
+                                cornerRadius = 8.dp
+                            ) {
+                                Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
@@ -401,6 +415,7 @@ fun ListsScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

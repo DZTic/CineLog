@@ -48,6 +48,7 @@ import com.example.ui.CollectionViewMode
 import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.TypeBadge
@@ -363,10 +364,15 @@ fun WatchlistScreen(
                                                 onClick = { onTitleClick(title.id) }
                                             )
                                         } else {
-                                            WatchlistRow(
-                                                entry = display.item,
-                                                onClick = { onTitleClick(display.item.titleId) }
-                                            )
+                                            SwipeToDismissContainer(
+                                                onDelete = { viewModel.removeFromWatchlist(display.item.titleId) },
+                                                cornerRadius = 8.dp
+                                            ) {
+                                                WatchlistRow(
+                                                    entry = display.item,
+                                                    onClick = { onTitleClick(display.item.titleId) }
+                                                )
+                                            }
                                         }
                                     }
                                     is GroupedDisplay.Grouped -> {

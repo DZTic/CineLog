@@ -39,6 +39,7 @@ import com.example.data.DbLogEntry
 import com.example.data.SeasonStatus
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
+import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.components.TypeBadge
 import com.example.ui.components.WatchedBadge
@@ -625,12 +626,19 @@ fun DetailScreen(
                             }
                         }
                     } else {
-                        items(logs) { log ->
-                            LogItemRow(
-                                log = log,
+                        items(logs, key = { it.id }) { log ->
+                            SwipeToDismissContainer(
                                 onDelete = { viewModel.deleteLog(log.id) },
-                                onEdit = { onEditLogClick(title, log) }
-                            )
+                                onSecondaryAction = { onEditLogClick(title, log) },
+                                secondaryIcon = Icons.Default.Edit,
+                                cornerRadius = 12.dp
+                            ) {
+                                LogItemRow(
+                                    log = log,
+                                    onDelete = { viewModel.deleteLog(log.id) },
+                                    onEdit = { onEditLogClick(title, log) }
+                                )
+                            }
                         }
                     }
                 }
