@@ -43,6 +43,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import java.util.Locale
+
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.TitleType
@@ -76,11 +81,20 @@ fun TypeBadge(
 
     val fontSize = if (compact) 9.sp else 11.sp
 
+    val accessibleTypeLabel = when (type) {
+        TitleType.FILM -> "Film"
+        TitleType.SERIE -> "S?rie"
+        TitleType.ANIME -> "Anime"
+    }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
             .background(backgroundColor)
             .then(paddingValues)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Type : $accessibleTypeLabel"
+            }
     ) {
         Text(
             text = label,
@@ -114,7 +128,10 @@ fun WatchedBadge(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
             .background(watchedGreen.copy(alpha = 0.15f))
-            .then(paddingValues),
+            .then(paddingValues)
+            .clearAndSetSemantics {
+                contentDescription = "D?j? vu"
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -200,10 +217,32 @@ fun TitleCard(
     modifier: Modifier = Modifier,
     isInWatchlist: Boolean = false
 ) {
+    val typeLabel = when (title.type) {
+        TitleType.FILM -> "Film"
+        TitleType.SERIE -> "S?rie"
+        TitleType.ANIME -> "Anime"
+    }
+    val compositeDescription = buildString {
+        append(title.title)
+        append(", ").append(typeLabel)
+        if (title.year.isNotBlank()) {
+            append(", ").append(title.year)
+        }
+        if (title.voteAverage > 0f) {
+            append(", note ").append(String.format(Locale.FRENCH, "%.1f", title.voteAverage))
+        }
+        if (isInWatchlist) {
+            append(", d?j? dans la watchlist")
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .testTag("title_card_${title.id}")
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
@@ -326,9 +365,21 @@ fun SagaCard(
     modifier: Modifier = Modifier,
     isComplete: Boolean = false
 ) {
+    val filmCountText = if (filmCount > 1) "$filmCount films" else "$filmCount film"
+    val compositeDescription = buildString {
+        append("Saga ").append(name)
+        append(", ").append(filmCountText)
+        if (isComplete) {
+            append(", vue en entier")
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(

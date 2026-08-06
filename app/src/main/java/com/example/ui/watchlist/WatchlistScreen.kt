@@ -36,6 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbWatchlist
@@ -416,12 +419,28 @@ private fun WatchlistRow(
         }
     }
 
+    val typeLabel = remember(titleType) {
+        when (titleType) {
+            TitleType.FILM -> "Film"
+            TitleType.SERIE -> "S?rie"
+            TitleType.ANIME -> "Anime"
+        }
+    }
+    val compositeDescription = remember(entry, formattedDate, typeLabel) {
+        buildString {
+            append(entry.titleName)
+            append(", ").append(typeLabel)
+            append(", ajout? le ").append(formattedDate)
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            // Pas de padding horizontal ici : la marge vient du
-            // contentPadding du conteneur (LazyVerticalGrid).
             .padding(vertical = 6.dp)
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
@@ -504,10 +523,18 @@ private fun SagaWatchlistRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val filmCountText = if (count > 1) "$count films ? voir" else "$count film ? voir"
+    val compositeDescription = remember(collectionName, count) {
+        "Saga $collectionName, $filmCountText"
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
