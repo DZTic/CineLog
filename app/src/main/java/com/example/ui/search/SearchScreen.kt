@@ -10,7 +10,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,6 +39,7 @@ fun SearchScreen(
     viewModel: CineViewModel,
     onTitleClick: (String) -> Unit,
     onSagaClick: (Int) -> Unit,
+    onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -46,6 +49,7 @@ fun SearchScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val loading by viewModel.searchLoading.collectAsState()
     val error by viewModel.searchError.collectAsState()
+    val apiKey by viewModel.tmdbApiKey.collectAsState()
 
     // Movies from the same saga (TMDB collection) are collapsed into a
     // single result, so a franchise shows up once instead of cluttering the
@@ -194,6 +198,50 @@ fun SearchScreen(
                 )
             }
 
+            if (apiKey.isEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .testTag("tmdb_api_key_banner"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Clé API TMDB non renseignée",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "Pour un accès complet et direct à la recherche TMDB, vous pouvez configurer votre propre clé dans les Paramètres.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        if (onNavigateToSettings != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(onClick = onNavigateToSettings) {
+                                Text("Paramètres", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Results UI Area
             Box(
                 modifier = Modifier
@@ -219,6 +267,17 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.error,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
+                        if (onNavigateToSettings != null && apiKey.isEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onNavigateToSettings,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Black)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Paramètres API", color = Color.Black)
+                            }
+                        }
                     }
                 } else if (query.trim().length < 2) {
                     EmptyState(
