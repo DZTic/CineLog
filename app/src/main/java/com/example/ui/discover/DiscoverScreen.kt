@@ -1,4 +1,4 @@
-package com.example.ui.discover
+﻿package com.example.ui.discover
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -27,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
+import com.example.ui.components.SkeletonDiscoverContent
+import com.example.ui.components.SkeletonDiscoverGrid
 import com.example.ui.components.TitleCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +49,8 @@ fun DiscoverScreen(
     val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
     var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
+
+    val pullToRefreshState = rememberPullToRefreshState()
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
@@ -113,103 +119,108 @@ fun DiscoverScreen(
                 )
             }
 
-            if (loading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            } else if (error != null) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Text(
-                            text = error ?: "Erreur inconnue",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { viewModel.loadDiscoverContent() },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Réessayer", color = Color.Black)
-                        }
+            PullToRefreshBox(
+                isRefreshing = loading,
+                onRefresh = { viewModel.loadDiscoverContent() },
+                state = pullToRefreshState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (loading) {
+                    if (selectedFilter == null) {
+                        SkeletonDiscoverContent()
+                    } else {
+                        SkeletonDiscoverGrid()
                     }
-                }
-            } else {
-
-                if (selectedFilter == null) {
-                    // "ALL" Layout with Carousel rows
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 16.dp)
+                } else if (error != null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        CarouselSection(
-                            title = "Films populaires",
-                            items = trendingFilms,
-                            onTitleClick = onTitleClick,
-                            onViewAll = { selectedFilter = TitleType.FILM },
-                            watchlistTitleIds = watchlistTitleIds
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        CarouselSection(
-                            title = "Séries populaires",
-                            items = trendingSeries,
-                            onTitleClick = onTitleClick,
-                            onViewAll = { selectedFilter = TitleType.SERIE },
-                            watchlistTitleIds = watchlistTitleIds
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        CarouselSection(
-                            title = "Animes les mieux notés",
-                            items = topAnime,
-                            onTitleClick = onTitleClick,
-                            onViewAll = { selectedFilter = TitleType.ANIME },
-                            watchlistTitleIds = watchlistTitleIds
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Text(
+                                text = error ?: "Erreur inconnue",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { viewModel.loadDiscoverContent() },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Réessayer", color = Color.Black)
+                            }
+                        }
                     }
                 } else {
-                    // Filtered Grid layout
-                    val gridItems = when (selectedFilter) {
-                        TitleType.FILM -> trendingFilms
-                        TitleType.SERIE -> trendingSeries
-                        TitleType.ANIME -> topAnime
-                        else -> emptyList()
-                    }
-
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(gridItems) { title ->
-                            TitleCard(
-                                title = title,
-                                onClick = { onTitleClick(title.id) },
-                                isInWatchlist = title.id in watchlistTitleIds
+                    if (selectedFilter == null) {
+                        // "ALL" Layout with Carousel rows
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(bottom = 16.dp)
+                        ) {
+                            CarouselSection(
+                                title = "Films populaires",
+                                items = trendingFilms,
+                                onTitleClick = onTitleClick,
+                                onViewAll = { selectedFilter = TitleType.FILM },
+                                watchlistTitleIds = watchlistTitleIds
                             )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            CarouselSection(
+                                title = "Séries populaires",
+                                items = trendingSeries,
+                                onTitleClick = onTitleClick,
+                                onViewAll = { selectedFilter = TitleType.SERIE },
+                                watchlistTitleIds = watchlistTitleIds
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            CarouselSection(
+                                title = "Animes les mieux notés",
+                                items = topAnime,
+                                onTitleClick = onTitleClick,
+                                onViewAll = { selectedFilter = TitleType.ANIME },
+                                watchlistTitleIds = watchlistTitleIds
+                            )
+                        }
+                    } else {
+                        // Filtered Grid layout
+                        val gridItems = when (selectedFilter) {
+                            TitleType.FILM -> trendingFilms
+                            TitleType.SERIE -> trendingSeries
+                            TitleType.ANIME -> topAnime
+                            else -> emptyList()
+                        }
+
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(gridItems) { title ->
+                                TitleCard(
+                                    title = title,
+                                    onClick = { onTitleClick(title.id) },
+                                    isInWatchlist = title.id in watchlistTitleIds
+                                )
+                            }
                         }
                     }
                 }
-            }
+            } // end PullToRefreshBox
         }
     }
 }

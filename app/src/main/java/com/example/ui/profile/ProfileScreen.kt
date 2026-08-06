@@ -1,4 +1,4 @@
-package com.example.ui.profile
+﻿package com.example.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,6 +10,9 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import com.example.ui.components.SkeletonProfileContent
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,8 @@ fun ProfileScreen(
 ) {
     val logs by viewModel.allLogs.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
+    val isRefreshing by viewModel.profileRefreshing.collectAsState()
+    val pullToRefreshState = rememberPullToRefreshState()
 
     Scaffold(
         topBar = {
@@ -55,22 +60,28 @@ fun ProfileScreen(
         },
         modifier = modifier
     ) { innerPadding ->
-        if (logs.isEmpty()) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshProfile() },
+            state = pullToRefreshState,
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
+        ) {
+        if (isRefreshing) {
+            SkeletonProfileContent()
+        } else if (logs.isEmpty()) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                    .fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 EmptyState(
-                    message = "Aucun visionnage journalisé pour le moment.\nVos graphiques et statistiques apparaîtront dès que vous aurez enregistré votre premier log !"
+                    message = "Aucun visionnage journalisÃ© pour le moment.\nVos graphiques et statistiques apparaÃ®tront dÃ¨s que vous aurez enregistrÃ© votre premier log !"
                 )
             }
         } else {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -87,6 +98,7 @@ fun ProfileScreen(
                 // 3. Score Distribution Histogram
                 ScoreDistributionCard(logs = logs)
             }
+        } // end PullToRefreshBox
         }
     }
 }
@@ -161,7 +173,7 @@ fun TypeDistributionCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Répartition par Catégorie",
+                text = "RÃ©partition par CatÃ©gorie",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
@@ -215,7 +227,7 @@ fun TypeDistributionCard(
                 )
                 LegendItem(
                     color = Color(0xFFBB86FC),
-                    label = "Séries",
+                    label = "SÃ©ries",
                     count = series.toInt(),
                     percent = (seriesPercent * 100).toInt()
                 )
@@ -294,7 +306,7 @@ fun MonthlyActivityCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Activité des 6 derniers mois",
+                text = "ActivitÃ© des 6 derniers mois",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = Color.White
             )
@@ -394,7 +406,7 @@ fun ScoreDistributionCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = String.format("%.1f ★", score),
+                            text = String.format("%.1f â˜…", score),
                             style = MaterialTheme.typography.bodySmall,
                             color = StarGold,
                             modifier = Modifier.width(45.dp)
@@ -430,3 +442,4 @@ fun ScoreDistributionCard(
         }
     }
 }
+
