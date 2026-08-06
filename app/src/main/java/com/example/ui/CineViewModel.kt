@@ -1,4 +1,4 @@
-ï»¿package com.example.ui
+package com.example.ui
 
 import android.app.Application
 import android.util.Log
@@ -191,7 +191,7 @@ class CineViewModel(
                 _topAnime.value = repository.getTrendingOrPopular(TitleType.ANIME)
             } catch (e: Exception) {
                 Log.e(tag, "Error loading discover content: ${e.localizedMessage}")
-                _discoverError.value = "Impossible de rÃ©cupÃ©rer tout le contenu. Veuillez vÃ©rifier votre clÃ© TMDB."
+                _discoverError.value = "Impossible de récupérer tout le contenu. Veuillez vérifier votre clé TMDB."
             } finally {
                 _discoverLoading.value = false
             }
@@ -240,7 +240,7 @@ class CineViewModel(
 
             } catch (e: Exception) {
                 Log.e(tag, "Error performing search: ${e.localizedMessage}")
-                _searchError.value = "Erreur de connexion. Veuillez rÃ©essayer."
+                _searchError.value = "Erreur de connexion. Veuillez réessayer."
             } finally {
                 _searchLoading.value = false
             }
@@ -252,7 +252,7 @@ class CineViewModel(
     // one. Without this, navigating between titles piles up collectors
     // that never stop, and an old one can overwrite the currently
     // displayed title's state with another title's data whenever the
-    // underlying table changes (stale/wrong "dÃ©jÃ  vu" badge, wrong
+    // underlying table changes (stale/wrong "déjà vu" badge, wrong
     // rating, etc.).
     private var logsJob: Job? = null
     private var seasonProgressJob: Job? = null
@@ -314,7 +314,7 @@ class CineViewModel(
                 }
             } catch (e: Exception) {
                 Log.e(tag, "Error loading title detail: ${e.localizedMessage}")
-                _detailError.value = e.localizedMessage ?: "Erreur de chargement des dÃ©tails."
+                _detailError.value = e.localizedMessage ?: "Erreur de chargement des détails."
             } finally {
                 _detailLoading.value = false
             }
@@ -338,7 +338,7 @@ class CineViewModel(
         collectionId: Int? = null,
         collectionName: String? = null,
         collectionPosterUrl: String? = null,
-        id: Int = 0 // 0 = nouveau visionnage ; sinon, met Ã  jour le visionnage existant portant cet id
+        id: Int = 0 // 0 = nouveau visionnage ; sinon, met à jour le visionnage existant portant cet id
     ) {
         viewModelScope.launch {
             try {
@@ -395,7 +395,7 @@ class CineViewModel(
 
     // Adds every given title to the watchlist that isn't already in it or
     // already logged as watched (unlike toggleWatchlist, this never
-    // removes anything â€” used by the "Add saga to watchlist" action so
+    // removes anything — used by the "Add saga to watchlist" action so
     // repeated taps stay safe).
     fun addAllToWatchlist(titles: List<CineTitle>) {
         viewModelScope.launch {
@@ -434,6 +434,15 @@ class CineViewModel(
         }
     }
 
+    fun removeFromWatchlist(titleId: String) {
+        viewModelScope.launch {
+            try {
+                repository.removeFromWatchlist(titleId)
+            } catch (e: Exception) {
+                Log.e(tag, "Error removing from watchlist: ${e.localizedMessage}")
+            }
+        }
+    }
     fun toggleWatchlist(
         titleId: String,
         type: TitleType,
@@ -554,8 +563,8 @@ class CineViewModel(
     // HOME SCREEN DISPLAY PREFERENCES
     // ==========================================
 
-    // PersistÃ©e via PreferenceManager pour survivre Ã  la fermeture de
-    // l'appli : l'utilisateur ne veut pas re-choisir "grille" Ã  chaque
+    // Persistée via PreferenceManager pour survivre à la fermeture de
+    // l'appli : l'utilisateur ne veut pas re-choisir "grille" à chaque
     // ouverture.
     private val _homeViewMode = MutableStateFlow(
         runCatching { CollectionViewMode.valueOf(preferenceManager.getHomeViewMode()) }
@@ -568,9 +577,9 @@ class CineViewModel(
         preferenceManager.setHomeViewMode(mode.name)
     }
 
-    // CatÃ©gories (Films / SÃ©ries / Animes) actuellement rÃ©duites sur
+    // Catégories (Films / Séries / Animes) actuellement réduites sur
     // l'accueil, pour laisser de la place aux autres quand la liste d'une
-    // catÃ©gorie est longue. ClÃ© = TitleType.name.
+    // catégorie est longue. Clé = TitleType.name.
     private val _homeCollapsedCategories = MutableStateFlow(
         preferenceManager.getHomeCollapsedCategories()
     )
@@ -587,9 +596,9 @@ class CineViewModel(
     // ==========================================
     // WATCHLIST SCREEN DISPLAY PREFERENCES
     // ==========================================
-    // MÃªme principe que pour l'accueil, mais stockÃ© sÃ©parÃ©ment : rien
-    // n'oblige l'utilisateur Ã  vouloir le mÃªme mode d'affichage ou les
-    // mÃªmes catÃ©gories rÃ©duites sur les deux Ã©crans.
+    // Même principe que pour l'accueil, mais stocké séparément : rien
+    // n'oblige l'utilisateur à vouloir le même mode d'affichage ou les
+    // mêmes catégories réduites sur les deux écrans.
 
     private val _watchlistViewMode = MutableStateFlow(
         runCatching { CollectionViewMode.valueOf(preferenceManager.getWatchlistViewMode()) }
@@ -725,9 +734,9 @@ enum class WatchlistSortOrder {
         }
 }
 
-// PartagÃ© entre l'Accueil et la Watchlist (et potentiellement d'autres
-// Ã©crans Ã  l'avenir) : une simple prÃ©fÃ©rence Liste/Grille n'a pas besoin
-// d'Ãªtre dupliquÃ©e par Ã©cran.
+// Partagé entre l'Accueil et la Watchlist (et potentiellement d'autres
+// écrans à l'avenir) : une simple préférence Liste/Grille n'a pas besoin
+// d'être dupliquée par écran.
 enum class CollectionViewMode { LIST, GRID }
 
 // Simple Factory provider

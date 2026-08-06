@@ -1,4 +1,4 @@
-ï»¿package com.example.ui.watchlist
+package com.example.ui.watchlist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,6 +45,7 @@ import com.example.ui.CollectionViewMode
 import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.TypeBadge
@@ -96,12 +97,12 @@ fun WatchlistScreen(
         }
     }
 
-    // Un titre peut rester prÃ©sent dans la table watchlist tout en Ã©tant
-    // dÃ©jÃ  marquÃ© comme vu (log_entries) â€” par exemple rÃ©-ajoutÃ© manuellement
-    // depuis sa fiche dÃ©tail aprÃ¨s visionnage. On le masque ici pour que la
-    // Watchlist ne montre jamais de films dÃ©jÃ  vus et que, par effet de bord,
-    // une saga entiÃ¨rement vue disparaisse d'elle-mÃªme du regroupement par
-    // saga puisqu'il ne lui reste alors plus aucune entrÃ©e non vue.
+    // Un titre peut rester présent dans la table watchlist tout en étant
+    // déjà marqué comme vu (log_entries) — par exemple ré-ajouté manuellement
+    // depuis sa fiche détail après visionnage. On le masque ici pour que la
+    // Watchlist ne montre jamais de films déjà vus et que, par effet de bord,
+    // une saga entièrement vue disparaisse d'elle-même du regroupement par
+    // saga puisqu'il ne lui reste alors plus aucune entrée non vue.
     val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
     val watchedFiltered = remember(backfilledWatchlist, watchedTitleIds) {
         backfilledWatchlist.filter { it.titleId !in watchedTitleIds }
@@ -180,12 +181,12 @@ fun WatchlistScreen(
                 contentAlignment = Alignment.Center
             ) {
                 EmptyState(
-                    message = "Votre Watchlist est vide.\nAjoutez des titres depuis leur fiche dÃ©tail pour les retrouver ici !"
+                    message = "Votre Watchlist est vide.\nAjoutez des titres depuis leur fiche détail pour les retrouver ici !"
                 )
             }
         } else {
-            // Group by category (Films / SÃ©ries / Animes) for readability,
-            // same approach as the "ActivitÃ© RÃ©cente" grouping on Home. Within
+            // Group by category (Films / Séries / Animes) for readability,
+            // same approach as the "Activité Récente" grouping on Home. Within
             // each category, movies that belong to the same TMDB saga are
             // further collapsed into a single entry.
             val groupedWatchlist = remember(watchlist) {
@@ -243,8 +244,8 @@ fun WatchlistScreen(
             }
             val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
 
-            // MÃªme logique que sur l'Accueil : le nombre de colonnes pilote
-            // Ã  la fois la mise en page et le style de carte (ligne pleine
+            // Même logique que sur l'Accueil : le nombre de colonnes pilote
+            // à la fois la mise en page et le style de carte (ligne pleine
             // largeur en Liste, affiche compacte en Grille).
             val columnCount = if (viewMode == CollectionViewMode.GRID) 3 else 1
 
@@ -339,8 +340,8 @@ fun WatchlistScreen(
                                 onToggle = { viewModel.toggleWatchlistCategoryCollapsed(type.name) }
                             )
                         }
-                        // CatÃ©gorie rÃ©duite : aucun item Ã©mis, ce qui laisse
-                        // immÃ©diatement de la place aux catÃ©gories suivantes.
+                        // Catégorie réduite : aucun item émis, ce qui laisse
+                        // immédiatement de la place aux catégories suivantes.
                         if (!isCollapsed) {
                             items(
                                 displayItems,
@@ -396,9 +397,9 @@ fun WatchlistScreen(
 }
 
 /**
- * Ligne pleine largeur pour un titre de la Watchlist, utilisÃ©e en mode
- * Liste. Contrairement Ã  "ActivitÃ© RÃ©cente" (Accueil), il n'y a ni note ni
- * critique ici : le titre n'a pas encore Ã©tÃ© vu, seulement ajoutÃ©.
+ * Ligne pleine largeur pour un titre de la Watchlist, utilisée en mode
+ * Liste. Contrairement à "Activité Récente" (Accueil), il n'y a ni note ni
+ * critique ici : le titre n'a pas encore été vu, seulement ajouté.
  */
 @Composable
 private fun WatchlistRow(
@@ -472,7 +473,7 @@ private fun WatchlistRow(
                 ) {
                     TypeBadge(type = titleType, compact = true)
                     Text(
-                        text = "AjoutÃ© le $formattedDate",
+                        text = "Ajouté le $formattedDate",
                         style = MaterialTheme.typography.bodySmall,
                         color = GrayText
                     )
@@ -493,8 +494,8 @@ private fun WatchlistRow(
 }
 
 /**
- * Ã‰quivalent de WatchlistRow pour une saga entiÃ¨re (plusieurs films de la
- * mÃªme franchise ajoutÃ©s Ã  la Watchlist), en mode Liste.
+ * Équivalent de WatchlistRow pour une saga entière (plusieurs films de la
+ * même franchise ajoutés à la Watchlist), en mode Liste.
  */
 @Composable
 private fun SagaWatchlistRow(
@@ -579,7 +580,7 @@ private fun SagaWatchlistRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "$count films de la saga Ã  voir",
+                    text = "$count films de la saga à voir",
                     style = MaterialTheme.typography.bodySmall,
                     color = GrayText
                 )
