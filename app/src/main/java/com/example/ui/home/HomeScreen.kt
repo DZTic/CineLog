@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Movie
@@ -26,6 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbLogEntry
@@ -56,6 +60,7 @@ fun HomeScreen(
     onTitleClick: (String) -> Unit,
     onSagaClick: (Int) -> Unit,
     onNavigateToDiscover: () -> Unit,
+    onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val logsRaw by viewModel.allLogs.collectAsState()
@@ -64,6 +69,8 @@ fun HomeScreen(
     val sagaSizeCache by viewModel.sagaSizeCache.collectAsState()
     val viewMode by viewModel.homeViewMode.collectAsState()
     val collapsedCategories by viewModel.homeCollapsedCategories.collectAsState()
+    val apiKey by viewModel.tmdbApiKey.collectAsState()
+    val hasDismissedOnboarding by viewModel.hasDismissedOnboarding.collectAsState()
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
@@ -153,6 +160,65 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
+            if (apiKey.isEmpty() && !hasDismissedOnboarding) {
+                item(span = { GridItemSpan(columnCount) }) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .testTag("onboarding_banner"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Bienvenue sur CinéLog !",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Pour un accès complet et sans restriction à la recherche de films et séries, pensez à configurer votre clé API TMDB dans les Paramètres.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { viewModel.dismissOnboarding() }) {
+                                    Text("Plus tard")
+                                }
+                                if (onNavigateToSettings != null) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Button(
+                                        onClick = onNavigateToSettings,
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                    ) {
+                                        Text("Paramètres", color = Color.Black)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Stats Panel
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(
@@ -501,12 +567,23 @@ fun SagaActivityRow(
     val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
     val formattedDate = remember(latestDateVue) { formatter.format(Date(latestDateVue)) }
 
+    val filmCountText = if (count > 1) "$count films vus" else "$count film vu"
+    val compositeDescription = remember(collectionName, count, averageNote, formattedDate) {
+        buildString {
+            append("Saga ").append(collectionName)
+            append(", ").append(filmCountText)
+            append(", dernier vu le ").append(formattedDate)
+            append(", note moyenne ").append(String.format(Locale.FRENCH, "%.1f", averageNote))
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            // Idem RecentActivityRow : la marge horizontale vient du
-            // contentPadding du conteneur, pas d'ici.
             .padding(vertical = 6.dp)
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)

@@ -1,4 +1,4 @@
-package com.example.ui.watchlist
+ï»¿package com.example.ui.watchlist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbWatchlist
@@ -97,12 +100,12 @@ fun WatchlistScreen(
         }
     }
 
-    // Un titre peut rester présent dans la table watchlist tout en étant
-    // déjà marqué comme vu (log_entries) — par exemple ré-ajouté manuellement
-    // depuis sa fiche détail après visionnage. On le masque ici pour que la
-    // Watchlist ne montre jamais de films déjà vus et que, par effet de bord,
-    // une saga entièrement vue disparaisse d'elle-même du regroupement par
-    // saga puisqu'il ne lui reste alors plus aucune entrée non vue.
+    // Un titre peut rester prÃ©sent dans la table watchlist tout en Ã©tant
+    // dÃ©jÃ  marquÃ© comme vu (log_entries) â€” par exemple rÃ©-ajoutÃ© manuellement
+    // depuis sa fiche dÃ©tail aprÃ¨s visionnage. On le masque ici pour que la
+    // Watchlist ne montre jamais de films dÃ©jÃ  vus et que, par effet de bord,
+    // une saga entiÃ¨rement vue disparaisse d'elle-mÃªme du regroupement par
+    // saga puisqu'il ne lui reste alors plus aucune entrÃ©e non vue.
     val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
     val watchedFiltered = remember(backfilledWatchlist, watchedTitleIds) {
         backfilledWatchlist.filter { it.titleId !in watchedTitleIds }
@@ -181,12 +184,12 @@ fun WatchlistScreen(
                 contentAlignment = Alignment.Center
             ) {
                 EmptyState(
-                    message = "Votre Watchlist est vide.\nAjoutez des titres depuis leur fiche détail pour les retrouver ici !"
+                    message = "Votre Watchlist est vide.\nAjoutez des titres depuis leur fiche dÃ©tail pour les retrouver ici !"
                 )
             }
         } else {
-            // Group by category (Films / Séries / Animes) for readability,
-            // same approach as the "Activité Récente" grouping on Home. Within
+            // Group by category (Films / SÃ©ries / Animes) for readability,
+            // same approach as the "ActivitÃ© RÃ©cente" grouping on Home. Within
             // each category, movies that belong to the same TMDB saga are
             // further collapsed into a single entry.
             val groupedWatchlist = remember(watchlist) {
@@ -244,8 +247,8 @@ fun WatchlistScreen(
             }
             val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
 
-            // Même logique que sur l'Accueil : le nombre de colonnes pilote
-            // à la fois la mise en page et le style de carte (ligne pleine
+            // MÃªme logique que sur l'Accueil : le nombre de colonnes pilote
+            // Ã  la fois la mise en page et le style de carte (ligne pleine
             // largeur en Liste, affiche compacte en Grille).
             val columnCount = if (viewMode == CollectionViewMode.GRID) 3 else 1
 
@@ -340,8 +343,8 @@ fun WatchlistScreen(
                                 onToggle = { viewModel.toggleWatchlistCategoryCollapsed(type.name) }
                             )
                         }
-                        // Catégorie réduite : aucun item émis, ce qui laisse
-                        // immédiatement de la place aux catégories suivantes.
+                        // CatÃ©gorie rÃ©duite : aucun item Ã©mis, ce qui laisse
+                        // immÃ©diatement de la place aux catÃ©gories suivantes.
                         if (!isCollapsed) {
                             items(
                                 displayItems,
@@ -361,10 +364,15 @@ fun WatchlistScreen(
                                                 onClick = { onTitleClick(title.id) }
                                             )
                                         } else {
-                                            WatchlistRow(
-                                                entry = display.item,
-                                                onClick = { onTitleClick(display.item.titleId) }
-                                            )
+                                            SwipeToDismissContainer(
+                                                onDelete = { viewModel.removeFromWatchlist(display.item.titleId) },
+                                                cornerRadius = 8.dp
+                                            ) {
+                                                WatchlistRow(
+                                                    entry = display.item,
+                                                    onClick = { onTitleClick(display.item.titleId) }
+                                                )
+                                            }
                                         }
                                     }
                                     is GroupedDisplay.Grouped -> {
@@ -397,9 +405,9 @@ fun WatchlistScreen(
 }
 
 /**
- * Ligne pleine largeur pour un titre de la Watchlist, utilisée en mode
- * Liste. Contrairement à "Activité Récente" (Accueil), il n'y a ni note ni
- * critique ici : le titre n'a pas encore été vu, seulement ajouté.
+ * Ligne pleine largeur pour un titre de la Watchlist, utilisÃ©e en mode
+ * Liste. Contrairement Ã  "ActivitÃ© RÃ©cente" (Accueil), il n'y a ni note ni
+ * critique ici : le titre n'a pas encore Ã©tÃ© vu, seulement ajoutÃ©.
  */
 @Composable
 private fun WatchlistRow(
@@ -417,12 +425,28 @@ private fun WatchlistRow(
         }
     }
 
+    val typeLabel = remember(titleType) {
+        when (titleType) {
+            TitleType.FILM -> "Film"
+            TitleType.SERIE -> "S?rie"
+            TitleType.ANIME -> "Anime"
+        }
+    }
+    val compositeDescription = remember(entry, formattedDate, typeLabel) {
+        buildString {
+            append(entry.titleName)
+            append(", ").append(typeLabel)
+            append(", ajout? le ").append(formattedDate)
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            // Pas de padding horizontal ici : la marge vient du
-            // contentPadding du conteneur (LazyVerticalGrid).
             .padding(vertical = 6.dp)
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
@@ -473,7 +497,7 @@ private fun WatchlistRow(
                 ) {
                     TypeBadge(type = titleType, compact = true)
                     Text(
-                        text = "Ajouté le $formattedDate",
+                        text = "AjoutÃ© le $formattedDate",
                         style = MaterialTheme.typography.bodySmall,
                         color = GrayText
                     )
@@ -494,8 +518,8 @@ private fun WatchlistRow(
 }
 
 /**
- * Équivalent de WatchlistRow pour une saga entière (plusieurs films de la
- * même franchise ajoutés à la Watchlist), en mode Liste.
+ * Ã‰quivalent de WatchlistRow pour une saga entiÃ¨re (plusieurs films de la
+ * mÃªme franchise ajoutÃ©s Ã  la Watchlist), en mode Liste.
  */
 @Composable
 private fun SagaWatchlistRow(
@@ -505,10 +529,18 @@ private fun SagaWatchlistRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val filmCountText = if (count > 1) "$count films ? voir" else "$count film ? voir"
+    val compositeDescription = remember(collectionName, count) {
+        "Saga $collectionName, $filmCountText"
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
@@ -580,7 +612,7 @@ private fun SagaWatchlistRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "$count films de la saga à voir",
+                    text = "$count films de la saga Ã  voir",
                     style = MaterialTheme.typography.bodySmall,
                     color = GrayText
                 )

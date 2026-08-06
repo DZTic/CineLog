@@ -174,6 +174,14 @@ class CineViewModel(
     private val _tmdbApiKey = MutableStateFlow(preferenceManager.getTmdbApiKey())
     val tmdbApiKey: StateFlow<String> = _tmdbApiKey.asStateFlow()
 
+    private val _hasDismissedOnboarding = MutableStateFlow(preferenceManager.hasDismissedOnboarding())
+    val hasDismissedOnboarding: StateFlow<Boolean> = _hasDismissedOnboarding.asStateFlow()
+
+    fun dismissOnboarding() {
+        preferenceManager.setHasDismissedOnboarding(true)
+        _hasDismissedOnboarding.value = true
+    }
+
     init {
         loadDiscoverContent()
     }

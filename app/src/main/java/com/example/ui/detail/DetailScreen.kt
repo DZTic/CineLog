@@ -754,7 +754,7 @@ fun LogItemRow(
                     IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Modifier le visionnage",
+                            contentDescription = "Modifier le visionnage du $formattedDate",
                             tint = GrayText,
                             modifier = Modifier.size(16.dp)
                         )
@@ -763,7 +763,7 @@ fun LogItemRow(
                     IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "Supprimer le log",
+                            contentDescription = "Supprimer le visionnage du $formattedDate",
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(16.dp)
                         )

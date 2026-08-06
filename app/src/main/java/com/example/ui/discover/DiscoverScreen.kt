@@ -10,10 +10,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -23,32 +27,73 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
+import com.example.ui.components.EmptyState
+import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.SagaCard
 import com.example.ui.components.SkeletonDiscoverContent
 import com.example.ui.components.SkeletonDiscoverGrid
 import com.example.ui.components.TitleCard
+import com.example.ui.components.groupBySaga
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
     viewModel: CineViewModel,
     onTitleClick: (String) -> Unit,
+    onSagaClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
+    val focusManager = LocalFocusManager.current
+
     val trendingFilms by viewModel.trendingFilms.collectAsState()
     val trendingSeries by viewModel.trendingSeries.collectAsState()
     val topAnime by viewModel.topAnime.collectAsState()
-    val loading by viewModel.discoverLoading.collectAsState()
-    val error by viewModel.discoverError.collectAsState()
+    val discoverLoading by viewModel.discoverLoading.collectAsState()
+    val discoverError by viewModel.discoverError.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
     val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
-    var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
+    val searchResults by viewModel.searchResults.collectAsState()
+    val searchLoading by viewModel.searchLoading.collectAsState()
+    val searchError by viewModel.searchError.collectAsState()
+
+    val displaySearchResults = remember(searchResults) {
+        searchResults.groupBySaga(
+            collectionId = { it.collectionId },
+            collectionName = { it.collectionName },
+            posterUrl = { it.collectionPosterUrl }
+        ).sortedByDescending { display ->
+            when (display) {
+                is GroupedDisplay.Single -> display.item.voteAverage
+                is GroupedDisplay.Grouped -> display.group.items.maxOf { it.voteAverage }
+            }
+        }
+    }
+
+    var isDebouncing by remember { mutableStateOf(false) }
+    LaunchedEffect(query, selectedFilter) {
+        if (query.trim().length >= 2) {
+            isDebouncing = true
+            delay(350)
+            isDebouncing = false
+            viewModel.performSearch(query, selectedFilter)
+        } else {
+            isDebouncing = false
+        }
+    }
 
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -74,11 +119,59 @@ fun DiscoverScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // Persistent Search Bar
+            TextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .testTag("search_input_field"),
+                placeholder = {
+                    Text(
+                        "Rechercher un film, une série, un anime...",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Recherche"
+                    )
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Effacer"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    focusManager.clearFocus()
+                    if (query.trim().length >= 2) {
+                        viewModel.performSearch(query, selectedFilter)
+                    }
+                }),
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
             // Filter Selector Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
@@ -119,90 +212,39 @@ fun DiscoverScreen(
                 )
             }
 
-            PullToRefreshBox(
-                isRefreshing = loading,
-                onRefresh = { viewModel.loadDiscoverContent() },
-                state = pullToRefreshState,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                if (loading) {
-                    if (selectedFilter == null) {
-                        SkeletonDiscoverContent()
-                    } else {
-                        SkeletonDiscoverGrid()
-                    }
-                } else if (error != null) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+            if (query.trim().length >= 2) {
+                // Search Results Grid
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    if (searchLoading || isDebouncing) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else if (searchError != null) {
                         Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(24.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp)
+                                .align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = error ?: "Erreur inconnue",
+                                text = searchError ?: "",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { viewModel.loadDiscoverContent() },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Réessayer", color = Color.Black)
-                            }
                         }
-                    }
-                } else {
-                    if (selectedFilter == null) {
-                        // "ALL" Layout with Carousel rows
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(bottom = 16.dp)
-                        ) {
-                            CarouselSection(
-                                title = "Films populaires",
-                                items = trendingFilms,
-                                onTitleClick = onTitleClick,
-                                onViewAll = { selectedFilter = TitleType.FILM },
-                                watchlistTitleIds = watchlistTitleIds
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CarouselSection(
-                                title = "Séries populaires",
-                                items = trendingSeries,
-                                onTitleClick = onTitleClick,
-                                onViewAll = { selectedFilter = TitleType.SERIE },
-                                watchlistTitleIds = watchlistTitleIds
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            CarouselSection(
-                                title = "Animes les mieux notés",
-                                items = topAnime,
-                                onTitleClick = onTitleClick,
-                                onViewAll = { selectedFilter = TitleType.ANIME },
-                                watchlistTitleIds = watchlistTitleIds
-                            )
-                        }
+                    } else if (searchResults.isEmpty()) {
+                        EmptyState(
+                            message = "Aucun titre trouvé pour \"$query\".",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     } else {
-                        // Filtered Grid layout
-                        val gridItems = when (selectedFilter) {
-                            TitleType.FILM -> trendingFilms
-                            TitleType.SERIE -> trendingSeries
-                            TitleType.ANIME -> topAnime
-                            else -> emptyList()
-                        }
-
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(3),
                             contentPadding = PaddingValues(16.dp),
@@ -210,17 +252,140 @@ fun DiscoverScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(gridItems) { title ->
-                                TitleCard(
-                                    title = title,
-                                    onClick = { onTitleClick(title.id) },
-                                    isInWatchlist = title.id in watchlistTitleIds
-                                )
+                            items(
+                                displaySearchResults,
+                                key = { display ->
+                                    when (display) {
+                                        is GroupedDisplay.Single -> display.item.id
+                                        is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
+                                    }
+                                }
+                            ) { display ->
+                                when (display) {
+                                    is GroupedDisplay.Single -> {
+                                        TitleCard(
+                                            title = display.item,
+                                            onClick = { onTitleClick(display.item.id) },
+                                            isInWatchlist = display.item.id in watchlistTitleIds
+                                        )
+                                    }
+                                    is GroupedDisplay.Grouped -> {
+                                        val group = display.group
+                                        SagaCard(
+                                            name = group.collectionName,
+                                            posterUrl = group.posterUrl,
+                                            filmCount = group.items.size,
+                                            onClick = { onSagaClick(group.collectionId) }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            } // end PullToRefreshBox
+            } else {
+                // Standard Discover Mode with PullToRefresh
+                PullToRefreshBox(
+                    isRefreshing = discoverLoading,
+                    onRefresh = { viewModel.loadDiscoverContent() },
+                    state = pullToRefreshState,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (discoverLoading) {
+                        if (selectedFilter == null) {
+                            SkeletonDiscoverContent()
+                        } else {
+                            SkeletonDiscoverGrid()
+                        }
+                    } else if (discoverError != null) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(24.dp)
+                            ) {
+                                Text(
+                                    text = discoverError ?: "Erreur inconnue",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { viewModel.loadDiscoverContent() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Réessayer", color = Color.Black)
+                                }
+                            }
+                        }
+                    } else {
+                        if (selectedFilter == null) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                CarouselSection(
+                                    title = "Films populaires",
+                                    items = trendingFilms,
+                                    onTitleClick = onTitleClick,
+                                    onViewAll = { selectedFilter = TitleType.FILM },
+                                    watchlistTitleIds = watchlistTitleIds
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                CarouselSection(
+                                    title = "Séries populaires",
+                                    items = trendingSeries,
+                                    onTitleClick = onTitleClick,
+                                    onViewAll = { selectedFilter = TitleType.SERIE },
+                                    watchlistTitleIds = watchlistTitleIds
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                CarouselSection(
+                                    title = "Animes les mieux notés",
+                                    items = topAnime,
+                                    onTitleClick = onTitleClick,
+                                    onViewAll = { selectedFilter = TitleType.ANIME },
+                                    watchlistTitleIds = watchlistTitleIds
+                                )
+                            }
+                        } else {
+                            val gridItems = when (selectedFilter) {
+                                TitleType.FILM -> trendingFilms
+                                TitleType.SERIE -> trendingSeries
+                                TitleType.ANIME -> topAnime
+                                else -> emptyList()
+                            }
+
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                contentPadding = PaddingValues(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(gridItems) { title ->
+                                    TitleCard(
+                                        title = title,
+                                        onClick = { onTitleClick(title.id) },
+                                        isInWatchlist = title.id in watchlistTitleIds
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
