@@ -386,7 +386,7 @@ fun ListsScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Retirer de la liste",
+                                        contentDescription = "Retirer ${cineTitle.title} de la liste",
                                         tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(18.dp)
                                     )

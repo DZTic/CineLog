@@ -27,6 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbLogEntry
@@ -564,12 +567,23 @@ fun SagaActivityRow(
     val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
     val formattedDate = remember(latestDateVue) { formatter.format(Date(latestDateVue)) }
 
+    val filmCountText = if (count > 1) "$count films vus" else "$count film vu"
+    val compositeDescription = remember(collectionName, count, averageNote, formattedDate) {
+        buildString {
+            append("Saga ").append(collectionName)
+            append(", ").append(filmCountText)
+            append(", dernier vu le ").append(formattedDate)
+            append(", note moyenne ").append(String.format(Locale.FRENCH, "%.1f", averageNote))
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            // Idem RecentActivityRow : la marge horizontale vient du
-            // contentPadding du conteneur, pas d'ici.
             .padding(vertical = 6.dp)
+            .clearAndSetSemantics {
+                contentDescription = compositeDescription
+            }
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
