@@ -267,6 +267,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     },
                     onNavigateToDiscover = {
                         navController.navigate(Screen.Discover.route)
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
                     }
                 )
             }
@@ -293,6 +296,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     },
                     onSagaClick = { collectionId ->
                         navController.navigate(Screen.SagaDetail.createRoute(collectionId))
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
                     }
                 )
             }
