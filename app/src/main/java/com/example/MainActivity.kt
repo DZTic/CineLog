@@ -1,4 +1,4 @@
-package com.example
+﻿package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -30,16 +30,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -141,13 +137,11 @@ fun MainAppScaffold(viewModel: CineViewModel) {
     // When non-null, the Log dialog opens pre-filled to edit this existing entry instead of creating a new one
     var editingLog by remember { mutableStateOf<DbLogEntry?>(null) }
 
-    // Core Tab Routes for Bottom Navigation
+    // Core 4 Tab Routes for Bottom Navigation (Material Design 3-5 tabs guideline)
     val bottomNavItems = listOf(
         Screen.Home,
         Screen.Discover,
-        Screen.Search,
         Screen.Watchlist,
-        Screen.Lists,
         Screen.Profile
     )
 
@@ -156,19 +150,6 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             // Only show bottom navigation on primary tabs
             val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
             if (isPrimaryTab) {
-                // Material3's NavigationBar/NavigationBarItem uses a fixed
-                // ~64dp active-indicator pill regardless of how narrow each
-                // column is. With 6 tabs, columns are narrower than that on
-                // basically every phone, so the pill for the edge tabs
-                // (Accueil, Profil) always bled past the screen edge no
-                // matter how much outer padding/clipping was added, since
-                // outer padding doesn't change the pill's fixed width vs.
-                // the column's available width.
-                //
-                // This custom bar sizes the selection pill from its own
-                // content (icon + small padding) instead of a fixed token,
-                // so it's always narrower than its column and can never
-                // overflow, regardless of screen width or item count.
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     tonalElevation = 3.dp
@@ -185,9 +166,7 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                             val icon = when (screen) {
                                 Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
                                 Screen.Discover -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
-                                Screen.Search -> if (selected) Icons.Filled.Search else Icons.Outlined.Search
                                 Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
-                                Screen.Lists -> if (selected) Icons.Filled.List else Icons.Outlined.List
                                 Screen.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
                                 else -> Icons.Filled.Home
                             }
@@ -195,9 +174,7 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                             val label = when (screen) {
                                 Screen.Home -> "Accueil"
                                 Screen.Discover -> "Découvrir"
-                                Screen.Search -> "Recherche"
                                 Screen.Watchlist -> "À Voir"
-                                Screen.Lists -> "Listes"
                                 Screen.Profile -> "Profil"
                                 else -> screen.title
                             }
@@ -265,19 +242,6 @@ fun MainAppScaffold(viewModel: CineViewModel) {
             navController = navController,
             startDestination = Screen.Home.route,
             modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding()),
-            // Sans ceci, Navigation Compose ne joue AUCUNE animation par
-            // défaut : chaque écran (changement d'onglet, ouverture d'une
-            // fiche détail...) remplace l'écran précédent d'un coup sec.
-            //
-            // Le fondu croisé DOIT utiliser la même durée (et le même
-            // easing) pour l'entrée et la sortie. Avec des durées
-            // différentes (ex. 180ms/120ms), l'écran sortant devient
-            // totalement transparent avant que le nouvel écran ait fini
-            // d'apparaître : il y a alors une courte fenêtre où on ne voit
-            // ni l'un ni l'autre pleinement, ce qui donne exactement la
-            // sensation de "saccade" / "pas fluide" que l'on veut éviter.
-            // Un easing (au lieu d'un tween linéaire) adoucit aussi le
-            // début/la fin du mouvement.
             enterTransition = {
                 fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
             },
@@ -307,17 +271,20 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                 )
             }
 
-            // Discover Carousel / Grids View
+            // Discover Carousel / Grids & Embedded Search View
             composable(Screen.Discover.route) {
                 DiscoverScreen(
                     viewModel = viewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
+                    },
+                    onSagaClick = { collectionId ->
+                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
                     }
                 )
             }
 
-            // Global Search View
+            // Global Search View (Direct route)
             composable(Screen.Search.route) {
                 SearchScreen(
                     viewModel = viewModel,
@@ -349,11 +316,14 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                     viewModel = viewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
+                    },
+                    onBackClick = {
+                        navController.popBackStack()
                     }
                 )
             }
 
-            // Profile Screen with Settings trigger
+            // Profile Screen with Settings trigger & List shortcut
             composable(Screen.Profile.route) {
                 Scaffold(
                     contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
@@ -377,6 +347,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                 ) { padding ->
                     ProfileScreen(
                         viewModel = viewModel,
+                        onNavigateToLists = {
+                            navController.navigate(Screen.Lists.route)
+                        },
                         modifier = Modifier.padding(padding)
                     )
                 }

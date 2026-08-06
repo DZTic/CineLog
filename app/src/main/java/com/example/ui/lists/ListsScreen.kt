@@ -1,4 +1,4 @@
-package com.example.ui.lists
+﻿package com.example.ui.lists
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -41,6 +41,7 @@ import com.example.ui.theme.GrayText
 fun ListsScreen(
     viewModel: CineViewModel,
     onTitleClick: (String) -> Unit,
+    onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var activeListId by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -59,6 +60,13 @@ fun ListsScreen(
                             "Mes Listes Thématiques",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
+                    },
+                    navigationIcon = {
+                        if (onBackClick != null) {
+                            IconButton(onClick = onBackClick) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                            }
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background
