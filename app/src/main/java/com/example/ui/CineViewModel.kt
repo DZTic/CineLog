@@ -1,4 +1,4 @@
-package com.example.ui
+﻿package com.example.ui
 
 import android.app.Application
 import android.util.Log
@@ -672,6 +672,42 @@ class CineViewModel(
         setWatchlistGenreFilter(null)
         setWatchlistYearFilter(null)
     }
+    // ==========================================
+    // PULL-TO-REFRESH HELPERS
+    // ==========================================
+
+    // Watchlist data comes from Room and updates automatically. Pull-to-
+    // refresh still provides useful UX feedback: a brief loading pulse lets
+    // the user know the app acknowledged the gesture.
+    private val _watchlistRefreshing = MutableStateFlow(false)
+    val watchlistRefreshing: StateFlow<Boolean> = _watchlistRefreshing.asStateFlow()
+
+    fun refreshWatchlist() {
+        viewModelScope.launch {
+            _watchlistRefreshing.value = true
+            try {
+                kotlinx.coroutines.delay(600)
+            } finally {
+                _watchlistRefreshing.value = false
+            }
+        }
+    }
+
+    // Profile data is also Room-backed. Pull-to-refresh on Profile reloads
+    // nothing from the network but gives visual acknowledgement.
+    private val _profileRefreshing = MutableStateFlow(false)
+    val profileRefreshing: StateFlow<Boolean> = _profileRefreshing.asStateFlow()
+
+    fun refreshProfile() {
+        viewModelScope.launch {
+            _profileRefreshing.value = true
+            try {
+                kotlinx.coroutines.delay(600)
+            } finally {
+                _profileRefreshing.value = false
+            }
+        }
+    }
 }
 
 // Ordre de tri de la Watchlist (issue #33). DATE_ADDED reste le defaut pour
@@ -708,3 +744,4 @@ class CineViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+

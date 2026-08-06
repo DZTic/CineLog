@@ -1,4 +1,4 @@
-package com.example.ui.watchlist
+﻿package com.example.ui.watchlist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +15,10 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import com.example.ui.components.SkeletonWatchlistGrid
+import com.example.ui.components.SkeletonWatchlistList
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -69,6 +73,8 @@ fun WatchlistScreen(
     val typeFilter by viewModel.watchlistTypeFilter.collectAsState()
     val genreFilter by viewModel.watchlistGenreFilter.collectAsState()
     val yearFilter by viewModel.watchlistYearFilter.collectAsState()
+    val isRefreshing by viewModel.watchlistRefreshing.collectAsState()
+    val pullToRefreshState = rememberPullToRefreshState()
 
     // Entries added before the saga cache existed (or via the "Tout
     // ajouter" bug) may have no collectionId stored yet. Backfill it from
@@ -161,11 +167,16 @@ fun WatchlistScreen(
         },
         modifier = modifier
     ) { innerPadding ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.refreshWatchlist() },
+            state = pullToRefreshState,
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
+        ) {
         if (watchlist.isEmpty()) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                    .fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 EmptyState(
@@ -244,7 +255,6 @@ fun WatchlistScreen(
                 verticalArrangement = Arrangement.spacedBy(if (viewMode == CollectionViewMode.GRID) 16.dp else 0.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
             ) {
                 // Barre du haut : compteur + tri + filtres + vue Liste/Grille.
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -380,6 +390,7 @@ fun WatchlistScreen(
                     }
                 }
             }
+        } // end PullToRefreshBox
         }
     }
 }
@@ -747,3 +758,4 @@ private fun DbWatchlist.toCineTitle(): CineTitle {
         voteAverage = titleVoteAverage ?: 0f
     )
 }
+
