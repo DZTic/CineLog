@@ -17,6 +17,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_WATCHLIST_GENRE_FILTER = "watchlist_genre_filter"
         private const val KEY_WATCHLIST_YEAR_FILTER = "watchlist_year_filter"
         private const val KEY_HAS_DISMISSED_ONBOARDING = "has_dismissed_onboarding"
+        private const val KEY_SEARCH_HISTORY = "search_history"
+        private const val KEY_PINNED_SEARCHES = "pinned_searches"
     }
 
     fun getTmdbApiKey(): String {
@@ -29,10 +31,14 @@ class PreferenceManager(context: Context) {
 
     fun hasDismissedOnboarding(): Boolean {
         return prefs.getBoolean(KEY_HAS_DISMISSED_ONBOARDING, false)
+        private const val KEY_SEARCH_HISTORY = "search_history"
+        private const val KEY_PINNED_SEARCHES = "pinned_searches"
     }
 
     fun setHasDismissedOnboarding(dismissed: Boolean) {
         prefs.edit().putBoolean(KEY_HAS_DISMISSED_ONBOARDING, dismissed).apply()
+        private const val KEY_SEARCH_HISTORY = "search_history"
+        private const val KEY_PINNED_SEARCHES = "pinned_searches"
     }
 
     // "LIST" (une carte par ligne, pleine largeur) ou "GRID" (grille

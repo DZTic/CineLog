@@ -545,7 +545,7 @@ fun SearchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = if (searchResults.isEmpty()) "Aucun titre trouvé pour "$query"." else "Aucun résultat correspondant aux filtres sélectionnés.",
+                            text = if (searchResults.isEmpty()) "Aucun titre trouvé pour '$query'." else "Aucun résultat correspondant aux filtres sélectionnés.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 16.dp)
