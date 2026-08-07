@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -274,22 +276,76 @@ fun HomeScreen(
 
             if (logs.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
+                    val trendingFilms by viewModel.trendingFilms.collectAsState()
+                    val trendingSeries by viewModel.trendingSeries.collectAsState()
+                    val suggestions = remember(trendingFilms, trendingSeries) {
+                        (trendingFilms + trendingSeries).distinctBy { it.id }.take(5)
+                    }
+                    val isFirstLaunch = watchlist.isEmpty() && !hasDismissedOnboarding
+                    val emptyMessage = if (isFirstLaunch) {
+                        "Bienvenue sur CineLog ! Votre journal est vide. Explorez nos suggestions ci-dessous ou recherchez vos œuvres préférées."
+                    } else {
+                        "Aucun visionnage récent dans votre journal. Ajoutez votre dernier film, série ou anime !"
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         EmptyState(
-                            message = "Aucun visionnage journalisé pour l'instant.\nPrêt à ajouter votre premier film, série ou anime ?"
+                            title = "Votre journal est vide",
+                            message = emptyMessage,
+                            icon = Icons.Default.Movie,
+                            action = {
+                                Button(
+                                    onClick = onNavigateToDiscover,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    modifier = Modifier.testTag("empty_state_cta_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Movie,
+                                        contentDescription = null,
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Qu'avez-vous regardé récemment ?",
+                                        color = Color.Black,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            },
+                            extraContent = {
+                                if (suggestions.isNotEmpty()) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalAlignment = Alignment.Start
+                                    ) {
+                                        Text(
+                                            text = "Suggestions populaires",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                        )
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp),
+                                            modifier = Modifier.testTag("empty_state_suggestions_carousel")
+                                        ) {
+                                            items(suggestions, key = { it.id }) { item ->
+                                                SuggestionItemCard(
+                                                    title = item,
+                                                    onClick = { onTitleClick(item.id) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = onNavigateToDiscover,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Text("Découvrir des titres", color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
                     }
                 }
             } else {
@@ -683,6 +739,91 @@ fun SagaActivityRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = GrayText
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SuggestionItemCard(
+    title: CineTitle,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(110.dp)
+            .testTag("suggestion_card_${title.id}")
+            .clickable { onClick() },
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (title.posterUrl != null) {
+                    AsyncImage(
+                        model = title.posterUrl,
+                        contentDescription = title.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Movie,
+                            contentDescription = null,
+                            tint = GrayText.copy(alpha = 0.5f),
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+                TypeBadge(
+                    type = title.type,
+                    compact = true,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = title.title,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (title.voteAverage > 0f) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = StarGold,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = String.format(Locale.FRENCH, "%.1f", title.voteAverage),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = GrayText
+                    )
+                }
             }
         }
     }

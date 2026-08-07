@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -478,21 +479,42 @@ fun SagaCard(
 @Composable
 fun EmptyState(
     message: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    icon: ImageVector = Icons.Default.Movie,
+    action: (@Composable () -> Unit)? = null,
+    extraContent: (@Composable () -> Unit)? = null
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Movie,
-                contentDescription = null,
-                tint = GrayText.copy(alpha = 0.3f),
-                modifier = Modifier.size(64.dp)
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(36.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            if (title != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = message,
@@ -500,6 +522,14 @@ fun EmptyState(
                 color = GrayText,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+            if (action != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                action()
+            }
+            if (extraContent != null) {
+                Spacer(modifier = Modifier.height(20.dp))
+                extraContent()
+            }
         }
     }
 }
