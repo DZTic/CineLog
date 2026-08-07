@@ -1,4 +1,4 @@
-﻿package com.example.ui.discover
+package com.example.ui.discover
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 package com.example.ui.lists
-=======
-﻿package com.example.ui.lists
->>>>>>> origin/main
 
 import android.widget.Toast
 import androidx.compose.foundation.background
