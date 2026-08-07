@@ -70,7 +70,7 @@ import com.example.ui.detail.DetailScreen
 import com.example.ui.discover.DiscoverScreen
 import com.example.ui.home.HomeScreen
 import com.example.ui.lists.ListsScreen
-import com.example.ui.log.LogDialog
+import com.example.ui.log.LogBottomSheet
 import com.example.ui.profile.ProfileScreen
 import com.example.ui.saga.SagaDetailScreen
 import com.example.ui.search.SearchScreen
@@ -416,7 +416,7 @@ fun MainAppScaffold(viewModel: CineViewModel) {
         // Overlay Log dialog when active
         val logTitle = loggingTitle
         if (logTitle != null) {
-            LogDialog(
+            LogBottomSheet(
                 title = logTitle,
                 viewModel = viewModel,
                 existingLog = editingLog,
