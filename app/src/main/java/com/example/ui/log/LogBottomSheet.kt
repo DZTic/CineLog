@@ -21,9 +21,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.data.CineTitle
 import com.example.data.DbLogEntry
 import com.example.ui.CineViewModel
@@ -34,7 +31,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LogDialog(
+fun LogBottomSheet(
     title: CineTitle,
     viewModel: CineViewModel,
     onDismiss: () -> Unit,
@@ -73,27 +70,20 @@ fun LogDialog(
         )
     }
 
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false // Let us style a beautiful almost-full-width container
-        )
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = modifier
     ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth(0.95f)
-                .wrapContentHeight()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, bottom = 20.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
                 // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -328,6 +318,5 @@ fun LogDialog(
                     }
                 }
             }
-        }
     }
 }
