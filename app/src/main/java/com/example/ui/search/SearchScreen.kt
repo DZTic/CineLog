@@ -1,29 +1,47 @@
 package com.example.ui.search
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
 import com.example.ui.components.EmptyState
@@ -31,6 +49,7 @@ import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.groupBySaga
+import com.example.ui.log.LogDialog
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +63,9 @@ fun SearchScreen(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
+    var selectedGenre by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedYear by rememberSaveable { mutableStateOf<String?>(null) }
+    var manualLogTitle by remember { mutableStateOf<CineTitle?>(null) }
     val focusManager = LocalFocusManager.current
 
     val searchResults by viewModel.searchResults.collectAsState()
@@ -51,12 +73,44 @@ fun SearchScreen(
     val error by viewModel.searchError.collectAsState()
     val apiKey by viewModel.tmdbApiKey.collectAsState()
 
-    // Movies from the same saga (TMDB collection) are collapsed into a
-    // single result, so a franchise shows up once instead of cluttering the
-    // grid with every film in it. Order is kept close to the original
-    // relevance ranking (best vote average first).
-    val displayResults = remember(searchResults) {
-        searchResults.groupBySaga(
+    val searchHistory by viewModel.searchHistory.collectAsState()
+    val pinnedSearches by viewModel.pinnedSearches.collectAsState()
+
+    val trendingFilms by viewModel.trendingFilms.collectAsState()
+    val trendingSeries by viewModel.trendingSeries.collectAsState()
+    val topAnime by viewModel.topAnime.collectAsState()
+
+    val popularSuggestions = remember(trendingFilms, trendingSeries, topAnime) {
+        (trendingFilms.take(3) + trendingSeries.take(3) + topAnime.take(3)).distinctBy { it.id }
+    }
+
+    // Dynamic Genre and Year options derived from search results
+    val availableGenres = remember(searchResults) {
+        searchResults.flatMap { it.genres }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+
+    val availableYears = remember(searchResults) {
+        searchResults.mapNotNull { title ->
+            title.year.takeIf { it.isNotBlank() && it != "N/A" }
+        }
+        .distinct()
+        .sortedDescending()
+    }
+
+    // Filter search results by selected genre and year
+    val filteredResults = remember(searchResults, selectedGenre, selectedYear) {
+        searchResults.filter { title ->
+            val matchesGenre = selectedGenre == null || title.genres.any { it.equals(selectedGenre, ignoreCase = true) }
+            val matchesYear = selectedYear == null || title.year.equals(selectedYear, ignoreCase = true)
+            matchesGenre && matchesYear
+        }
+    }
+
+    val displayResults = remember(filteredResults) {
+        filteredResults.groupBySaga(
             collectionId = { it.collectionId },
             collectionName = { it.collectionName },
             posterUrl = { it.collectionPosterUrl }
@@ -68,11 +122,6 @@ fun SearchScreen(
         }
     }
 
-    // Perform search whenever query or filter changes, with a short debounce
-    // so a network call isn't fired on every keystroke. LaunchedEffect
-    // automatically cancels the previous coroutine (and its pending delay)
-    // as soon as `query`/`selectedFilter` changes again, so only the last
-    // keystroke of a fast typing burst actually triggers performSearch().
     var isDebouncing by remember { mutableStateOf(false) }
     LaunchedEffect(query, selectedFilter) {
         if (query.trim().length >= 2) {
@@ -110,7 +159,11 @@ fun SearchScreen(
             // Search Input Field
             TextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = { 
+                    query = it 
+                    selectedGenre = null
+                    selectedYear = null
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -129,12 +182,28 @@ fun SearchScreen(
                     )
                 },
                 trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Effacer"
-                            )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val isPinned = query.trim().isNotBlank() && pinnedSearches.any { it.equals(query.trim(), ignoreCase = true) }
+                        if (query.trim().length >= 2) {
+                            IconButton(onClick = { viewModel.togglePinSearch(query.trim()) }) {
+                                Icon(
+                                    imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                                    contentDescription = if (isPinned) "Dépingler cette recherche" else "Épingler cette recherche",
+                                    tint = if (isPinned) MaterialTheme.colorScheme.primary else Color.Gray
+                                )
+                            }
+                        }
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { 
+                                query = ""
+                                selectedGenre = null
+                                selectedYear = null
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Effacer"
+                                )
+                            }
                         }
                     }
                 },
@@ -143,7 +212,9 @@ fun SearchScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     focusManager.clearFocus()
-                    viewModel.performSearch(query, selectedFilter)
+                    if (query.trim().length >= 2) {
+                        viewModel.performSearch(query, selectedFilter)
+                    }
                 }),
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -153,7 +224,7 @@ fun SearchScreen(
                 )
             )
 
-            // Search Filters
+            // Search Filters (Type)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,6 +267,61 @@ fun SearchScreen(
                         selectedLabelColor = Color.Black
                     )
                 )
+            }
+
+            // Dynamic Sub-filters (Genre & Year) when search results exist
+            if (searchResults.isNotEmpty() && (availableGenres.isNotEmpty() || availableYears.isNotEmpty())) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (selectedGenre != null || selectedYear != null) {
+                        item {
+                            SuggestionChip(
+                                onClick = {
+                                    selectedGenre = null
+                                    selectedYear = null
+                                },
+                                label = { Text("Réinitialiser") },
+                                icon = { Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                                colors = SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                            )
+                        }
+                    }
+
+                    // Available Genre Filter Chips
+                    items(availableGenres) { genre ->
+                        FilterChip(
+                            selected = selectedGenre.equals(genre, ignoreCase = true),
+                            onClick = {
+                                selectedGenre = if (selectedGenre.equals(genre, ignoreCase = true)) null else genre
+                            },
+                            label = { Text(genre) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        )
+                    }
+
+                    // Available Year Filter Chips
+                    items(availableYears) { year ->
+                        FilterChip(
+                            selected = selectedYear == year,
+                            onClick = {
+                                selectedYear = if (selectedYear == year) null else year
+                            },
+                            label = { Text(year) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        )
+                    }
+                }
             }
 
             if (apiKey.isEmpty()) {
@@ -242,7 +368,7 @@ fun SearchScreen(
                 }
             }
 
-            // Results UI Area
+            // Results / Suggestions Area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -265,7 +391,7 @@ fun SearchScreen(
                             text = error ?: "",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = TextAlign.Center
                         )
                         if (onNavigateToSettings != null && apiKey.isEmpty()) {
                             Spacer(modifier = Modifier.height(12.dp))
@@ -280,15 +406,194 @@ fun SearchScreen(
                         }
                     }
                 } else if (query.trim().length < 2) {
-                    EmptyState(
-                        message = "Entrez au moins 2 caractères pour lancer la recherche globale.",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                } else if (searchResults.isEmpty()) {
-                    EmptyState(
-                        message = "Aucun titre trouvé pour \"$query\".",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    // Search Suggestions (Pinned & Recent History)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
+                        // Pinned Searches Section
+                        if (pinnedSearches.isNotEmpty()) {
+                            Text(
+                                text = "Recherches enregistrées",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            pinnedSearches.forEach { pinnedItem ->
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            query = pinnedItem
+                                            viewModel.performSearch(pinnedItem, selectedFilter)
+                                        },
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PushPin,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = pinnedItem,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(onClick = { viewModel.togglePinSearch(pinnedItem) }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Dépingler",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // Search History Section
+                        if (searchHistory.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Historique de recherche",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                                TextButton(onClick = { viewModel.clearSearchHistory() }) {
+                                    Text("Effacer tout", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            searchHistory.forEach { historyItem ->
+                                val isPinned = pinnedSearches.any { it.equals(historyItem, ignoreCase = true) }
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            query = historyItem
+                                            viewModel.performSearch(historyItem, selectedFilter)
+                                        },
+                                    color = MaterialTheme.colorScheme.surface
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.History,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = historyItem,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(onClick = { viewModel.togglePinSearch(historyItem) }) {
+                                            Icon(
+                                                imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                                                contentDescription = if (isPinned) "Dépingler" else "Épingler",
+                                                tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        IconButton(onClick = { viewModel.removeSearchHistory(historyItem) }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Supprimer de l'historique",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (pinnedSearches.isEmpty() && searchHistory.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                                EmptyState(
+                                    message = "Entrez au moins 2 caractères pour lancer la recherche globale."
+                                )
+                            }
+                        }
+                    }
+                } else if (searchResults.isEmpty() || filteredResults.isEmpty()) {
+                    // Enriched Empty State with Manual Add Button & Popular Suggestions
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (searchResults.isEmpty()) "Aucun titre trouvé pour "$query"." else "Aucun résultat correspondant aux filtres sélectionnés.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        // Button to add title manually
+                        Button(
+                            onClick = {
+                                manualLogTitle = CineTitle(
+                                    id = "custom_${System.currentTimeMillis()}",
+                                    type = selectedFilter ?: TitleType.FILM,
+                                    title = query.trim(),
+                                    year = "",
+                                    posterUrl = null,
+                                    synopsis = "",
+                                    genres = emptyList(),
+                                    voteAverage = 0f
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Ajouter manuellement", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Recommendation Section
+                        if (popularSuggestions.isNotEmpty()) {
+                            Text(
+                                text = "Suggestions de titres populaires",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier.align(Alignment.Start).padding(bottom = 12.dp)
+                            )
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(popularSuggestions) { suggestion ->
+                                    TitleCard(
+                                        title = suggestion,
+                                        onClick = { onTitleClick(suggestion.id) },
+                                        modifier = Modifier.width(110.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
@@ -327,6 +632,16 @@ fun SearchScreen(
                     }
                 }
             }
+        }
+
+        // Dialog to manually add/log a title when empty state button is clicked
+        val customTitle = manualLogTitle
+        if (customTitle != null) {
+            LogDialog(
+                title = customTitle,
+                viewModel = viewModel,
+                onDismiss = { manualLogTitle = null }
+            )
         }
     }
 }
