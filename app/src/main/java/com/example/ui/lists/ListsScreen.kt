@@ -1,15 +1,18 @@
-package com.example.ui.lists
+﻿package com.example.ui.lists
 
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,6 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -26,16 +32,105 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbCustomListTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
-import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.EmptyState
+import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.TypeBadge
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+class DragDropState(
+    val lazyListState: LazyListState,
+    private val coroutineScope: CoroutineScope,
+    private val onMove: (fromIndex: Int, toIndex: Int) -> Unit,
+    private val onDragEnd: () -> Unit
+) {
+    var draggingItemIndex by mutableStateOf<Int?>(null)
+        private set
+
+    var draggingItemOffset by mutableFloatStateOf(0f)
+        private set
+
+    fun onDragStart(index: Int) {
+        draggingItemIndex = index
+        draggingItemOffset = 0f
+    }
+
+    fun onDrag(dragAmount: Float) {
+        val currentIndex = draggingItemIndex ?: return
+        draggingItemOffset += dragAmount
+
+        val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+        val currentItemInfo = visibleItems.firstOrNull { it.index == currentIndex } ?: return
+
+        val currentItemCenter = currentItemInfo.offset + currentItemInfo.size / 2f + draggingItemOffset
+
+        val targetItem = visibleItems.firstOrNull { item ->
+            item.index != currentIndex &&
+                    currentItemCenter >= item.offset &&
+                    currentItemCenter <= item.offset + item.size
+        }
+
+        if (targetItem != null) {
+            val targetIndex = targetItem.index
+            onMove(currentIndex, targetIndex)
+            draggingItemOffset = (currentItemInfo.offset + draggingItemOffset) - targetItem.offset
+            draggingItemIndex = targetIndex
+        }
+
+        val viewportStart = lazyListState.layoutInfo.viewportStartOffset
+        val viewportEnd = lazyListState.layoutInfo.viewportEndOffset
+        val startOffset = currentItemInfo.offset + draggingItemOffset
+        val endOffset = startOffset + currentItemInfo.size
+        val scrollThreshold = 60f
+
+        if (startOffset < viewportStart + scrollThreshold) {
+            val scrollDelta = (startOffset - (viewportStart + scrollThreshold)) * 0.2f
+            coroutineScope.launch {
+                lazyListState.scrollBy(scrollDelta)
+            }
+        } else if (endOffset > viewportEnd - scrollThreshold) {
+            val scrollDelta = (endOffset - (viewportEnd - scrollThreshold)) * 0.2f
+            coroutineScope.launch {
+                lazyListState.scrollBy(scrollDelta)
+            }
+        }
+    }
+
+    fun onDragInterrupted() {
+        if (draggingItemIndex != null) {
+            onDragEnd()
+        }
+        draggingItemIndex = null
+        draggingItemOffset = 0f
+    }
+}
+
+@Composable
+fun rememberDragDropState(
+    lazyListState: LazyListState,
+    onMove: (Int, Int) -> Unit,
+    onDragEnd: () -> Unit
+): DragDropState {
+    val coroutineScope = rememberCoroutineScope()
+    val currentOnMove by rememberUpdatedState(onMove)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+    return remember(lazyListState) {
+        DragDropState(
+            lazyListState = lazyListState,
+            coroutineScope = coroutineScope,
+            onMove = { from, to -> currentOnMove(from, to) },
+            onDragEnd = { currentOnDragEnd() }
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -218,6 +313,21 @@ fun ListsScreen(
         val listTitles by listTitlesFlow.collectAsState(emptyList())
         val context = LocalContext.current
 
+        var localListTitles by remember(listTitles) { mutableStateOf(listTitles) }
+        val lazyListState = rememberLazyListState()
+
+        val dragDropState = rememberDragDropState(
+            lazyListState = lazyListState,
+            onMove = { fromIndex, toIndex ->
+                localListTitles = localListTitles.toMutableList().apply {
+                    add(toIndex, removeAt(fromIndex))
+                }
+            },
+            onDragEnd = {
+                viewModel.reorderCustomListTitles(listId, localListTitles)
+            }
+        )
+
         Scaffold(
             contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             topBar = {
@@ -284,134 +394,124 @@ fun ListsScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = lazyListState,
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        itemsIndexed(listTitles, key = { _, item -> item.id }) { index, item ->
+                        itemsIndexed(localListTitles, key = { _, item -> item.id }) { index, item ->
                             val cineTitle = item.toCineTitle()
+                            val isDragging = index == dragDropState.draggingItemIndex
+
                             SwipeToDismissContainer(
                                 onDelete = { viewModel.removeTitleFromCustomList(item.id) },
                                 cornerRadius = 8.dp
                             ) {
                                 Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(CinemaSurfaceVariant)
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Mini Poster
-                                Box(
                                     modifier = Modifier
-                                        .size(width = 40.dp, height = 60.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .clickable { onTitleClick(cineTitle.id) }
+                                        .fillMaxWidth()
+                                        .zIndex(if (isDragging) 1f else 0f)
+                                        .graphicsLayer {
+                                            translationY = if (isDragging) dragDropState.draggingItemOffset else 0f
+                                            shadowElevation = if (isDragging) 16f else 0f
+                                            scaleX = if (isDragging) 1.02f else 1f
+                                            scaleY = if (isDragging) 1.02f else 1f
+                                        }
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(CinemaSurfaceVariant)
+                                        .padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (cineTitle.posterUrl != null) {
-                                        val posterFallback = rememberVectorPainter(Icons.Default.Movie)
-                                        AsyncImage(
-                                            model = cineTitle.posterUrl,
-                                            contentDescription = cineTitle.title,
-                                            placeholder = posterFallback,
-                                            error = posterFallback,
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Movie,
-                                                contentDescription = null,
-                                                tint = GrayText,
-                                                modifier = Modifier.size(16.dp)
+                                    // Drag handle icon ⋮⋮
+                                    Icon(
+                                        imageVector = Icons.Default.DragHandle,
+                                        contentDescription = "Réordonner ${cineTitle.title}",
+                                        tint = if (isDragging) MaterialTheme.colorScheme.primary else GrayText,
+                                        modifier = Modifier
+                                            .padding(end = 8.dp)
+                                            .testTag("drag_handle_${item.id}")
+                                            .pointerInput(index) {
+                                                detectDragGestures(
+                                                    onDragStart = { dragDropState.onDragStart(index) },
+                                                    onDrag = { change, dragAmount ->
+                                                        change.consume()
+                                                        dragDropState.onDrag(dragAmount.y)
+                                                    },
+                                                    onDragEnd = { dragDropState.onDragInterrupted() },
+                                                    onDragCancel = { dragDropState.onDragInterrupted() }
+                                                )
+                                            }
+                                    )
+
+                                    // Mini Poster
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 40.dp, height = 60.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .clickable { onTitleClick(cineTitle.id) }
+                                    ) {
+                                        if (cineTitle.posterUrl != null) {
+                                            val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                                            AsyncImage(
+                                                model = cineTitle.posterUrl,
+                                                contentDescription = cineTitle.title,
+                                                placeholder = posterFallback,
+                                                error = posterFallback,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
                                             )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Movie,
+                                                    contentDescription = null,
+                                                    tint = GrayText,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
 
-                                // Text Title & Type
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { onTitleClick(cineTitle.id) }
-                                ) {
-                                    Text(
-                                        text = cineTitle.title,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = Color.White,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    TypeBadge(type = cineTitle.type, compact = true)
-                                }
+                                    // Text Title & Type
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onTitleClick(cineTitle.id) }
+                                    ) {
+                                        Text(
+                                            text = cineTitle.title,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        TypeBadge(type = cineTitle.type, compact = true)
+                                    }
 
-                                // REORDER ACTIONS (Up / Down)
-                                IconButton(
-                                    onClick = {
-                                        if (index > 0) {
-                                            val reordered = listTitles.toMutableList()
-                                            val current = reordered[index]
-                                            reordered[index] = reordered[index - 1]
-                                            reordered[index - 1] = current
-                                            viewModel.reorderCustomListTitles(listId, reordered)
-                                        }
-                                    },
-                                    enabled = index > 0,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropUp,
-                                        contentDescription = "Monter l'élément",
-                                        tint = if (index > 0) MaterialTheme.colorScheme.primary else Color.DarkGray
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        if (index < listTitles.size - 1) {
-                                            val reordered = listTitles.toMutableList()
-                                            val current = reordered[index]
-                                            reordered[index] = reordered[index + 1]
-                                            reordered[index + 1] = current
-                                            viewModel.reorderCustomListTitles(listId, reordered)
-                                        }
-                                    },
-                                    enabled = index < listTitles.size - 1,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "Descendre l'élément",
-                                        tint = if (index < listTitles.size - 1) MaterialTheme.colorScheme.primary else Color.DarkGray
-                                    )
-                                }
-
-                                // Delete from list action
-                                IconButton(
-                                    onClick = { viewModel.removeTitleFromCustomList(item.id) },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Retirer ${cineTitle.title} de la liste",
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    // Delete from list action
+                                    IconButton(
+                                        onClick = { viewModel.removeTitleFromCustomList(item.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Retirer ${cineTitle.title} de la liste",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
                     }
                 }
             }
