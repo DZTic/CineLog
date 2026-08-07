@@ -49,7 +49,7 @@ import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.groupBySaga
-import com.example.ui.log.LogDialog
+import com.example.ui.log.LogBottomSheet
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -637,7 +637,7 @@ fun SearchScreen(
         // Dialog to manually add/log a title when empty state button is clicked
         val customTitle = manualLogTitle
         if (customTitle != null) {
-            LogDialog(
+            LogBottomSheet(
                 title = customTitle,
                 viewModel = viewModel,
                 onDismiss = { manualLogTitle = null }

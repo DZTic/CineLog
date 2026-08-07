@@ -318,4 +318,5 @@ fun LogBottomSheet(
                     }
                 }
             }
+    }
 }
