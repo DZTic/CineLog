@@ -17,6 +17,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_WATCHLIST_GENRE_FILTER = "watchlist_genre_filter"
         private const val KEY_WATCHLIST_YEAR_FILTER = "watchlist_year_filter"
         private const val KEY_HAS_DISMISSED_ONBOARDING = "has_dismissed_onboarding"
+        private const val KEY_SEARCH_HISTORY = "search_history"
+        private const val KEY_PINNED_SEARCHES = "pinned_searches"
     }
 
     fun getTmdbApiKey(): String {
@@ -108,7 +110,43 @@ class PreferenceManager(context: Context) {
         return prefs.getString(KEY_WATCHLIST_YEAR_FILTER, "") ?: ""
     }
 
-    fun setWatchlistYearFilter(year: String) {
-        prefs.edit().putString(KEY_WATCHLIST_YEAR_FILTER, year).apply()
+   fun setWatchlistYearFilter(year: String) {
+       prefs.edit().putString(KEY_WATCHLIST_YEAR_FILTER, year).apply()
+   }
+
+    // Historique de recherche (Issue #32) - stocke sous forme de JSON array
+    fun getSearchHistory(): List<String> {
+        val raw = prefs.getString(KEY_SEARCH_HISTORY, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return try {
+            val array = org.json.JSONArray(raw)
+            List(array.length()) { array.getString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setSearchHistory(history: List<String>) {
+        val array = org.json.JSONArray()
+        history.take(10).forEach { array.put(it) }
+        prefs.edit().putString(KEY_SEARCH_HISTORY, array.toString()).apply()
+    }
+
+    // Recherches sauvegardees / epinglees (Issue #32)
+    fun getPinnedSearches(): List<String> {
+        val raw = prefs.getString(KEY_PINNED_SEARCHES, "") ?: ""
+        if (raw.isBlank()) return emptyList()
+        return try {
+            val array = org.json.JSONArray(raw)
+            List(array.length()) { array.getString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setPinnedSearches(pinned: List<String>) {
+        val array = org.json.JSONArray()
+        pinned.forEach { array.put(it) }
+        prefs.edit().putString(KEY_PINNED_SEARCHES, array.toString()).apply()
     }
 }

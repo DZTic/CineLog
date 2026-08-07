@@ -105,6 +105,47 @@ class CineViewModel(
     private val _searchResults = MutableStateFlow<List<CineTitle>>(emptyList())
     val searchResults: StateFlow<List<CineTitle>> = _searchResults.asStateFlow()
 
+    // Historique et recherches epinglees (Issue #32)
+    private val _searchHistory = MutableStateFlow(preferenceManager.getSearchHistory())
+    val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
+
+    private val _pinnedSearches = MutableStateFlow(preferenceManager.getPinnedSearches())
+    val pinnedSearches: StateFlow<List<String>> = _pinnedSearches.asStateFlow()
+
+    fun addSearchHistory(query: String) {
+        val q = query.trim()
+        if (q.length < 2) return
+        val updated = (listOf(q) + _searchHistory.value.filterNot { it.equals(q, ignoreCase = true) }).take(10)
+        _searchHistory.value = updated
+        preferenceManager.setSearchHistory(updated)
+    }
+
+    fun removeSearchHistory(query: String) {
+        val updated = _searchHistory.value.filterNot { it.equals(query, ignoreCase = true) }
+        _searchHistory.value = updated
+        preferenceManager.setSearchHistory(updated)
+    }
+
+    fun clearSearchHistory() {
+        _searchHistory.value = emptyList()
+        preferenceManager.setSearchHistory(emptyList())
+    }
+
+    fun togglePinSearch(query: String) {
+        val q = query.trim()
+        if (q.isBlank()) return
+        val current = _pinnedSearches.value.toMutableList()
+        val exists = current.any { it.equals(q, ignoreCase = true) }
+        if (exists) {
+            current.removeAll { it.equals(q, ignoreCase = true) }
+        } else {
+            current.add(0, q)
+        }
+        _pinnedSearches.value = current
+        preferenceManager.setPinnedSearches(current)
+    }
+
+
     // ==========================================
     // TITLE DETAIL STATE
     // ==========================================

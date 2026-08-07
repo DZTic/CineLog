@@ -1,4 +1,4 @@
-﻿package com.example.ui.watchlist
+package com.example.ui.watchlist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
