@@ -77,6 +77,7 @@ fun DetailScreen(
     }
 
     var showListDialog by remember { mutableStateOf(false) }
+    var logToDelete by remember { mutableStateOf<DbLogEntry?>(null) }
 
     LaunchedEffect(titleId) {
         viewModel.loadTitleDetail(titleId)
@@ -628,14 +629,14 @@ fun DetailScreen(
                     } else {
                         items(logs, key = { it.id }) { log ->
                             SwipeToDismissContainer(
-                                onDelete = { viewModel.deleteLog(log.id) },
+                                onDelete = { logToDelete = log },
                                 onSecondaryAction = { onEditLogClick(title, log) },
                                 secondaryIcon = Icons.Default.Edit,
                                 cornerRadius = 12.dp
                             ) {
                                 LogItemRow(
                                     log = log,
-                                    onDelete = { viewModel.deleteLog(log.id) },
+                                    onDelete = { logToDelete = log },
                                     onEdit = { onEditLogClick(title, log) }
                                 )
                             }
@@ -643,6 +644,30 @@ fun DetailScreen(
                     }
                 }
             }
+        }
+
+        // Delete Confirmation Dialog
+        if (logToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { logToDelete = null },
+                title = { Text("Supprimer ce visionnage ?") },
+                text = { Text("Cette action est irréversible. Voulez-vous vraiment supprimer ce visionnage ?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            logToDelete?.let { viewModel.deleteLog(it.id) }
+                            logToDelete = null
+                        }
+                    ) {
+                        Text("Supprimer", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { logToDelete = null }) {
+                        Text("Annuler")
+                    }
+                }
+            )
         }
 
         // List Selection Dialog
@@ -751,21 +776,20 @@ fun LogItemRow(
 
                 // Edit & Delete Buttons
                 Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(24.dp)) {
+                    IconButton(onClick = onEdit) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Modifier le visionnage du $formattedDate",
                             tint = GrayText,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                    IconButton(onClick = onDelete) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Supprimer le visionnage du $formattedDate",
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
