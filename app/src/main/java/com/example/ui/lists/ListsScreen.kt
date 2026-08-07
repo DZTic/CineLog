@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
+import com.example.data.DbCustomList
 import com.example.data.DbCustomListTitle
 import com.example.data.TitleType
 import com.example.ui.CineViewModel
@@ -144,6 +145,7 @@ fun ListsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
 
     val customLists by viewModel.allCustomLists.collectAsState()
+    var listToDelete by remember { mutableStateOf<DbCustomList?>(null) }
 
     if (activeListId == null) {
         // OVERVIEW: List of Custom Lists
@@ -202,7 +204,7 @@ fun ListsScreen(
                 ) {
                     items(customLists, key = { it.id }) { list ->
                         SwipeToDismissContainer(
-                            onDelete = { viewModel.deleteCustomList(list.id) },
+                            onDelete = { listToDelete = list },
                             cornerRadius = 12.dp
                         ) {
                             Card(
@@ -249,6 +251,30 @@ fun ListsScreen(
                         }
                     }
                 }
+            }
+
+            // Delete List Confirmation Dialog
+            if (listToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { listToDelete = null },
+                    title = { Text("Supprimer la liste ?") },
+                    text = { Text("Cette action est irréversible. Voulez-vous vraiment supprimer la liste '${listToDelete?.name}' ?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                listToDelete?.let { viewModel.deleteCustomList(it.id) }
+                                listToDelete = null
+                            }
+                        ) {
+                            Text("Supprimer", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { listToDelete = null }) {
+                            Text("Annuler")
+                        }
+                    }
+                )
             }
 
             // Create List Dialog
@@ -311,6 +337,7 @@ fun ListsScreen(
         val listTitlesFlow = remember(listId) { viewModel.getCustomListTitlesFlow(listId) }
         val listDetail by listDetailFlow.collectAsState(null)
         val listTitles by listTitlesFlow.collectAsState(emptyList())
+        var showDeleteListDialog by remember { mutableStateOf(false) }
         val context = LocalContext.current
 
         var localListTitles by remember(listTitles) { mutableStateOf(listTitles) }
@@ -346,11 +373,7 @@ fun ListsScreen(
                     },
                     actions = {
                         IconButton(
-                            onClick = {
-                                viewModel.deleteCustomList(listId)
-                                activeListId = null
-                                Toast.makeText(context, "Liste supprimée !", Toast.LENGTH_SHORT).show()
-                            }
+                            onClick = { showDeleteListDialog = true }
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -499,8 +522,7 @@ fun ListsScreen(
 
                                     // Delete from list action
                                     IconButton(
-                                        onClick = { viewModel.removeTitleFromCustomList(item.id) },
-                                        modifier = Modifier.size(32.dp)
+                                        onClick = { viewModel.removeTitleFromCustomList(item.id) }
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
@@ -515,6 +537,30 @@ fun ListsScreen(
                     }
                 }
             }
+        }
+        if (showDeleteListDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteListDialog = false },
+                title = { Text("Supprimer la liste ?") },
+                text = { Text("Cette action est irréversible. Voulez-vous vraiment supprimer cette liste ?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteListDialog = false
+                            viewModel.deleteCustomList(listId)
+                            activeListId = null
+                            Toast.makeText(context, "Liste supprimée !", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Text("Supprimer", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteListDialog = false }) {
+                        Text("Annuler")
+                    }
+                }
+            )
         }
     }
 }
