@@ -66,12 +66,29 @@ fun DiscoverScreen(
     val watchlist by viewModel.allWatchlist.collectAsState()
     val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
+    val allLogs by viewModel.allLogs.collectAsState()
+    val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
+
+    val filteredFilms = remember(trendingFilms, watchedTitleIds) {
+        trendingFilms.filter { it.id !in watchedTitleIds }
+    }
+    val filteredSeries = remember(trendingSeries, watchedTitleIds) {
+        trendingSeries.filter { it.id !in watchedTitleIds }
+    }
+    val filteredAnime = remember(topAnime, watchedTitleIds) {
+        topAnime.filter { it.id !in watchedTitleIds }
+    }
+
     val searchResults by viewModel.searchResults.collectAsState()
     val searchLoading by viewModel.searchLoading.collectAsState()
     val searchError by viewModel.searchError.collectAsState()
 
-    val displaySearchResults = remember(searchResults) {
-        searchResults.groupBySaga(
+    val filteredSearchResults = remember(searchResults, watchedTitleIds) {
+        searchResults.filter { it.id !in watchedTitleIds }
+    }
+
+    val displaySearchResults = remember(filteredSearchResults) {
+        filteredSearchResults.groupBySaga(
             collectionId = { it.collectionId },
             collectionName = { it.collectionName },
             posterUrl = { it.collectionPosterUrl }
@@ -324,65 +341,95 @@ fun DiscoverScreen(
                             }
                         }
                     } else {
-                        if (selectedFilter == null) {
+                       if (selectedFilter == null) {
+                            if (filteredFilms.isEmpty() && filteredSeries.isEmpty() && filteredAnime.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    EmptyState(
+                                        message = "Vous avez déjà vu tous les titres tendance !"
+                                    )
+                                }
+                            } else {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .verticalScroll(rememberScrollState())
                                     .padding(bottom = 16.dp)
                             ) {
-                                CarouselSection(
-                                    title = "Films populaires",
-                                    items = trendingFilms,
-                                    onTitleClick = onTitleClick,
-                                    onViewAll = { selectedFilter = TitleType.FILM },
-                                    watchlistTitleIds = watchlistTitleIds
-                                )
+                                if (filteredFilms.isNotEmpty()) {
+                                    CarouselSection(
+                                        title = "Films populaires",
+                                        items = filteredFilms,
+                                        onTitleClick = onTitleClick,
+                                        onViewAll = { selectedFilter = TitleType.FILM },
+                                        watchlistTitleIds = watchlistTitleIds
+                                    )
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
 
-                                CarouselSection(
-                                    title = "Séries populaires",
-                                    items = trendingSeries,
-                                    onTitleClick = onTitleClick,
-                                    onViewAll = { selectedFilter = TitleType.SERIE },
-                                    watchlistTitleIds = watchlistTitleIds
-                                )
+                                if (filteredSeries.isNotEmpty()) {
+                                    CarouselSection(
+                                        title = "Séries populaires",
+                                        items = filteredSeries,
+                                        onTitleClick = onTitleClick,
+                                        onViewAll = { selectedFilter = TitleType.SERIE },
+                                        watchlistTitleIds = watchlistTitleIds
+                                    )
 
-                                Spacer(modifier = Modifier.height(16.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
 
-                                CarouselSection(
-                                    title = "Animes les mieux notés",
-                                    items = topAnime,
-                                    onTitleClick = onTitleClick,
-                                    onViewAll = { selectedFilter = TitleType.ANIME },
-                                    watchlistTitleIds = watchlistTitleIds
-                                )
-                            }
-                        } else {
-                            val gridItems = when (selectedFilter) {
-                                TitleType.FILM -> trendingFilms
-                                TitleType.SERIE -> trendingSeries
-                                TitleType.ANIME -> topAnime
-                                else -> emptyList()
-                            }
-
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(3),
-                                contentPadding = PaddingValues(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(gridItems) { title ->
-                                    TitleCard(
-                                        title = title,
-                                        onClick = { onTitleClick(title.id) },
-                                        isInWatchlist = title.id in watchlistTitleIds
+                                if (filteredAnime.isNotEmpty()) {
+                                    CarouselSection(
+                                        title = "Animes les mieux notés",
+                                        items = filteredAnime,
+                                        onTitleClick = onTitleClick,
+                                        onViewAll = { selectedFilter = TitleType.ANIME },
+                                        watchlistTitleIds = watchlistTitleIds
                                     )
                                 }
                             }
-                        }
+                            }
+                       } else {
+                            val gridItems = remember(selectedFilter, filteredFilms, filteredSeries, filteredAnime) {
+                                when (selectedFilter) {
+                                    TitleType.FILM -> filteredFilms
+                                    TitleType.SERIE -> filteredSeries
+                                    TitleType.ANIME -> filteredAnime
+                                    else -> emptyList()
+                                }
+                            }
+
+                            if (gridItems.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    EmptyState(
+                                        message = "Vous avez déjà vu tous les titres de cette catégorie !"
+                                    )
+                                }
+                            } else {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(3),
+                                    contentPadding = PaddingValues(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(gridItems) { title ->
+                                        TitleCard(
+                                            title = title,
+                                            onClick = { onTitleClick(title.id) },
+                                            isInWatchlist = title.id in watchlistTitleIds
+                                        )
+                                    }
+                                }
+                            }
+                       }
                     }
                 }
             }
