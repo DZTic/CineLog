@@ -36,7 +36,7 @@ import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbLogEntry
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.home.HomeViewModel
 import com.example.ui.CollectionViewMode
 import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
@@ -58,7 +58,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: CineViewModel,
+    viewModel: HomeViewModel,
     onTitleClick: (String) -> Unit,
     onSagaClick: (Int) -> Unit,
     onNavigateToDiscover: () -> Unit,

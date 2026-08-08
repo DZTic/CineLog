@@ -38,7 +38,7 @@ import com.example.data.CineTitle
 import com.example.data.DbCustomList
 import com.example.data.DbCustomListTitle
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.lists.ListsViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.TypeBadge
@@ -136,7 +136,7 @@ fun rememberDragDropState(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListsScreen(
-    viewModel: CineViewModel,
+    viewModel: ListsViewModel,
     onTitleClick: (String) -> Unit,
     onBackClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier

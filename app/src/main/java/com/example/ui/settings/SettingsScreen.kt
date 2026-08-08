@@ -24,14 +24,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.CineViewModel
+import com.example.ui.settings.SettingsViewModel
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    viewModel: CineViewModel,
+    viewModel: SettingsViewModel,
     modifier: Modifier = Modifier,
     onCloseClick: () -> Unit = {}
 ) {

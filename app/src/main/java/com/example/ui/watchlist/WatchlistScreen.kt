@@ -43,7 +43,7 @@ import coil.compose.AsyncImage
 import com.example.data.CineTitle
 import com.example.data.DbWatchlist
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.watchlist.WatchlistViewModel
 import com.example.ui.CollectionViewMode
 import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
@@ -63,7 +63,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WatchlistScreen(
-    viewModel: CineViewModel,
+    viewModel: WatchlistViewModel,
     onTitleClick: (String) -> Unit,
     onSagaClick: (Int) -> Unit,
     modifier: Modifier = Modifier

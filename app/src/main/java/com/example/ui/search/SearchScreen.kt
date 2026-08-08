@@ -43,7 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.CineTitle
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.search.SearchViewModel
+import com.example.ui.log.LogViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.SagaCard
@@ -55,7 +56,8 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: CineViewModel,
+    viewModel: SearchViewModel,
+    logViewModel: LogViewModel? = null,
     onTitleClick: (String) -> Unit,
     onSagaClick: (Int) -> Unit,
     onNavigateToSettings: (() -> Unit)? = null,
@@ -636,10 +638,10 @@ fun SearchScreen(
 
         // Dialog to manually add/log a title when empty state button is clicked
         val customTitle = manualLogTitle
-        if (customTitle != null) {
+        if (customTitle != null && logViewModel != null) {
             LogBottomSheet(
                 title = customTitle,
-                viewModel = viewModel,
+                viewModel = logViewModel,
                 onDismiss = { manualLogTitle = null }
             )
         }

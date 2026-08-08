@@ -38,7 +38,7 @@ import com.example.data.CineTitle
 import com.example.data.DbLogEntry
 import com.example.data.SeasonStatus
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.detail.DetailViewModel
 import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.components.TypeBadge
@@ -54,7 +54,7 @@ import java.util.Locale
 @Composable
 fun DetailScreen(
     titleId: String,
-    viewModel: CineViewModel,
+    viewModel: DetailViewModel,
     onBackClick: () -> Unit,
     onLogClick: (CineTitle) -> Unit,
     onTitleClick: (String) -> Unit = {},
