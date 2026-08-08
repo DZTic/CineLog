@@ -380,8 +380,9 @@ fun HomeScreen(
                                 when (display) {
                                     is GroupedDisplay.Single -> {
                                         if (viewMode == CollectionViewMode.GRID) {
+                                            val title = remember(display.item) { display.item.toCineTitle() }
                                             TitleCard(
-                                                title = display.item.toCineTitle(),
+                                                title = title,
                                                 onClick = { onTitleClick(display.item.titleId) },
                                                 modifier = Modifier.padding(vertical = 6.dp)
                                             )

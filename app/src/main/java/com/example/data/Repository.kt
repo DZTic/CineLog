@@ -169,14 +169,19 @@ class Repository(
     // sans detail). On lit l'annee via la note ET l'annee renvoyees par
     // getTitleDetail, qui lui-meme sait resoudre movie_/tv_/anime_ (Jikan).
     suspend fun backfillWatchlistMetadata(titleId: String) = withContext(Dispatchers.IO) {
-        val detail = getTitleDetail(titleId)
-        val genres = detail.genres.takeIf { it.isNotEmpty() }?.joinToString(",")
-        watchlistDao.updateWatchlistMetadata(
-            titleId = titleId,
-            year = detail.year.takeIf { it.isNotBlank() && it != "N/A" },
-            genres = genres,
-            voteAverage = detail.voteAverage.takeIf { it > 0f }
-        )
+        try {
+            val detail = getTitleDetail(titleId)
+            val genres = detail.genres.takeIf { it.isNotEmpty() }?.joinToString(",")
+            val year = detail.year.takeIf { it.isNotBlank() } ?: "N/A"
+            watchlistDao.updateWatchlistMetadata(
+                titleId = titleId,
+                year = year,
+                genres = genres,
+                voteAverage = detail.voteAverage.takeIf { it > 0f }
+            )
+        } catch (e: Exception) {
+            Log.e(tag, "Error backfilling metadata for $titleId: ${e.localizedMessage}")
+        }
     }
 
     // ==========================================

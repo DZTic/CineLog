@@ -150,7 +150,8 @@ fun WatchlistScreen(
 
     // Backfill en arriere-plan : les entrees sans metadonnees (creees avant
     // la v6) sont enrichies depuis l'API au premier affichage de l'ecran.
-    androidx.compose.runtime.LaunchedEffect(watchedFiltered.map { it.titleId }) {
+    val watchedTitleIdsKey = remember(watchedFiltered) { watchedFiltered.map { it.titleId } }
+    androidx.compose.runtime.LaunchedEffect(watchedTitleIdsKey) {
         viewModel.backfillWatchlistMetadata(watchedFiltered)
     }
 
@@ -350,15 +351,15 @@ fun WatchlistScreen(
                                 displayItems,
                                 key = { display ->
                                     when (display) {
-                                        is GroupedDisplay.Single -> display.item.titleId
-                                        is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
+                                        is GroupedDisplay.Single -> "watchlist_single_${display.item.titleId}"
+                                        is GroupedDisplay.Grouped -> "watchlist_saga_${display.group.collectionId}"
                                     }
                                 }
                             ) { display ->
                                 when (display) {
                                     is GroupedDisplay.Single -> {
                                         if (viewMode == CollectionViewMode.GRID) {
-                                            val title = display.item.toCineTitle()
+                                            val title = remember(display.item) { display.item.toCineTitle() }
                                             TitleCard(
                                                 title = title,
                                                 onClick = { onTitleClick(title.id) }
