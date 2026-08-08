@@ -31,6 +31,9 @@ class DiscoverViewModel(
     val allWatchlist: StateFlow<List<DbWatchlist>> = repository.allWatchlist
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allLogs: StateFlow<List<DbLogEntry>> = repository.allLogs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val collectionCache: StateFlow<Map<String, CachedSaga>> = repository.collectionCache
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
