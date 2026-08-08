@@ -26,7 +26,7 @@ class WatchlistViewModel(
 
     val collectionCache: StateFlow<Map<String, CachedSaga>> = repository.collectionCache
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _watchlistViewMode = MutableStateFlow(
         runCatching { CollectionViewMode.valueOf(preferenceManager.getWatchlistViewMode()) }
