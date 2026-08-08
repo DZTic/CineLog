@@ -189,7 +189,7 @@ fun SearchScreen(
                                 Icon(
                                     imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
                                     contentDescription = if (isPinned) "Dépingler cette recherche" else "Épingler cette recherche",
-                                    tint = if (isPinned) MaterialTheme.colorScheme.primary else Color.Gray
+                                    tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -219,8 +219,8 @@ fun SearchScreen(
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 )
             )
 
@@ -237,7 +237,7 @@ fun SearchScreen(
                     label = { Text("Tout") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 FilterChip(
@@ -246,7 +246,7 @@ fun SearchScreen(
                     label = { Text("Films") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 FilterChip(
@@ -255,7 +255,7 @@ fun SearchScreen(
                     label = { Text("Séries") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 FilterChip(
@@ -264,7 +264,7 @@ fun SearchScreen(
                     label = { Text("Animes") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
             }
@@ -399,7 +399,7 @@ fun SearchScreen(
                                 onClick = onNavigateToSettings,
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
-                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Black)
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Paramètres API", color = Color.Black)
                             }
@@ -568,9 +568,9 @@ fun SearchScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             modifier = Modifier.padding(bottom = 24.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
+                            Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Ajouter manuellement", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text("Ajouter manuellement", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                         }
 
                         // Recommendation Section

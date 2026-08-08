@@ -651,7 +651,7 @@ private fun SortMenuButton(
                     text = {
                         Text(
                             text = order.displayName + if (order == current) "  \u2713" else "",
-                            color = if (order == current) MaterialTheme.colorScheme.primary else Color.White
+                            color = if (order == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     },
                     onClick = {

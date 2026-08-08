@@ -167,7 +167,7 @@ fun SagaDetailScreen(
                                     Icon(
                                         Icons.Default.CheckCircle,
                                         contentDescription = "Saga vue en entier",
-                                        tint = Color.Black,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }

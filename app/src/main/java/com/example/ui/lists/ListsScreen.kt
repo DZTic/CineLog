@@ -173,7 +173,7 @@ fun ListsScreen(
                 FloatingActionButton(
                     onClick = { showCreateDialog = true },
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.Black,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.testTag("fab_create_list")
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Créer une liste")

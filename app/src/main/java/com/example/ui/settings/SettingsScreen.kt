@@ -103,7 +103,7 @@ fun SettingsScreen(
                         text = "L'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre clé API ci-dessous.\n\n" +
                                 "💡 Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.LightGray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp
                     )
                 }
@@ -149,9 +149,9 @@ fun SettingsScreen(
                 shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.DarkGray,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 )
             )
 
@@ -204,7 +204,7 @@ fun SettingsScreen(
             ) {
                 Text(
                     text = "Enregistrer les modifications",
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
