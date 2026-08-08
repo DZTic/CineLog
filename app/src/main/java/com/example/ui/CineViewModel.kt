@@ -469,8 +469,10 @@ class CineViewModel(
     // quand la Watchlist s'affiche ; volontairement tolerant aux erreurs
     // reseau : un titre sans connexion gardera simplement ses metadonnees
     // null et sera trie/filtre "en dernier".
+    private val attemptedBackfills = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     fun backfillWatchlistMetadata(entries: List<DbWatchlist>) {
-        val missing = entries.filter { it.titleYear == null }
+        val missing = entries.filter { (it.titleYear == null || it.titleYear == "N/A") && attemptedBackfills.add(it.titleId) }
         if (missing.isEmpty()) return
         viewModelScope.launch {
             missing.forEach { entry ->
