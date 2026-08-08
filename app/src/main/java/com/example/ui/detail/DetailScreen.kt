@@ -282,9 +282,9 @@ fun DetailScreen(
                                     .testTag("action_log_title"),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black)
+                                Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Journaliser ce visionnage", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text("Journaliser ce visionnage", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -311,7 +311,7 @@ fun DetailScreen(
                                         .weight(1f)
                                         .testTag("action_watchlist"),
                                     colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = if (isInWatchlist) MaterialTheme.colorScheme.primary else Color.White
+                                        contentColor = if (isInWatchlist) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                     )
                                 ) {
                                     Icon(
@@ -357,7 +357,7 @@ fun DetailScreen(
                                     Text(
                                         text = title.synopsis,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.LightGray,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         lineHeight = 20.sp,
                                         maxLines = if (synopsisExpanded) Int.MAX_VALUE else 4,
                                         overflow = TextOverflow.Ellipsis,
@@ -815,7 +815,7 @@ fun LogItemRow(
                         Text(
                             text = log.critique,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.LightGray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         Box(
@@ -845,6 +845,7 @@ fun LogItemRow(
     }
 }
 
+@Composable
 private fun OnSurfaceColor(genre: String): Color {
     return when (genre.lowercase()) {
         "action" -> Color(0xFFFF8A80)
@@ -852,6 +853,6 @@ private fun OnSurfaceColor(genre: String): Color {
         "drame" -> Color(0xFFFFD180)
         "animation", "anime" -> Color(0xFFCCFF90)
         "fantastique" -> Color(0xFFEA80FC)
-        else -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
     }
 }

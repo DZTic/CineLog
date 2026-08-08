@@ -309,7 +309,7 @@ fun LegendItem(
         )
         Spacer(modifier = Modifier.width(6.dp))
         Column {
-            Text(text = label, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color.White)
+            Text(text = label, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurface)
             Text(text = "$count ($percent%)", style = MaterialTheme.typography.bodySmall, color = GrayText, fontSize = 10.sp)
         }
     }
@@ -468,7 +468,7 @@ fun ScoreDistributionCard(
                                 .weight(1f)
                                 .height(10.dp)
                                 .clip(RoundedCornerShape(5.dp))
-                                .background(Color.DarkGray)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             if (count > 0) {
                                 Box(

@@ -266,8 +266,8 @@ fun LogBottomSheet(
                         unfocusedContainerColor = CinemaSurfaceVariant,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     ),
                     maxLines = 5
                 )
@@ -312,7 +312,7 @@ fun LogBottomSheet(
                     ) {
                         Text(
                             if (isEditing) "Mettre à jour" else "Enregistrer",
-                            color = Color.Black,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.Bold
                         )
                     }

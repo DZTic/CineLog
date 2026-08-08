@@ -307,13 +307,13 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.Movie,
                                         contentDescription = null,
-                                        tint = Color.Black,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Qu'avez-vous regardé récemment ?",
-                                        color = Color.Black,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -480,7 +480,7 @@ fun StatCard(
             Text(
                 text = count,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -573,7 +573,7 @@ fun RecentActivityRow(
                 Text(
                     text = log.titleName,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -595,7 +595,7 @@ fun RecentActivityRow(
                     Text(
                         text = if (log.spoiler) "⚠️ [Critique contient des spoilers]" else log.critique,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (log.spoiler) MaterialTheme.colorScheme.error else Color.LightGray,
+                        color = if (log.spoiler) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -715,7 +715,7 @@ fun SagaActivityRow(
                 Text(
                     text = collectionName,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

@@ -299,7 +299,7 @@ fun TitleCard(
                             .align(Alignment.TopStart)
                             .padding(4.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(Color.Black.copy(alpha = 0.6f))
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
                             .padding(4.dp)
                     ) {
                         Icon(
@@ -430,7 +430,7 @@ fun SagaCard(
                 ) {
                     Text(
                         text = "SAGA",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSecondary,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
@@ -450,7 +450,7 @@ fun SagaCard(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Saga vue en entier",
-                            tint = Color.Black,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(14.dp)
                         )
                     }

@@ -162,8 +162,8 @@ fun DiscoverScreen(
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                 )
             )
 
@@ -180,7 +180,7 @@ fun DiscoverScreen(
                     label = { Text("Tout") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 FilterChip(
@@ -189,7 +189,7 @@ fun DiscoverScreen(
                     label = { Text("Films") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 FilterChip(
@@ -198,7 +198,7 @@ fun DiscoverScreen(
                     label = { Text("Séries") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
                 FilterChip(
@@ -207,7 +207,7 @@ fun DiscoverScreen(
                     label = { Text("Animes") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.Black
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
             }
@@ -317,7 +317,7 @@ fun DiscoverScreen(
                                     onClick = { viewModel.loadDiscoverContent() },
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                 ) {
-                                    Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black)
+                                    Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Réessayer", color = Color.Black)
                                 }
