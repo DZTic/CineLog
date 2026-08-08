@@ -821,6 +821,7 @@ fun LogItemRow(
     }
 }
 
+@Composable
 private fun OnSurfaceColor(genre: String): Color {
     return when (genre.lowercase()) {
         "action" -> Color(0xFFFF8A80)
