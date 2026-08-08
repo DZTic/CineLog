@@ -95,7 +95,7 @@ fun SettingsScreen(
                         Text(
                             text = "Configuration de la source TMDB",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -113,7 +113,7 @@ fun SettingsScreen(
             Text(
                 text = "Clé API TMDB (v3)",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             OutlinedTextField(
@@ -219,7 +219,7 @@ fun SettingsScreen(
                     Text(
                         text = "Comment obtenir une clé ?",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

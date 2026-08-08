@@ -30,7 +30,7 @@ import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.CinemaTertiary
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.StarGold
-import java.text.SimpleDateFormat
+import com.example.util.DateFormatter
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,7 +107,7 @@ fun ProfileScreen(
                                     Text(
                                         text = "Mes Listes Thématiques",
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "${customLists.size} liste(s) personnalisée(s)",
@@ -226,7 +226,7 @@ fun TypeDistributionCard(
             Text(
                 text = "Répartition par Catégorie",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -250,7 +250,7 @@ fun TypeDistributionCard(
                         modifier = Modifier
                             .fillMaxHeight()
                             .weight(if (seriesPercent > 0) seriesPercent else 0.0001f)
-                            .background(Color(0xFFBB86FC))
+                            .background(MaterialTheme.colorScheme.tertiary)
                     )
                 }
                 if (animes > 0) {
@@ -277,7 +277,7 @@ fun TypeDistributionCard(
                     percent = (filmPercent * 100).toInt()
                 )
                 LegendItem(
-                    color = Color(0xFFBB86FC),
+                    color = MaterialTheme.colorScheme.tertiary,
                     label = "Séries",
                     count = series.toInt(),
                     percent = (seriesPercent * 100).toInt()
@@ -322,24 +322,23 @@ fun MonthlyActivityCard(
 ) {
     val monthCount = remember(logs) {
         val calendar = Calendar.getInstance()
-        val format = SimpleDateFormat("MMM", Locale.FRENCH)
         val counts = mutableMapOf<String, Int>()
 
         // Pre-fill last 6 months in chronological order
         val tempCal = Calendar.getInstance()
         val monthsList = mutableListOf<String>()
+        val now = System.currentTimeMillis()
         for (i in 5 downTo 0) {
-            tempCal.time = Date()
+            tempCal.timeInMillis = now
             tempCal.add(Calendar.MONTH, -i)
-            val monthLabel = format.format(tempCal.time).replaceFirstChar { it.uppercase() }
+            val monthLabel = DateFormatter.formatMonthAbbreviation(tempCal.timeInMillis).replaceFirstChar { it.uppercase() }
             monthsList.add(monthLabel)
             counts[monthLabel] = 0
         }
 
         // Aggregate actual entries
         logs.forEach { log ->
-            calendar.timeInMillis = log.dateVue
-            val label = format.format(calendar.time).replaceFirstChar { it.uppercase() }
+            val label = DateFormatter.formatMonthAbbreviation(log.dateVue).replaceFirstChar { it.uppercase() }
             if (counts.containsKey(label)) {
                 counts[label] = (counts[label] ?: 0) + 1
             }
@@ -359,7 +358,7 @@ fun MonthlyActivityCard(
             Text(
                 text = "Activité des 6 derniers mois",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -441,7 +440,7 @@ fun ScoreDistributionCard(
             Text(
                 text = "Distribution de vos notes",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -484,7 +483,7 @@ fun ScoreDistributionCard(
                         Text(
                             text = "$count",
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.width(20.dp)
                         )
                     }

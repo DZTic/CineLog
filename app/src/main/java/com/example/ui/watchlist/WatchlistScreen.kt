@@ -2,6 +2,7 @@ package com.example.ui.watchlist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -56,8 +57,7 @@ import com.example.ui.components.ViewModeToggle
 import com.example.ui.components.groupBySaga
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
-import java.text.SimpleDateFormat
-import java.util.Date
+import com.example.util.DateFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -359,7 +359,7 @@ fun WatchlistScreen(
                                 when (display) {
                                     is GroupedDisplay.Single -> {
                                         if (viewMode == CollectionViewMode.GRID) {
-                                            val title = remember(display.item) { display.item.toCineTitle() }
+                                            val title = display.item.toCineTitle()
                                             TitleCard(
                                                 title = title,
                                                 onClick = { onTitleClick(title.id) }
@@ -416,8 +416,7 @@ private fun WatchlistRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
-    val formattedDate = remember(entry.dateAdded) { formatter.format(Date(entry.dateAdded)) }
+    val formattedDate = remember(entry.dateAdded) { DateFormatter.formatDayMonthYear(entry.dateAdded) }
     val titleType = remember(entry.titleType) {
         try {
             TitleType.valueOf(entry.titleType)
@@ -448,7 +447,7 @@ private fun WatchlistRow(
             .clearAndSetSemantics {
                 contentDescription = compositeDescription
             }
-            .clickable { onClick() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
     ) {
@@ -509,7 +508,7 @@ private fun WatchlistRow(
                 Text(
                     text = entry.titleName,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -542,7 +541,7 @@ private fun SagaWatchlistRow(
             .clearAndSetSemantics {
                 contentDescription = compositeDescription
             }
-            .clickable { onClick() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
     ) {
@@ -605,7 +604,7 @@ private fun SagaWatchlistRow(
                 Text(
                     text = collectionName,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

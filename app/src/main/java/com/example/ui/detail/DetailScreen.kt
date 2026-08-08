@@ -46,8 +46,7 @@ import com.example.ui.components.WatchedBadge
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.StarGold
-import java.text.SimpleDateFormat
-import java.util.Date
+import com.example.util.DateFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -733,8 +732,7 @@ fun LogItemRow(
     onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val formatter = remember { SimpleDateFormat("dd MMMM yyyy", Locale.FRENCH) }
-    val formattedDate = remember(log.dateVue) { formatter.format(Date(log.dateVue)) }
+    val formattedDate = remember(log.dateVue) { DateFormatter.formatFullDate(log.dateVue) }
 
     Card(
         modifier = modifier
@@ -808,9 +806,9 @@ fun LogItemRow(
             }
 
             if (log.critique.isNotBlank()) {
+                var revealSpoiler by remember(log.id) { mutableStateOf(false) }
                 Spacer(modifier = Modifier.height(8.dp))
                 if (log.spoiler) {
-                    var revealSpoiler by remember { mutableStateOf(false) }
                     if (revealSpoiler) {
                         Text(
                             text = log.critique,
@@ -837,7 +835,7 @@ fun LogItemRow(
                     Text(
                         text = log.critique,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.LightGray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
