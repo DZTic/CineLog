@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.DbLogEntry
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.profile.ProfileViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.SkeletonProfileContent
 import com.example.ui.theme.CinemaSurfaceVariant
@@ -36,7 +36,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    viewModel: CineViewModel,
+    viewModel: ProfileViewModel,
     onNavigateToLists: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {

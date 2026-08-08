@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.CineTitle
-import com.example.ui.CineViewModel
+import com.example.ui.saga.SagaDetailViewModel
 import com.example.ui.theme.CinemaSecondary
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
@@ -45,7 +45,7 @@ import com.example.ui.theme.StarGold
 @Composable
 fun SagaDetailScreen(
     collectionId: Int,
-    viewModel: CineViewModel,
+    viewModel: SagaDetailViewModel,
     onBackClick: () -> Unit,
     onTitleClick: (String) -> Unit,
     modifier: Modifier = Modifier

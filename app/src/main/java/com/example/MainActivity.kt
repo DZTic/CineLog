@@ -64,8 +64,18 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.data.*
-import com.example.ui.CineViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.CineViewModelFactory
+import com.example.ui.home.HomeViewModel
+import com.example.ui.discover.DiscoverViewModel
+import com.example.ui.search.SearchViewModel
+import com.example.ui.watchlist.WatchlistViewModel
+import com.example.ui.lists.ListsViewModel
+import com.example.ui.profile.ProfileViewModel
+import com.example.ui.settings.SettingsViewModel
+import com.example.ui.detail.DetailViewModel
+import com.example.ui.saga.SagaDetailViewModel
+import com.example.ui.log.LogViewModel
 import com.example.ui.detail.DetailScreen
 import com.example.ui.discover.DiscoverScreen
 import com.example.ui.home.HomeScreen
@@ -98,11 +108,10 @@ class MainActivity : ComponentActivity() {
 
         // 2. Instantiate master view model
         val viewModelFactory = CineViewModelFactory(application, repository, preferenceManager)
-        val viewModel = ViewModelProvider(this, viewModelFactory)[CineViewModel::class.java]
 
         setContent {
             MyApplicationTheme {
-                MainAppScaffold(viewModel)
+                MainAppScaffold(viewModelFactory)
             }
         }
     }
@@ -127,7 +136,7 @@ sealed class Screen(val route: String, val title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScaffold(viewModel: CineViewModel) {
+fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -257,8 +266,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
         ) {
             // Home View
             composable(Screen.Home.route) {
+                val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
                 HomeScreen(
-                    viewModel = viewModel,
+                    viewModel = homeViewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
                     },
@@ -276,8 +286,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
             // Discover Carousel / Grids & Embedded Search View
             composable(Screen.Discover.route) {
+                val discoverViewModel: DiscoverViewModel = viewModel(factory = viewModelFactory)
                 DiscoverScreen(
-                    viewModel = viewModel,
+                    viewModel = discoverViewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
                     },
@@ -289,8 +300,11 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
             // Global Search View (Direct route)
             composable(Screen.Search.route) {
+                val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
+                val logViewModel: LogViewModel = viewModel(factory = viewModelFactory)
                 SearchScreen(
-                    viewModel = viewModel,
+                    viewModel = searchViewModel,
+                    logViewModel = logViewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
                     },
@@ -305,8 +319,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
             // Watchlist View
             composable(Screen.Watchlist.route) {
+                val watchlistViewModel: WatchlistViewModel = viewModel(factory = viewModelFactory)
                 WatchlistScreen(
-                    viewModel = viewModel,
+                    viewModel = watchlistViewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
                     },
@@ -318,8 +333,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
             // Custom user Lists View
             composable(Screen.Lists.route) {
+                val listsViewModel: ListsViewModel = viewModel(factory = viewModelFactory)
                 ListsScreen(
-                    viewModel = viewModel,
+                    viewModel = listsViewModel,
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
                     },
@@ -351,8 +367,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                         )
                     }
                 ) { padding ->
+                    val profileViewModel: ProfileViewModel = viewModel(factory = viewModelFactory)
                     ProfileScreen(
-                        viewModel = viewModel,
+                        viewModel = profileViewModel,
                         onNavigateToLists = {
                             navController.navigate(Screen.Lists.route)
                         },
@@ -363,8 +380,9 @@ fun MainAppScaffold(viewModel: CineViewModel) {
 
             // Settings View (API configuration)
             composable(Screen.Settings.route) {
+                val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
                 SettingsScreen(
-                    viewModel = viewModel,
+                    viewModel = settingsViewModel,
                     onCloseClick = { navController.popBackStack() }
                 )
             }
@@ -375,9 +393,10 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                 arguments = listOf(navArgument("titleId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val titleId = backStackEntry.arguments?.getString("titleId") ?: ""
+                val detailViewModel: DetailViewModel = viewModel(factory = viewModelFactory)
                 DetailScreen(
                     titleId = titleId,
-                    viewModel = viewModel,
+                    viewModel = detailViewModel,
                     onBackClick = { navController.popBackStack() },
                     onLogClick = { title ->
                         editingLog = null
@@ -402,9 +421,10 @@ fun MainAppScaffold(viewModel: CineViewModel) {
                 arguments = listOf(navArgument("collectionId") { type = NavType.IntType })
             ) { backStackEntry ->
                 val collectionId = backStackEntry.arguments?.getInt("collectionId") ?: 0
+                val sagaDetailViewModel: SagaDetailViewModel = viewModel(factory = viewModelFactory)
                 SagaDetailScreen(
                     collectionId = collectionId,
-                    viewModel = viewModel,
+                    viewModel = sagaDetailViewModel,
                     onBackClick = { navController.popBackStack() },
                     onTitleClick = { titleId ->
                         navController.navigate(Screen.Detail.createRoute(titleId))
@@ -416,9 +436,10 @@ fun MainAppScaffold(viewModel: CineViewModel) {
         // Overlay Log dialog when active
         val logTitle = loggingTitle
         if (logTitle != null) {
+            val logViewModel: LogViewModel = viewModel(factory = viewModelFactory)
             LogBottomSheet(
                 title = logTitle,
-                viewModel = viewModel,
+                viewModel = logViewModel,
                 existingLog = editingLog,
                 onDismiss = {
                     loggingTitle = null

@@ -23,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.CineTitle
 import com.example.data.DbLogEntry
-import com.example.ui.CineViewModel
+import com.example.ui.log.LogViewModel
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.theme.CinemaSurfaceVariant
 import java.text.SimpleDateFormat
@@ -33,7 +33,7 @@ import java.util.*
 @Composable
 fun LogBottomSheet(
     title: CineTitle,
-    viewModel: CineViewModel,
+    viewModel: LogViewModel,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     existingLog: DbLogEntry? = null

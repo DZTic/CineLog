@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.CineTitle
 import com.example.data.TitleType
-import com.example.ui.CineViewModel
+import com.example.ui.discover.DiscoverViewModel
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.SagaCard
@@ -49,7 +49,7 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
-    viewModel: CineViewModel,
+    viewModel: DiscoverViewModel,
     onTitleClick: (String) -> Unit,
     onSagaClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
