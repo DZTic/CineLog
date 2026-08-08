@@ -1,31 +1,37 @@
 package com.example.util
 
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 object DateFormatter {
-    private val zoneId: ZoneId = ZoneId.systemDefault()
+    private val dayMonthYearFormat = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat {
+            return SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH)
+        }
+    }
 
-    private val dayMonthYearFormatter: DateTimeFormatter =
-        DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRENCH)
+    private val fullDateFormat = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat {
+            return SimpleDateFormat("dd MMMM yyyy", Locale.FRENCH)
+        }
+    }
 
-    private val fullDateFormatter: DateTimeFormatter =
-        DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale.FRENCH)
-
-    private val monthAbbrFormatter: DateTimeFormatter =
-        DateTimeFormatter.ofPattern("MMM", Locale.FRENCH)
+    private val monthAbbrFormat = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat {
+            return SimpleDateFormat("MMM", Locale.FRENCH)
+        }
+    }
 
     fun formatDayMonthYear(timestampMs: Long): String {
-        return dayMonthYearFormatter.format(Instant.ofEpochMilli(timestampMs).atZone(zoneId))
+        return dayMonthYearFormat.get()!!.format(Date(timestampMs))
     }
 
     fun formatFullDate(timestampMs: Long): String {
-        return fullDateFormatter.format(Instant.ofEpochMilli(timestampMs).atZone(zoneId))
+        return fullDateFormat.get()!!.format(Date(timestampMs))
     }
 
     fun formatMonthAbbreviation(timestampMs: Long): String {
-        return monthAbbrFormatter.format(Instant.ofEpochMilli(timestampMs).atZone(zoneId))
+        return monthAbbrFormat.get()!!.format(Date(timestampMs))
     }
 }
