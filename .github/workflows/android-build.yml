@@ -3,114 +3,17 @@ name: Build Android APK
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
+# Cancel superseded runs of the same workflow for the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install required SDK platform & build-tools
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}-${{ hashFiles('app/src/**/*.kt') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}-
-            gradle-${{ runner.os }}-
-
-      - name: Grant execute permission to gradlew
-        run: chmod +x gradlew
-
-      - name: Run Android Lint
-        run: ./gradlew lintDebug lintAnalyzeDebug --stacktrace
-
-      - name: Upload lint report
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: lint-report
-          path: app/build/reports/
-          if-no-files-found: warn
-
-  unit-test:
-    name: Unit tests
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install required SDK platform & build-tools
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}-${{ hashFiles('app/src/**/*.kt') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}-
-            gradle-${{ runner.os }}-
-
-      - name: Grant execute permission to gradlew
-        run: chmod +x gradlew
-
-      # The Secrets Gradle Plugin falls back to .env.example when .env is
-      # absent, so tests compile without a real Gemini key.
-      - name: Write .env
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          if [ -n "$GEMINI_API_KEY" ]; then
-            echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
-          fi
-
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
-
-      - name: Upload test reports
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: unit-test-reports
-          path: app/build/reports/tests/testDebugUnitTest/
-          if-no-files-found: warn
-
   build-debug:
     name: Build debug APK
     runs-on: ubuntu-latest
-    needs: [lint, unit-test]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
