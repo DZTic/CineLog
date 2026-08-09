@@ -1,13 +1,19 @@
 package com.example.ui.settings
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -19,14 +25,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.settings.SettingsViewModel
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,13 +43,81 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val savedKey by viewModel.tmdbApiKey.collectAsState()
+    val scope = rememberCoroutineScope()
 
     var inputKey by remember { mutableStateOf(savedKey) }
     var isKeyVisible by remember { mutableStateOf(false) }
 
-    // Sync inputKey when savedKey changes (e.g. on launch)
     LaunchedEffect(savedKey) {
         inputKey = savedKey
+    }
+
+    // Launchers for Backup Export & Restore
+    val createJsonLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val json = viewModel.generateJsonBackup()
+                if (json != null) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(json.toByteArray(Charsets.UTF_8))
+                        }
+                        Toast.makeText(context, "Sauvegarde JSON exportée avec succès !", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Erreur lors de la sauvegarde : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+    }
+
+    val createCsvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val csv = viewModel.generateCsvExport()
+                if (csv != null) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(csv.toByteArray(Charsets.UTF_8))
+                        }
+                        Toast.makeText(context, "Export CSV enregistré avec succès !", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Erreur d'export CSV : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+    }
+
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    if (!content.isNullOrBlank()) {
+                        val result = viewModel.importBackup(content)
+                        if (result.isSuccess) {
+                            val summary = result.getOrThrow()
+                            Toast.makeText(
+                                context,
+                                "Restauration réussie : ${summary.logsCount} logs, ${summary.watchlistCount} à voir, ${summary.customListsCount} listes",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(context, "Erreur d'import : ${result.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Erreur lors de la lecture du fichier : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -51,7 +125,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "ParamÃ¨tres",
+                        "Paramètres",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -59,7 +133,7 @@ fun SettingsScreen(
                     IconButton(onClick = onCloseClick) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Fermer les paramÃ¨tres"
+                            contentDescription = "Fermer les paramètres"
                         )
                     }
                 },
@@ -74,9 +148,97 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Backup & Export Section
+            Text(
+                text = "Sauvegarde et Export des données",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("backup_section"),
+                colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Sauvegardez vos données localement ou exportez-les pour les utiliser dans d'autres applications.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val dateStr = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date())
+                                createJsonLauncher.launch("cinelog_backup_$dateStr.json")
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_json_btn"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Export JSON", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val dateStr = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault()).format(java.util.Date())
+                                createCsvLauncher.launch("cinelog_export_$dateStr.csv")
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_csv_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Export CSV", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            openDocumentLauncher.launch(arrayOf("application/json", "text/csv", "text/plain", "*/*"))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("import_backup_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Upload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Restaurer une sauvegarde", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
             // Explanatory Banner
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -100,8 +262,8 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "L'application fonctionne sans configuration : les films et sÃ©ries passent par un proxy intÃ©grÃ© qui fournit la clÃ© TMDB. Vous pouvez optionnellement renseigner votre propre clÃ© API ci-dessous.\n\n" +
-                                "ðŸ’¡ Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clÃ©.",
+                        text = "L'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre clé API ci-dessous.\n\n" +
+                                "?? Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp
@@ -111,7 +273,7 @@ fun SettingsScreen(
 
             // Key Input Box
             Text(
-                text = "ClÃ© API TMDB (v3)",
+                text = "Clé API TMDB (v3)",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -124,7 +286,7 @@ fun SettingsScreen(
                     .testTag("tmdb_api_key_field"),
                 placeholder = {
                     Text(
-                        "Collez votre clÃ© API TMDB ici...",
+                        "Collez votre clé API TMDB ici...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -140,7 +302,7 @@ fun SettingsScreen(
                     IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
                         Icon(
                             imageVector = if (isKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (isKeyVisible) "Masquer la clÃ©" else "Afficher la clÃ©"
+                            contentDescription = if (isKeyVisible) "Masquer la clé" else "Afficher la clé"
                         )
                     }
                 },
@@ -166,7 +328,7 @@ fun SettingsScreen(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "âœ“ Une clÃ© API est actuellement configurÃ©e et active.",
+                        text = "? Une clé API est actuellement configurée et active.",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -181,20 +343,18 @@ fun SettingsScreen(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "âš  ClÃ© API absente. Recherche et carrousels de films/sÃ©ries dÃ©sactivÃ©s.",
+                        text = "?? Clé API absente. Recherche et carrousels de films/séries désactivés.",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
             // Action save button
             Button(
                 onClick = {
                     viewModel.setTmdbApiKey(inputKey.trim())
-                    Toast.makeText(context, "ClÃ© API enregistrÃ©e avec succÃ¨s !", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Clé API enregistrée avec succès !", Toast.LENGTH_SHORT).show()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier
@@ -217,16 +377,16 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Comment obtenir une clÃ© ?",
+                        text = "Comment obtenir une clé ?",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "1. CrÃ©ez un compte gratuit sur themoviedb.org\n" +
-                                "2. Allez dans les ParamÃ¨tres de votre profil, puis section 'API'\n" +
-                                "3. Demandez une clÃ© d'accÃ¨s dÃ©veloppeur\n" +
-                                "4. Copiez la clÃ© API (v3 auth) et collez-la ci-dessus !",
+                        text = "1. Créez un compte gratuit sur themoviedb.org\n" +
+                                "2. Allez dans les Paramètres de votre profil, puis section 'API'\n" +
+                                "3. Demandez une clé d'accès développeur\n" +
+                                "4. Copiez la clé API (v3 auth) et collez-la ci-dessus !",
                         style = MaterialTheme.typography.bodySmall,
                         color = GrayText,
                         lineHeight = 16.sp
