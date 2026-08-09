@@ -50,7 +50,8 @@ interface JikanApiService {
     @GET("anime")
     suspend fun searchAnime(
         @Query("q") query: String,
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("page") page: Int = 1
     ): JikanAnimeSearchResponse
 
     @GET("anime/{id}/full")
@@ -60,7 +61,8 @@ interface JikanApiService {
 
     @GET("top/anime")
     suspend fun getTopAnime(
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("page") page: Int = 1
     ): JikanAnimeSearchResponse
 }
 
@@ -176,14 +178,16 @@ interface TmdbApiService {
     suspend fun searchMovie(
         @Query("api_key") apiKey: String,
         @Query("query") query: String,
-        @Query("language") language: String = "fr-FR"
+        @Query("language") language: String = "fr-FR",
+        @Query("page") page: Int = 1
     ): TmdbMovieSearchResponse
 
     @GET("search/tv")
     suspend fun searchTv(
         @Query("api_key") apiKey: String,
         @Query("query") query: String,
-        @Query("language") language: String = "fr-FR"
+        @Query("language") language: String = "fr-FR",
+        @Query("page") page: Int = 1
     ): TmdbTvSearchResponse
 
     @GET("movie/{id}")
@@ -212,12 +216,14 @@ interface TmdbApiService {
     @GET("trending/movie/week")
     suspend fun getTrendingMovies(
         @Query("api_key") apiKey: String,
-        @Query("language") language: String = "fr-FR"
+        @Query("language") language: String = "fr-FR",
+        @Query("page") page: Int = 1
     ): TmdbTrendingMovieResponse
 
     @GET("trending/tv/week")
     suspend fun getTrendingTv(
         @Query("api_key") apiKey: String,
-        @Query("language") language: String = "fr-FR"
+        @Query("language") language: String = "fr-FR",
+        @Query("page") page: Int = 1
     ): TmdbTrendingTvResponse
 }

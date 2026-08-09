@@ -103,7 +103,8 @@ class MainActivity : ComponentActivity() {
             seasonProgressDao = database.seasonProgressDao(),
             collectionCacheDao = database.collectionCacheDao(),
             sagaSizeDao = database.sagaSizeDao(),
-            preferenceManager = preferenceManager
+            preferenceManager = preferenceManager,
+            context = applicationContext
         )
 
         // 2. Instantiate master view model
