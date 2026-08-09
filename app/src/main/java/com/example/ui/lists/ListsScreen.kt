@@ -1,4 +1,4 @@
-﻿package com.example.ui.lists
+package com.example.ui.lists
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -202,7 +202,7 @@ fun ListsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(customLists, key = { it.id }) { list ->
+                    items(customLists, key = { "list_" }) { list ->
                         SwipeToDismissContainer(
                             onDelete = { listToDelete = list },
                             cornerRadius = 12.dp
@@ -424,7 +424,7 @@ fun ListsScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        itemsIndexed(localListTitles, key = { _, item -> item.id }) { index, item ->
+                        itemsIndexed(localListTitles, key = { _, item -> "list_item_" }) { index, item ->
                             val cineTitle = item.toCineTitle()
                             val isDragging = index == dragDropState.draggingItemIndex
 

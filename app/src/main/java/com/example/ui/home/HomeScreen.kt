@@ -76,7 +76,8 @@ fun HomeScreen(
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
-    val logs = remember(logsRaw, collectionCache) {
+    val logs by remember(logsRaw, collectionCache) {
+        derivedStateOf {
         logsRaw.map { entry ->
             if (entry.collectionId == null) {
                 collectionCache[entry.titleId]?.let { cached ->
@@ -91,11 +92,12 @@ fun HomeScreen(
             }
         }
     }
+    }
 
     // Calculated Statistics
     val totalWatched = logs.size
-    val averageScore = remember(logs) {
-        if (logs.isEmpty()) 0f else logs.map { it.note }.average().toFloat()
+    val averageScore by remember(logs) {
+        derivedStateOf { if (logs.isEmpty()) 0f else logs.map { it.note }.average().toFloat() }
     }
     val watchlistCount = watchlist.size
 
@@ -103,14 +105,17 @@ fun HomeScreen(
     // recently watched first within each group. Computed here (not inside
     // LazyColumn's content lambda, which isn't a @Composable context) so
     // remember() is valid.
-    val groupedLogs = remember(logs) {
+    val groupedLogs by remember(logs) {
+        derivedStateOf {
         logs
             .sortedByDescending { it.dateVue }
             .groupBy { TitleType.valueOf(it.titleType) }
+        }
     }
     // Within each category, movies from the same TMDB saga are collapsed
     // into a single "Activité Récente" row instead of one row per film.
-    val displayItemsByType = remember(groupedLogs) {
+    val displayItemsByType by remember(groupedLogs) {
+        derivedStateOf {
         groupedLogs.mapValues { (_, logsForType) ->
             logsForType.groupBySaga(
                 collectionId = { it.collectionId },
@@ -123,6 +128,7 @@ fun HomeScreen(
                 }
             }
         }
+    }
     }
     val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
 
@@ -152,9 +158,11 @@ fun HomeScreen(
         // Liste, affiches compactes en mode Grille) : garder les deux
         // synchronisés au même endroit évite qu'ils se désaccordent.
         val columnCount = if (viewMode == CollectionViewMode.GRID) 3 else 1
+        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
         LazyVerticalGrid(
-            columns = GridCells.Fixed(columnCount),
+            state = gridState,
+            columns = remember(columnCount) { GridCells.Fixed(columnCount) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -335,7 +343,7 @@ fun HomeScreen(
                                             contentPadding = PaddingValues(horizontal = 8.dp),
                                             modifier = Modifier.testTag("empty_state_suggestions_carousel")
                                         ) {
-                                            items(suggestions, key = { it.id }) { item ->
+                                            items(suggestions, key = { "suggestion_${it.id}" }) { item ->
                                                 SuggestionItemCard(
                                                     title = item,
                                                     onClick = { onTitleClick(item.id) }

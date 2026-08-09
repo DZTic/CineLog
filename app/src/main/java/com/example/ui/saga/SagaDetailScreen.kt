@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -258,7 +259,7 @@ fun SagaDetailScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                items(sagaTitles, key = { it.id }) { movie ->
+                items(sagaTitles, key = { "saga_movie_" }) { movie ->
                     SagaMovieRow(
                         movie = movie,
                         isWatched = movie.id in watchedTitleIds,

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -295,7 +296,7 @@ fun SearchScreen(
                     }
 
                     // Available Genre Filter Chips
-                    items(availableGenres) { genre ->
+                    items(availableGenres, key = { "genre_" }) { genre ->
                         FilterChip(
                             selected = selectedGenre.equals(genre, ignoreCase = true),
                             onClick = {
@@ -310,7 +311,7 @@ fun SearchScreen(
                     }
 
                     // Available Year Filter Chips
-                    items(availableYears) { year ->
+                    items(availableYears, key = { "year_" }) { year ->
                         FilterChip(
                             selected = selectedYear == year,
                             onClick = {
@@ -586,7 +587,7 @@ fun SearchScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(popularSuggestions) { suggestion ->
+                                items(popularSuggestions, key = { "popular_" }) { suggestion ->
                                     TitleCard(
                                         title = suggestion,
                                         onClick = { onTitleClick(suggestion.id) },

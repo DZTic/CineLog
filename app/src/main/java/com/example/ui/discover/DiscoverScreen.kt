@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,38 +65,40 @@ fun DiscoverScreen(
     val discoverLoading by viewModel.discoverLoading.collectAsState()
     val discoverError by viewModel.discoverError.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
-    val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
+    val watchlistTitleIds by remember(watchlist) { derivedStateOf { watchlist.map { it.titleId }.toSet() } }
 
     val allLogs by viewModel.allLogs.collectAsState()
-    val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
+    val watchedTitleIds by remember(allLogs) { derivedStateOf { allLogs.map { it.titleId }.toSet() } }
 
-    val filteredFilms = remember(trendingFilms, watchedTitleIds) {
-        trendingFilms.filter { it.id !in watchedTitleIds }
+    val filteredFilms by remember(trendingFilms, watchedTitleIds) {
+        derivedStateOf { trendingFilms.filter { it.id !in watchedTitleIds } }
     }
-    val filteredSeries = remember(trendingSeries, watchedTitleIds) {
-        trendingSeries.filter { it.id !in watchedTitleIds }
+    val filteredSeries by remember(trendingSeries, watchedTitleIds) {
+        derivedStateOf { trendingSeries.filter { it.id !in watchedTitleIds } }
     }
-    val filteredAnime = remember(topAnime, watchedTitleIds) {
-        topAnime.filter { it.id !in watchedTitleIds }
+    val filteredAnime by remember(topAnime, watchedTitleIds) {
+        derivedStateOf { topAnime.filter { it.id !in watchedTitleIds } }
     }
 
     val searchResults by viewModel.searchResults.collectAsState()
     val searchLoading by viewModel.searchLoading.collectAsState()
     val searchError by viewModel.searchError.collectAsState()
 
-    val filteredSearchResults = remember(searchResults, watchedTitleIds) {
-        searchResults.filter { it.id !in watchedTitleIds }
+    val filteredSearchResults by remember(searchResults, watchedTitleIds) {
+        derivedStateOf { searchResults.filter { it.id !in watchedTitleIds } }
     }
 
-    val displaySearchResults = remember(filteredSearchResults) {
-        filteredSearchResults.groupBySaga(
-            collectionId = { it.collectionId },
-            collectionName = { it.collectionName },
-            posterUrl = { it.collectionPosterUrl }
-        ).sortedByDescending { display ->
-            when (display) {
-                is GroupedDisplay.Single -> display.item.voteAverage
-                is GroupedDisplay.Grouped -> display.group.items.maxOf { it.voteAverage }
+    val displaySearchResults by remember(filteredSearchResults) {
+        derivedStateOf {
+            filteredSearchResults.groupBySaga(
+                collectionId = { it.collectionId },
+                collectionName = { it.collectionName },
+                posterUrl = { it.collectionPosterUrl }
+            ).sortedByDescending { display ->
+                when (display) {
+                    is GroupedDisplay.Single -> display.item.voteAverage
+                    is GroupedDisplay.Grouped -> display.group.items.maxOf { it.voteAverage }
+                }
             }
         }
     }
@@ -394,12 +397,14 @@ fun DiscoverScreen(
                             }
                             }
                        } else {
-                            val gridItems = remember(selectedFilter, filteredFilms, filteredSeries, filteredAnime) {
-                                when (selectedFilter) {
-                                    TitleType.FILM -> filteredFilms
-                                    TitleType.SERIE -> filteredSeries
-                                    TitleType.ANIME -> filteredAnime
-                                    else -> emptyList()
+                            val gridItems by remember(selectedFilter, filteredFilms, filteredSeries, filteredAnime) {
+                                derivedStateOf {
+                                    when (selectedFilter) {
+                                        TitleType.FILM -> filteredFilms
+                                        TitleType.SERIE -> filteredSeries
+                                        TitleType.ANIME -> filteredAnime
+                                        else -> emptyList()
+                                    }
                                 }
                             }
 
@@ -420,7 +425,7 @@ fun DiscoverScreen(
                                     verticalArrangement = Arrangement.spacedBy(16.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
-                                    items(gridItems) { title ->
+                                    items(gridItems, key = { "grid_" }) { title ->
                                         TitleCard(
                                             title = title,
                                             onClick = { onTitleClick(title.id) },
@@ -485,7 +490,7 @@ fun CarouselSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(items) { title ->
+            items(items, key = { "carousel_" }) { title ->
                 TitleCard(
                     title = title,
                     onClick = { onTitleClick(title.id) },
