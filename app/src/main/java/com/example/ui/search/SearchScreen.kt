@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -459,7 +460,7 @@ fun SearchScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(popularSuggestions) { suggestion ->
+                                items(popularSuggestions, key = { "popular_${it.id}" }) { suggestion ->
                                     TitleCard(
                                         title = suggestion,
                                         onClick = { onTitleClick(suggestion.id) },

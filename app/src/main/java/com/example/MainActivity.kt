@@ -128,10 +128,108 @@ sealed class Screen(val route: String, val title: String) {
     object Profile : Screen("profile", "Profil")
     object Settings : Screen("settings", "Paramètres")
     object Detail : Screen("detail/{titleId}", "Détails") {
-        fun createRoute(titleId: String) = "detail/$titleId"
+        fun createRoute(titleId: String) = "detail/"
     }
     object SagaDetail : Screen("saga/{collectionId}", "Saga") {
-        fun createRoute(collectionId: Int) = "saga/$collectionId"
+        fun createRoute(collectionId: Int) = "saga/"
+    }
+}
+
+@Composable
+fun CineBottomNavigationBar(
+    navController: NavHostController,
+    bottomNavItems: List<Screen>
+) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
+    if (isPrimaryTab) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 3.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .height(72.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                bottomNavItems.forEach { screen ->
+                    val selected = currentRoute == screen.route
+                    val icon = when (screen) {
+                        Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
+                        Screen.Discover -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
+                        Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
+                        Screen.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
+                        else -> Icons.Filled.Home
+                    }
+
+                    val label = when (screen) {
+                        Screen.Home -> "Accueil"
+                        Screen.Discover -> "Découvrir"
+                        Screen.Watchlist -> "À Voir"
+                        Screen.Profile -> "Profil"
+                        else -> screen.title
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                if (currentRoute != screen.route) {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    if (selected) MaterialTheme.colorScheme.secondaryContainer
+                                    else Color.Transparent
+                                )
+                                .padding(horizontal = 14.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = if (selected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                        if (selected) {
+                            Text(
+                                text = label,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -139,8 +237,7 @@ sealed class Screen(val route: String, val title: String) {
 @Composable
 fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+
 
     // Logging sheet dialog trigger state
     var loggingTitle by remember { mutableStateOf<CineTitle?>(null) }
@@ -157,95 +254,10 @@ fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
 
     Scaffold(
         bottomBar = {
-            // Only show bottom navigation on primary tabs
-            val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
-            if (isPrimaryTab) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 3.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .height(72.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        bottomNavItems.forEach { screen ->
-                            val selected = currentRoute == screen.route
-                            val icon = when (screen) {
-                                Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
-                                Screen.Discover -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
-                                Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
-                                Screen.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
-                                else -> Icons.Filled.Home
-                            }
-
-                            val label = when (screen) {
-                                Screen.Home -> "Accueil"
-                                Screen.Discover -> "Découvrir"
-                                Screen.Watchlist -> "À Voir"
-                                Screen.Profile -> "Profil"
-                                else -> screen.title
-                            }
-
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) {
-                                        if (currentRoute != screen.route) {
-                                            navController.navigate(screen.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(
-                                            if (selected) MaterialTheme.colorScheme.secondaryContainer
-                                            else Color.Transparent
-                                        )
-                                        .padding(horizontal = 14.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = label,
-                                        tint = if (selected) {
-                                            MaterialTheme.colorScheme.onSecondaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        }
-                                    )
-                                }
-                                if (selected) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(top = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            CineBottomNavigationBar(
+                navController = navController,
+                bottomNavItems = bottomNavItems
+            )
         }
     ) { innerPadding ->
         NavHost(
