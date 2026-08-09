@@ -2,6 +2,7 @@ package com.example.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.squareup.moshi.JsonClass
 
 @Entity(tableName = "log_entries")
 data class DbLogEntry(
@@ -88,4 +89,22 @@ data class DbSeasonProgress(
     val seasonNumber: Int,
     val status: String,
     val dateUpdated: Long = System.currentTimeMillis()
+)
+
+@JsonClass(generateAdapter = true)
+data class CineLogBackup(
+    val version: Int = 1,
+    val exportedAt: Long = System.currentTimeMillis(),
+    val logs: List<DbLogEntry> = emptyList(),
+    val watchlist: List<DbWatchlist> = emptyList(),
+    val customLists: List<DbCustomList> = emptyList(),
+    val customListTitles: List<DbCustomListTitle> = emptyList(),
+    val seasonProgress: List<DbSeasonProgress> = emptyList()
+)
+
+data class ImportSummary(
+    val logsCount: Int,
+    val watchlistCount: Int,
+    val customListsCount: Int,
+    val seasonProgressCount: Int
 )

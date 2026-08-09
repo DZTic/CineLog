@@ -12,11 +12,17 @@ interface LogDao {
     @Query("SELECT * FROM log_entries ORDER BY dateVue DESC")
     fun getAllLogs(): Flow<List<DbLogEntry>>
 
+    @Query("SELECT * FROM log_entries ORDER BY dateVue DESC")
+    suspend fun getAllLogsList(): List<DbLogEntry>
+
     @Query("SELECT * FROM log_entries WHERE titleId = :titleId ORDER BY dateVue DESC")
     fun getLogsForTitle(titleId: String): Flow<List<DbLogEntry>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(entry: DbLogEntry)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLogs(entries: List<DbLogEntry>)
 
     @Query("DELETE FROM log_entries WHERE id = :id")
     suspend fun deleteLogById(id: Int)
@@ -27,11 +33,17 @@ interface WatchlistDao {
     @Query("SELECT * FROM watchlist ORDER BY dateAdded DESC")
     fun getAllWatchlist(): Flow<List<DbWatchlist>>
 
+    @Query("SELECT * FROM watchlist ORDER BY dateAdded DESC")
+    suspend fun getAllWatchlistList(): List<DbWatchlist>
+
     @Query("SELECT EXISTS(SELECT 1 FROM watchlist WHERE titleId = :titleId)")
     fun isInWatchlist(titleId: String): Flow<Boolean>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWatchlist(item: DbWatchlist)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWatchlists(items: List<DbWatchlist>)
 
     @Query("DELETE FROM watchlist WHERE titleId = :titleId")
     suspend fun deleteFromWatchlist(titleId: String)
@@ -47,11 +59,17 @@ interface CustomListDao {
     @Query("SELECT * FROM custom_lists ORDER BY dateCreated DESC")
     fun getAllCustomLists(): Flow<List<DbCustomList>>
 
+    @Query("SELECT * FROM custom_lists ORDER BY dateCreated DESC")
+    suspend fun getAllCustomListsList(): List<DbCustomList>
+
     @Query("SELECT * FROM custom_lists WHERE id = :listId")
     fun getCustomListById(listId: Int): Flow<DbCustomList?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomList(list: DbCustomList): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCustomLists(lists: List<DbCustomList>)
 
     @Query("DELETE FROM custom_lists WHERE id = :listId")
     suspend fun deleteCustomListById(listId: Int)
@@ -59,8 +77,14 @@ interface CustomListDao {
     @Query("SELECT * FROM custom_list_titles WHERE listId = :listId ORDER BY orderIndex ASC")
     fun getCustomListTitles(listId: Int): Flow<List<DbCustomListTitle>>
 
+    @Query("SELECT * FROM custom_list_titles ORDER BY id ASC")
+    suspend fun getAllCustomListTitlesList(): List<DbCustomListTitle>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCustomListTitle(title: DbCustomListTitle)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCustomListTitles(titles: List<DbCustomListTitle>)
 
     @Query("DELETE FROM custom_list_titles WHERE id = :id")
     suspend fun deleteCustomListTitleById(id: Int)
@@ -98,8 +122,14 @@ interface SeasonProgressDao {
     @Query("SELECT * FROM season_progress WHERE titleId = :titleId")
     fun getForTitle(titleId: String): Flow<List<DbSeasonProgress>>
 
+    @Query("SELECT * FROM season_progress")
+    suspend fun getAllSeasonProgressList(): List<DbSeasonProgress>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(progress: DbSeasonProgress)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(progresses: List<DbSeasonProgress>)
 
     @Query("DELETE FROM season_progress WHERE titleId = :titleId AND seasonNumber = :seasonNumber")
     suspend fun deleteForSeason(titleId: String, seasonNumber: Int)
