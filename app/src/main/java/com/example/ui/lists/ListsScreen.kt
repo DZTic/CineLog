@@ -478,9 +478,10 @@ fun ListsScreen(
                                             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTitleClick(cineTitle.id) }
                                     ) {
                                         if (cineTitle.posterUrl != null) {
-                                            val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                                            val formattedUrl = androidx.compose.runtime.remember(cineTitle.posterUrl) { com.example.util.formatPosterUrl(cineTitle.posterUrl, com.example.util.PosterSize.THUMBNAIL) }
+                                            val posterFallback = com.example.util.ImagePlaceholders.movie()
                                             AsyncImage(
-                                                model = cineTitle.posterUrl,
+                                                model = formattedUrl,
                                                 contentDescription = cineTitle.title,
                                                 placeholder = posterFallback,
                                                 error = posterFallback,
