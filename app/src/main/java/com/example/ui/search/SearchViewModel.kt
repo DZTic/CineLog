@@ -3,27 +3,30 @@ package com.example.ui.search
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
 import com.example.data.*
 import com.example.ui.CachedSaga
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
     private val repository: Repository,
     private val preferenceManager: PreferenceManager
 ) : ViewModel() {
     private val tag = "SearchViewModel"
 
-    private val _searchLoading = MutableStateFlow(false)
-    val searchLoading: StateFlow<Boolean> = _searchLoading.asStateFlow()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _searchError = MutableStateFlow<String?>(null)
-    val searchError: StateFlow<String?> = _searchError.asStateFlow()
-
-    private val _searchResults = MutableStateFlow<List<CineTitle>>(emptyList())
-    val searchResults: StateFlow<List<CineTitle>> = _searchResults.asStateFlow()
+    private val _selectedFilter = MutableStateFlow<TitleType?>(null)
+    val selectedFilter: StateFlow<TitleType?> = _selectedFilter.asStateFlow()
 
     private val _searchHistory = MutableStateFlow(preferenceManager.getSearchHistory())
     val searchHistory: StateFlow<List<String>> = _searchHistory.asStateFlow()
@@ -47,10 +50,46 @@ class SearchViewModel(
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    private var searchJob: Job? = null
+    val searchPagingFlow: Flow<PagingData<CineTitle>> = combine(_searchQuery, _selectedFilter) { query, filter ->
+        Pair(query.trim(), filter)
+    }
+        .debounce(350)
+        .flatMapLatest { (query, filter) ->
+            if (query.length < 2) {
+                flowOf(PagingData.empty())
+            } else {
+                Pager(
+                    config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                    pagingSourceFactory = { SearchPagingSource(repository, query, filter) }
+                ).flow.map { pagingData ->
+                    val cache = collectionCache.value
+                    pagingData.map { title ->
+                        if (title.collectionId == null) {
+                            val cached = cache[title.id]
+                            if (cached != null) {
+                                title.copy(
+                                    collectionId = cached.collectionId,
+                                    collectionName = cached.collectionName,
+                                    collectionPosterUrl = cached.posterUrl
+                                )
+                            } else title
+                        } else title
+                    }
+                }
+            }
+        }
+        .cachedIn(viewModelScope)
 
     init {
         loadPopularSuggestions()
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setFilter(filter: TitleType?) {
+        _selectedFilter.value = filter
     }
 
     private fun loadPopularSuggestions() {
@@ -78,6 +117,7 @@ class SearchViewModel(
         _searchHistory.value = updated
         preferenceManager.setSearchHistory(updated)
     }
+
     fun clearSearchHistory() {
         _searchHistory.value = emptyList()
         preferenceManager.setSearchHistory(emptyList())
@@ -98,42 +138,7 @@ class SearchViewModel(
     }
 
     fun performSearch(query: String, filter: TitleType? = null, debounceMs: Long = 0L) {
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch {
-            if (debounceMs > 0) {
-                delay(debounceMs)
-            }
-            if (query.trim().isEmpty()) {
-                _searchResults.value = emptyList()
-                return@launch
-            }
-            _searchLoading.value = true
-            _searchError.value = null
-            try {
-                val results = repository.searchTitles(query, filter)
-                val cache = collectionCache.value
-                _searchResults.value = results.map { title ->
-                    if (title.collectionId == null) {
-                        val cached = cache[title.id]
-                        if (cached != null) {
-                            title.copy(
-                                collectionId = cached.collectionId,
-                                collectionName = cached.collectionName,
-                                collectionPosterUrl = cached.posterUrl
-                            )
-                        } else {
-                            title
-                        }
-                    } else {
-                        title
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(tag, "Error performing search: ${e.localizedMessage}")
-                _searchError.value = "Erreur de connexion. Veuillez réessayer."
-            } finally {
-                _searchLoading.value = false
-            }
-        }
+        _searchQuery.value = query
+        _selectedFilter.value = filter
     }
 }

@@ -1,16 +1,22 @@
 package com.example.data
 
+import android.content.Context
 import android.util.Log
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 enum class TitleType {
     FILM, SERIE, ANIME;
@@ -18,7 +24,7 @@ enum class TitleType {
     val displayName: String
         get() = when (this) {
             FILM -> "Film"
-            SERIE -> "Série"
+            SERIE -> "S?rie"
             ANIME -> "Anime"
         }
 }
@@ -56,6 +62,59 @@ data class CineTitle(
     val collectionPosterUrl: String? = null // official saga poster, distinct from this movie's own poster
 )
 
+class SearchPagingSource(
+    private val repository: Repository,
+    private val query: String,
+    private val typeFilter: TitleType?
+) : PagingSource<Int, CineTitle>() {
+    override fun getRefreshKey(state: PagingState<Int, CineTitle>): Int? {
+        return state.anchorPosition?.let { anchor ->
+            state.closestPageToPosition(anchor)?.prevKey?.plus(1)
+                ?: state.closestPageToPosition(anchor)?.nextKey?.minus(1)
+        }
+    }
+
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, CineTitle> {
+        val page = params.key ?: 1
+        return try {
+            val items = repository.searchTitlesPaged(query, typeFilter, page)
+            LoadResult.Page(
+                data = items,
+                prevKey = if (page == 1) null else page - 1,
+                nextKey = if (items.isEmpty()) null else page + 1
+            )
+        } catch (e: Exception) {
+            LoadResult.Error(e)
+        }
+    }
+}
+
+class DiscoverPagingSource(
+    private val repository: Repository,
+    private val typeFilter: TitleType
+) : PagingSource<Int, CineTitle>() {
+    override fun getRefreshKey(state: PagingState<Int, CineTitle>): Int? {
+        return state.anchorPosition?.let { anchor ->
+            state.closestPageToPosition(anchor)?.prevKey?.plus(1)
+                ?: state.closestPageToPosition(anchor)?.nextKey?.minus(1)
+        }
+    }
+
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, CineTitle> {
+        val page = params.key ?: 1
+        return try {
+            val items = repository.getTrendingOrPopularPaged(typeFilter, page)
+            LoadResult.Page(
+                data = items,
+                prevKey = if (page == 1) null else page - 1,
+                nextKey = if (items.isEmpty()) null else page + 1
+            )
+        } catch (e: Exception) {
+            LoadResult.Error(e)
+        }
+    }
+}
+
 class Repository(
     private val logDao: LogDao,
     private val watchlistDao: WatchlistDao,
@@ -63,41 +122,64 @@ class Repository(
     private val seasonProgressDao: SeasonProgressDao,
     private val collectionCacheDao: CollectionCacheDao,
     private val sagaSizeDao: SagaSizeDao,
-    private val preferenceManager: PreferenceManager
+    private val preferenceManager: PreferenceManager,
+    private val context: Context? = null
 ) {
     private val tag = "Repository"
-    
+
     private val moshi: com.squareup.moshi.Moshi by lazy {
         com.squareup.moshi.Moshi.Builder()
             .addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
             .build()
     }
 
-    // Set up Retrofit for Jikan (Anime)
+    private val okHttpClient: OkHttpClient by lazy {
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+
+        context?.cacheDir?.let { cacheDir ->
+            builder.cache(Cache(File(cacheDir, "http_cache"), 10L * 1024 * 1024))
+        }
+
+        if (BuildConfig.DEBUG) {
+            val logging = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+            builder.addInterceptor(logging)
+        }
+
+        builder.addNetworkInterceptor { chain ->
+            val request = chain.request()
+            val response = chain.proceed(request)
+            val path = request.url.encodedPath
+            val maxAge = when {
+                path.contains("trending") || path.contains("top/anime") -> 3600
+                path.contains("search") || path.endsWith("/anime") -> 300
+                path.contains("movie/") || path.contains("tv/") || path.contains("collection/") || path.contains("/full") -> 86400
+                else -> 300
+            }
+            response.newBuilder()
+                .header("Cache-Control", "public, max-age=$maxAge")
+                .build()
+        }
+
+        builder.build()
+    }
+
     private val jikanApi: JikanApiService by lazy {
         Retrofit.Builder()
             .baseUrl("https://api.jikan.moe/v4/")
+            .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(JikanApiService::class.java)
     }
 
-    // Set up Retrofit for TMDB (Movies / TV).
-    // Without a personal key (the default), calls go through our Cloudflare
-    // Worker proxy (see /proxy) that injects the TMDB key server-side, so
-    // the app works out of the box. Users who set their own key call TMDB
-    // directly.
     private fun buildTmdbApi(baseUrl: String): TmdbApiService {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-        val client = OkHttpClient.Builder()
-            .addInterceptor(logging)
-            .build()
-
         return Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(client)
+            .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(TmdbApiService::class.java)
@@ -105,10 +187,6 @@ class Repository(
 
     private val tmdbDirectApi: TmdbApiService by lazy { buildTmdbApi("https://api.themoviedb.org/3/") }
 
-    // Configured via TMDB_PROXY_BASE_URL in .env (see proxy/README.md for
-    // deployment). Falls back to hitting TMDB directly with a placeholder
-    // key if the proxy hasn't been deployed yet — that call will simply
-    // fail with an auth error, caught like any other network error.
     private val tmdbProxyApi: TmdbApiService by lazy {
         buildTmdbApi(BuildConfig.TMDB_PROXY_BASE_URL.ifBlank { "https://api.themoviedb.org/3/" })
     }
@@ -140,9 +218,6 @@ class Repository(
         watchlistDao.insertWatchlist(item)
     }
 
-    // Surcharge pratique a partir d'un CineTitle : copie directement ses
-    // metadonnees (annee, genres, note) dans l'entree watchlist pour que le
-    // tri/filtre de la Watchlist fonctionne sans attendre le backfill (#33).
     suspend fun addToWatchlist(title: CineTitle) = withContext(Dispatchers.IO) {
         watchlistDao.insertWatchlist(
             DbWatchlist(
@@ -164,10 +239,6 @@ class Repository(
         watchlistDao.deleteFromWatchlist(titleId)
     }
 
-    // Re-remplit les metadonnees de tri/filtre d'une entree watchlist qui
-    // n'a pas encore d'annee / note (entrees creees avant la v6, ou ajoutees
-    // sans detail). On lit l'annee via la note ET l'annee renvoyees par
-    // getTitleDetail, qui lui-meme sait resoudre movie_/tv_/anime_ (Jikan).
     suspend fun backfillWatchlistMetadata(titleId: String) = withContext(Dispatchers.IO) {
         try {
             val detail = getTitleDetail(titleId)
@@ -184,17 +255,12 @@ class Repository(
         }
     }
 
-    // ==========================================
-    // SEASON WATCH PROGRESS (series & anime only)
-    // ==========================================
-
     fun getSeasonProgressForTitle(titleId: String): Flow<List<DbSeasonProgress>> =
         seasonProgressDao.getForTitle(titleId)
 
     suspend fun setSeasonStatus(titleId: String, seasonNumber: Int, status: SeasonStatus) =
         withContext(Dispatchers.IO) {
             if (status == SeasonStatus.NOT_WATCHED) {
-                // Nothing to track for the default state — keep the table lean.
                 seasonProgressDao.deleteForSeason(titleId, seasonNumber)
             } else {
                 seasonProgressDao.upsert(
@@ -207,8 +273,6 @@ class Repository(
             }
         }
 
-    // Local cache mapping titleId -> saga (TMDB collection), used to group
-    // movies without needing a network call per title (see DbCollectionCache).
     val collectionCache: Flow<List<DbCollectionCache>> = collectionCacheDao.getAll()
 
     private suspend fun cacheCollectionInfo(
@@ -258,10 +322,6 @@ class Repository(
         customListDao.updateCustomListTitleOrder(id, newOrderIndex)
     }
 
-    // ==========================================
-    // REMOTE API OPERATIONS & CONVERSIONS
-    // ==========================================
-
     private fun getTmdbKey(): String {
         return preferenceManager.getTmdbApiKey()
     }
@@ -271,22 +331,16 @@ class Repository(
         return filter { seen.add(it.title.trim().lowercase()) }
     }
 
-    // TMDB has no reliable "is this anime" flag, so TV results also surface
-    // Japanese animation (e.g. searching "MHA" returns My Hero Academia as
-    // a TMDB TV show, duplicating the ANIME result already returned by
-    // Jikan). Genre 16 = Animation on TMDB; combined with a Japanese origin
-    // this is the standard heuristic to detect anime and exclude it from
-    // the SERIE bucket so it only shows up once, correctly typed as ANIME.
     private fun TmdbTvResult.isLikelyAnime(): Boolean {
         val isAnimation = genreIds?.contains(16) == true
         val isJapaneseOrigin = originalLanguage == "ja" || originCountry?.contains("JP") == true
         return isAnimation && isJapaneseOrigin
     }
 
-    /**
-     * Search movies, TV series, or anime dynamically.
-     */
-    suspend fun searchTitles(query: String, typeFilter: TitleType? = null): List<CineTitle> = coroutineScope {
+    suspend fun searchTitles(query: String, typeFilter: TitleType? = null): List<CineTitle> =
+        searchTitlesPaged(query, typeFilter, page = 1)
+
+    suspend fun searchTitlesPaged(query: String, typeFilter: TitleType? = null, page: Int = 1): List<CineTitle> = coroutineScope {
         if (query.trim().isEmpty()) return@coroutineScope emptyList()
 
         val tmdbKey = getTmdbKey()
@@ -294,81 +348,61 @@ class Repository(
         val filmsDeferred = if (typeFilter == null || typeFilter == TitleType.FILM) {
             async(Dispatchers.IO) {
                 try {
-                    val response = tmdbApi.searchMovie(tmdbKey, query)
+                    val response = tmdbApi.searchMovie(tmdbKey, query, page = page)
                     response.results.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB movie: ${e.localizedMessage}")
                     emptyList()
                 }
             }
-        } else {
-            null
-        }
+        } else null
 
-        // Fetched for SERIE (kept as-is) and ANIME (reclassified matches
-        // merged in below) filters, not just when there's no filter.
         val seriesResultDeferred = if (typeFilter == null || typeFilter == TitleType.SERIE || typeFilter == TitleType.ANIME) {
             async(Dispatchers.IO) {
                 try {
-                    tmdbApi.searchTv(tmdbKey, query).results
+                    tmdbApi.searchTv(tmdbKey, query, page = page).results
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB TV: ${e.localizedMessage}")
                     emptyList<TmdbTvResult>()
                 }
             }
-        } else {
-            null
-        }
+        } else null
 
         val animeDeferred = if (typeFilter == null || typeFilter == TitleType.ANIME) {
             async(Dispatchers.IO) {
                 try {
-                    val response = jikanApi.searchAnime(query)
+                    val response = jikanApi.searchAnime(query, page = page)
                     response.data.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching Jikan Anime: ${e.localizedMessage}")
                     emptyList()
                 }
             }
-        } else {
-            null
-        }
+        } else null
 
         val films = filmsDeferred?.await() ?: emptyList()
         val tvResults = seriesResultDeferred?.await() ?: emptyList()
         val jikanAnime = animeDeferred?.await() ?: emptyList()
 
-        // Split TMDB TV results: real series stay SERIE, anime gets
-        // relabeled ANIME instead of dropped, so shows Jikan's title
-        // search misses (e.g. abbreviations like "MHA") still show up.
-        // Only keep the reclassified ones when the caller isn't
-        // restricting to SERIE, and dedupe against Jikan by title so a
-        // show found by both sources doesn't appear twice.
         val (animeFromTmdb, pureSeries) = tvResults.partition { it.isLikelyAnime() }
         val series = if (typeFilter == null || typeFilter == TitleType.SERIE) {
             pureSeries.map { it.toCineTitle() }
-        } else {
-            emptyList()
-        }
+        } else emptyList()
+
         val anime = if (typeFilter == null || typeFilter == TitleType.ANIME) {
             (jikanAnime + animeFromTmdb.map { it.toAnimeCineTitle() }).dedupeByTitle()
-        } else {
-            emptyList()
-        }
+        } else emptyList()
 
         return@coroutineScope (films + series + anime).sortedByDescending { it.voteAverage }
     }
 
-    /**
-     * Fetch a specific item from its uniform identifier.
-     */
     suspend fun getTitleDetail(id: String): CineTitle = withContext(Dispatchers.IO) {
         val parts = id.split("_", limit = 2)
         if (parts.size < 2) throw IllegalArgumentException("Format ID invalide: $id")
 
         val prefix = parts[0]
         val rawIdString = parts[1]
-        val rawId = rawIdString.toIntOrNull() ?: throw IllegalArgumentException("ID numérique invalide: $rawIdString")
+        val rawId = rawIdString.toIntOrNull() ?: throw IllegalArgumentException("ID num?rique invalide: $rawIdString")
 
         when (prefix) {
             "movie" -> {
@@ -391,11 +425,6 @@ class Repository(
         }
     }
 
-    /**
-     * Fetch every movie in a TMDB "saga" (collection), for display on a
-     * movie's detail screen and bulk-adding to the watchlist. Excludes
-     * the movie the user is already looking at.
-     */
     private suspend fun fetchCollectionDetail(collectionId: Int): TmdbCollectionDetail? {
         val tmdbKey = getTmdbKey()
         return try {
@@ -421,26 +450,13 @@ class Repository(
                 .filter { it.id != excludeTitleId }
                 .sortedBy { it.year }
                 .also { titles ->
-                    // Also warm the local saga cache for these titles, so
-                    // they're grouped even if their detail page is never
-                    // opened individually (e.g. Search screen results).
                     titles.forEach { cacheCollectionInfo(it.id, collection.id, collection.name, posterUrl) }
                     sagaSizeDao.upsert(DbSagaSize(collection.id, titles.size))
                 }
         }
 
-    // Local cache of collectionId -> total number of films in that TMDB
-    // saga. Used by the grouped "SAGA" cards (Accueil, Watchlist, Recherche)
-    // to show a "vue en entier" badge without a network call every time a
-    // card is displayed.
     val sagaSizeCache: Flow<List<DbSagaSize>> = sagaSizeDao.getAll()
 
-    /**
-     * Makes sure the total film count for a saga is known locally, fetching
-     * it from TMDB only if it isn't already cached. Safe to call repeatedly
-     * (e.g. once per visible saga card): the network call only happens once
-     * per collection, ever, since the result is cached in Room afterwards.
-     */
     suspend fun ensureSagaSizeCached(collectionId: Int) {
         withContext(Dispatchers.IO) {
             if (sagaSizeDao.exists(collectionId)) return@withContext
@@ -449,10 +465,6 @@ class Repository(
         }
     }
 
-    /**
-     * Metadata describing a saga (TMDB "collection") itself, as opposed to
-     * one of the movies in it: its own name, synopsis and official poster.
-     */
     data class SagaInfo(
         val id: Int,
         val name: String,
@@ -460,10 +472,6 @@ class Repository(
         val posterUrl: String?
     )
 
-    /**
-     * Fetches everything needed to render a dedicated saga screen: the
-     * saga's own metadata plus every movie that belongs to it.
-     */
     suspend fun getSagaDetail(collectionId: Int): Pair<SagaInfo, List<CineTitle>>? =
         withContext(Dispatchers.IO) {
             val collection = fetchCollectionDetail(collectionId) ?: return@withContext null
@@ -488,42 +496,38 @@ class Repository(
             info to titles
         }
 
-    /**
-     * Get popular/trending content (Accueil / Découverte).
-     */
-    suspend fun getTrendingOrPopular(type: TitleType): List<CineTitle> = withContext(Dispatchers.IO) {
+    suspend fun getTrendingOrPopular(type: TitleType): List<CineTitle> =
+        getTrendingOrPopularPaged(type, page = 1)
+
+    suspend fun getTrendingOrPopularPaged(type: TitleType, page: Int = 1): List<CineTitle> = withContext(Dispatchers.IO) {
         val tmdbKey = getTmdbKey()
         when (type) {
             TitleType.FILM -> {
                 try {
-                    tmdbApi.getTrendingMovies(tmdbKey).results.map { it.toCineTitle() }
+                    tmdbApi.getTrendingMovies(tmdbKey, page = page).results.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error fetching trending movies: ${e.localizedMessage}")
-                    getFallbackFilms()
+                    if (page == 1) getFallbackFilms() else emptyList()
                 }
             }
             TitleType.SERIE -> {
                 try {
-                    tmdbApi.getTrendingTv(tmdbKey).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
+                    tmdbApi.getTrendingTv(tmdbKey, page = page).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error fetching trending TV: ${e.localizedMessage}")
-                    getFallbackSeries()
+                    if (page == 1) getFallbackSeries() else emptyList()
                 }
             }
             TitleType.ANIME -> {
                 try {
-                    jikanApi.getTopAnime().data.map { it.toCineTitle() }
+                    jikanApi.getTopAnime(page = page).data.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error fetching top anime: ${e.localizedMessage}")
-                    getFallbackAnime()
+                    if (page == 1) getFallbackAnime() else emptyList()
                 }
             }
         }
     }
-
-    // ==========================================
-    // DOMAIN MODEL MAPPING EXTENSIONS
-    // ==========================================
 
     private fun TmdbMovieResult.toCineTitle(): CineTitle {
         val y = releaseDate?.take(4) ?: "N/A"
@@ -536,7 +540,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = emptyList(),
-            voteAverage = (voteAverage ?: 0f) / 2f // Scale from TMDB's 0-10 to 0-5
+            voteAverage = (voteAverage ?: 0f) / 2f
         )
     }
 
@@ -551,15 +555,10 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = emptyList(),
-            voteAverage = (voteAverage ?: 0f) / 2f // Scale from TMDB's 0-10 to 0-5
+            voteAverage = (voteAverage ?: 0f) / 2f
         )
     }
 
-    // Same fields as toCineTitle(), but typed ANIME. Used for TMDB TV
-    // results that isLikelyAnime() flags: rather than dropping them (which
-    // hides shows Jikan's stricter title search fails to match, e.g.
-    // abbreviations like "MHA"), we relabel them as ANIME so they still
-    // surface, then dedupe against real Jikan results by title.
     private fun TmdbTvResult.toAnimeCineTitle(): CineTitle {
         val y = firstAirDate?.take(4) ?: "N/A"
         val poster = if (posterPath != null) "https://image.tmdb.org/t/p/w500$posterPath" else null
@@ -571,7 +570,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = emptyList(),
-            voteAverage = (voteAverage ?: 0f) / 2f // Scale from TMDB's 0-10 to 0-5
+            voteAverage = (voteAverage ?: 0f) / 2f
         )
     }
 
@@ -587,7 +586,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = genres?.map { it.name } ?: emptyList(),
-            voteAverage = (voteAverage ?: 0f) / 2f, // Scale from TMDB's 0-10 to 0-5
+            voteAverage = (voteAverage ?: 0f) / 2f,
             studioOrDirector = director,
             collectionId = belongsToCollection?.id,
             collectionName = belongsToCollection?.name,
@@ -595,7 +594,6 @@ class Repository(
         )
     }
 
-    // Same heuristic as TmdbTvResult.isLikelyAnime(), for the detail response shape.
     private fun TmdbTvDetail.isLikelyAnime(): Boolean {
         val isAnimation = genres?.any { it.id == 16 } == true
         val isJapaneseOrigin = originalLanguage == "ja" || originCountry?.contains("JP") == true
@@ -614,7 +612,7 @@ class Repository(
             posterUrl = poster,
             synopsis = overview ?: "",
             genres = genres?.map { it.name } ?: emptyList(),
-            voteAverage = (voteAverage ?: 0f) / 2f, // Scale from TMDB's 0-10 to 0-5
+            voteAverage = (voteAverage ?: 0f) / 2f,
             studioOrDirector = director,
             seasons = seasons?.map { CineSeason(it.seasonNumber, it.name, it.episodeCount) } ?: emptyList()
         )
@@ -626,9 +624,8 @@ class Repository(
         val studio = studios?.firstOrNull()?.name
         val mappedSeasons = if (episodes != null) {
             listOf(CineSeason(1, "Saison Unique", episodes))
-        } else {
-            emptyList()
-        }
+        } else emptyList()
+
         return CineTitle(
             id = "anime_$malId",
             type = TitleType.ANIME,
@@ -637,32 +634,28 @@ class Repository(
             posterUrl = poster,
             synopsis = synopsis ?: "",
             genres = genres?.map { it.name } ?: emptyList(),
-            voteAverage = (score ?: 0f) / 2f, // Scale from 0-10 to 0-5
+            voteAverage = (score ?: 0f) / 2f,
             studioOrDirector = studio,
             seasons = mappedSeasons
         )
     }
 
-    // ==========================================
-    // PRE-PACKAGED COLD-START FALLBACK LISTS
-    // ==========================================
-
     private fun getFallbackFilms(): List<CineTitle> = listOf(
         CineTitle("movie_27205", TitleType.FILM, "Inception", "2010", "https://image.tmdb.org/t/p/w500/aeG07bS9Z6g0D8U5I14kY2q0bM5.jpg", "Un voleur de secrets industriels utilise le subconscient.", listOf("Action", "Science-Fiction"), 4.4f, "Christopher Nolan"),
-        CineTitle("movie_157336", TitleType.FILM, "Interstellar", "2014", "https://image.tmdb.org/t/p/w500/gEU2vYvKext9hqg6vXXndccOWmO.jpg", "Un voyage interstellaire pour sauver l'humanité.", listOf("Aventure", "Science-Fiction"), 4.3f, "Christopher Nolan"),
-        CineTitle("movie_680", TitleType.FILM, "Pulp Fiction", "1994", "https://image.tmdb.org/t/p/w500/fIE3lYTE9An6Y8Zg8f2clg6cuyp.jpg", "L'odyssée sanglante et ironique de truands de bas étage.", listOf("Thriller", "Crime"), 4.5f, "Quentin Tarantino"),
-        CineTitle("movie_129", TitleType.FILM, "Le Voyage de Chihiro", "2001", "https://image.tmdb.org/t/p/w500/39wmItIWsg6s9XRY7gZg92zAsas.jpg", "Une jeune fille se retrouve bloquée dans le monde des esprits.", listOf("Animation", "Fantastique"), 4.6f, "Hayao Miyazaki")
+        CineTitle("movie_157336", TitleType.FILM, "Interstellar", "2014", "https://image.tmdb.org/t/p/w500/gEU2vYvKext9hqg6vXXndccOWmO.jpg", "Un voyage interstellaire pour sauver l'humanit?.", listOf("Aventure", "Science-Fiction"), 4.3f, "Christopher Nolan"),
+        CineTitle("movie_680", TitleType.FILM, "Pulp Fiction", "1994", "https://image.tmdb.org/t/p/w500/fIE3lYTE9An6Y8Zg8f2clg6cuyp.jpg", "L'odyss?e sanglante et ironique de truands de bas ?tage.", listOf("Thriller", "Crime"), 4.5f, "Quentin Tarantino"),
+        CineTitle("movie_129", TitleType.FILM, "Le Voyage de Chihiro", "2001", "https://image.tmdb.org/t/p/w500/39wmItIWsg6s9XRY7gZg92zAsas.jpg", "Une jeune fille se retrouve bloqu?e dans le monde des esprits.", listOf("Animation", "Fantastique"), 4.6f, "Hayao Miyazaki")
     )
 
     private fun getFallbackSeries(): List<CineTitle> = listOf(
         CineTitle("tv_1396", TitleType.SERIE, "Breaking Bad", "2008", "https://image.tmdb.org/t/p/w500/ztk6scNlh6g69gXv7qPG9836g9n.jpg", "Un prof de chimie malade devient baron de la drogue.", listOf("Drame", "Crime"), 4.5f, "Vince Gilligan"),
-        CineTitle("tv_1399", TitleType.SERIE, "Game of Thrones", "2011", "https://image.tmdb.org/t/p/w500/1XS19CfS3Z79YvHG6go4gH6gX4C.jpg", "Lutte de pouvoir pour le trône de fer de Westeros.", listOf("Drame", "Fantastique"), 4.2f, "David Benioff"),
-        CineTitle("tv_456", TitleType.SERIE, "The Simpsons", "1989", "https://image.tmdb.org/t/p/w500/77u7S2bAt795X8p66A59fXnJ8jX.jpg", "Le quotidien déjanté d'une famille de Springfield.", listOf("Animation", "Comédie"), 4.0f, "Matt Groening")
+        CineTitle("tv_1399", TitleType.SERIE, "Game of Thrones", "2011", "https://image.tmdb.org/t/p/w500/1XS19CfS3Z79YvHG6go4gH6gX4C.jpg", "Lutte de pouvoir pour le tr?ne de fer de Westeros.", listOf("Drame", "Fantastique"), 4.2f, "David Benioff"),
+        CineTitle("tv_456", TitleType.SERIE, "The Simpsons", "1989", "https://image.tmdb.org/t/p/w500/77u7S2bAt795X8p66A59fXnJ8jX.jpg", "Le quotidien d?jant? d'une famille de Springfield.", listOf("Animation", "Com?die"), 4.0f, "Matt Groening")
     )
 
     private fun getFallbackAnime(): List<CineTitle> = listOf(
-        CineTitle("anime_5114", TitleType.ANIME, "Fullmetal Alchemist: Brotherhood", "2009", "https://cdn.myanimelist.net/images/anime/1208/94745l.jpg", "Deux frères alchimistes cherchent à récupérer leurs corps.", listOf("Action", "Drame", "Fantastique"), 4.6f, "Bones"),
-        CineTitle("anime_38524", TitleType.ANIME, "Shingeki no Kyojin Season 3 Part 2", "2019", "https://cdn.myanimelist.net/images/anime/1517/100633l.jpg", "La reconquête du Mur Maria commence, face aux Titans.", listOf("Action", "Drame", "Mystère"), 4.5f, "Wit Studio"),
-        CineTitle("anime_21", TitleType.ANIME, "One Piece", "1999", "https://cdn.myanimelist.net/images/anime/1244/138851l.jpg", "Monkey D. Luffy explore Grand Line à la recherche du trésor ultime.", listOf("Action", "Aventure", "Comédie"), 4.4f, "Toei Animation")
+        CineTitle("anime_5114", TitleType.ANIME, "Fullmetal Alchemist: Brotherhood", "2009", "https://cdn.myanimelist.net/images/anime/1208/94745l.jpg", "Deux fr?res alchimistes cherchent ? r?cup?rer leurs corps.", listOf("Action", "Drame", "Fantastique"), 4.6f, "Bones"),
+        CineTitle("anime_38524", TitleType.ANIME, "Shingeki no Kyojin Season 3 Part 2", "2019", "https://cdn.myanimelist.net/images/anime/1517/100633l.jpg", "La reconqu?te du Mur Maria commence, face aux Titans.", listOf("Action", "Drame", "Myst?re"), 4.5f, "Wit Studio"),
+        CineTitle("anime_21", TitleType.ANIME, "One Piece", "1999", "https://cdn.myanimelist.net/images/anime/1244/138851l.jpg", "Monkey D. Luffy explore Grand Line ? la recherche du tr?sor ultime.", listOf("Action", "Aventure", "Com?die"), 4.4f, "Toei Animation")
     )
 }
