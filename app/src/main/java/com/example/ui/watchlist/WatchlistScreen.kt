@@ -464,9 +464,10 @@ private fun WatchlistRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (entry.titlePosterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                    val formattedUrl = androidx.compose.runtime.remember(entry.titlePosterUrl) { com.example.util.formatPosterUrl(entry.titlePosterUrl, com.example.util.PosterSize.THUMBNAIL) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = entry.titlePosterUrl,
+                        model = formattedUrl,
                         contentDescription = entry.titleName,
                         placeholder = posterFallback,
                         error = posterFallback,
@@ -558,9 +559,10 @@ private fun SagaWatchlistRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Collections)
+                    val formattedUrl = androidx.compose.runtime.remember(posterUrl) { com.example.util.formatPosterUrl(posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.collections()
                     AsyncImage(
-                        model = posterUrl,
+                        model = formattedUrl,
                         contentDescription = collectionName,
                         placeholder = posterFallback,
                         error = posterFallback,

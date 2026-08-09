@@ -528,9 +528,10 @@ fun RecentActivityRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (log.titlePosterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                    val formattedUrl = androidx.compose.runtime.remember(log.titlePosterUrl) { com.example.util.formatPosterUrl(log.titlePosterUrl, com.example.util.PosterSize.THUMBNAIL) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = log.titlePosterUrl,
+                        model = formattedUrl,
                         contentDescription = log.titleName,
                         placeholder = posterFallback,
                         error = posterFallback,
@@ -658,9 +659,10 @@ fun SagaActivityRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Collections)
+                    val formattedUrl = androidx.compose.runtime.remember(posterUrl) { com.example.util.formatPosterUrl(posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.collections()
                     AsyncImage(
-                        model = posterUrl,
+                        model = formattedUrl,
                         contentDescription = collectionName,
                         placeholder = posterFallback,
                         error = posterFallback,
@@ -772,8 +774,12 @@ fun SuggestionItemCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (title.posterUrl != null) {
+                    val formattedUrl = androidx.compose.runtime.remember(title.posterUrl) { com.example.util.formatPosterUrl(title.posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = title.posterUrl,
+                        model = formattedUrl,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         contentDescription = title.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

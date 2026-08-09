@@ -157,9 +157,10 @@ fun DetailScreen(
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 if (title.posterUrl != null) {
-                                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                                    val formattedUrl = androidx.compose.runtime.remember(title.posterUrl) { com.example.util.formatPosterUrl(title.posterUrl, com.example.util.PosterSize.DETAIL) }
+                                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                                     AsyncImage(
-                                        model = title.posterUrl,
+                                        model = formattedUrl,
                                         contentDescription = title.title,
                                         placeholder = posterFallback,
                                         error = posterFallback,
@@ -464,9 +465,10 @@ fun DetailScreen(
                                                     .background(CinemaSurfaceVariant)
                                             ) {
                                                 if (sagaTitle.posterUrl != null) {
-                                                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                                                    val formattedUrl = androidx.compose.runtime.remember(sagaTitle.posterUrl) { com.example.util.formatPosterUrl(sagaTitle.posterUrl, com.example.util.PosterSize.CARD) }
+                                                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                                                     AsyncImage(
-                                                        model = sagaTitle.posterUrl,
+                                                        model = formattedUrl,
                                                         contentDescription = sagaTitle.title,
                                                         placeholder = posterFallback,
                                                         error = posterFallback,

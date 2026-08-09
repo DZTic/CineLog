@@ -259,9 +259,10 @@ fun TitleCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (title.posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                    val formattedUrl = androidx.compose.runtime.remember(title.posterUrl) { com.example.util.formatPosterUrl(title.posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = title.posterUrl,
+                        model = formattedUrl,
                         contentDescription = title.title,
                         placeholder = posterFallback,
                         error = posterFallback,
@@ -396,9 +397,10 @@ fun SagaCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Collections)
+                    val formattedUrl = androidx.compose.runtime.remember(posterUrl) { com.example.util.formatPosterUrl(posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.collections()
                     AsyncImage(
-                        model = posterUrl,
+                        model = formattedUrl,
                         contentDescription = name,
                         placeholder = posterFallback,
                         error = posterFallback,

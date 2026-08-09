@@ -131,9 +131,10 @@ fun SagaDetailScreen(
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             if (info.posterUrl != null) {
-                                val posterFallback = rememberVectorPainter(Icons.Default.Collections)
+                                val formattedUrl = androidx.compose.runtime.remember(info.posterUrl) { com.example.util.formatPosterUrl(info.posterUrl, com.example.util.PosterSize.DETAIL) }
+                                val posterFallback = com.example.util.ImagePlaceholders.collections()
                                 AsyncImage(
-                                    model = info.posterUrl,
+                                    model = formattedUrl,
                                     contentDescription = info.name,
                                     placeholder = posterFallback,
                                     error = posterFallback,
@@ -298,9 +299,10 @@ private fun SagaMovieRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (movie.posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                    val formattedUrl = androidx.compose.runtime.remember(movie.posterUrl) { com.example.util.formatPosterUrl(movie.posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = movie.posterUrl,
+                        model = formattedUrl,
                         contentDescription = movie.title,
                         placeholder = posterFallback,
                         error = posterFallback,
