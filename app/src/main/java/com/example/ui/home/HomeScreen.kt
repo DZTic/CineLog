@@ -2,6 +2,7 @@ package com.example.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -51,8 +52,7 @@ import com.example.ui.theme.CinemaSecondary
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import com.example.ui.theme.StarGold
-import java.text.SimpleDateFormat
-import java.util.Date
+import com.example.util.DateFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -220,7 +220,7 @@ fun HomeScreen(
                                         onClick = onNavigateToSettings,
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                     ) {
-                                        Text("Paramètres", color = Color.Black)
+                                        Text("Paramètres", color = MaterialTheme.colorScheme.onPrimary)
                                     }
                                 }
                             }
@@ -388,7 +388,7 @@ fun HomeScreen(
                                 when (display) {
                                     is GroupedDisplay.Single -> {
                                         if (viewMode == CollectionViewMode.GRID) {
-                                            val title = remember(display.item) { display.item.toCineTitle() }
+                                            val title = display.item.toCineTitle()
                                             TitleCard(
                                                 title = title,
                                                 onClick = { onTitleClick(display.item.titleId) },
@@ -406,9 +406,7 @@ fun HomeScreen(
                                         LaunchedEffect(group.collectionId) {
                                             viewModel.ensureSagaSizeLoaded(group.collectionId)
                                         }
-                                        val watchedInSaga = remember(group.items) {
-                                            group.items.map { it.titleId }.distinct().size
-                                        }
+                                        val watchedInSaga = group.items.map { it.titleId }.distinct().size
                                         val isSagaComplete = sagaSizeCache[group.collectionId]
                                             ?.let { total -> total > 0 && watchedInSaga >= total } == true
                                         if (viewMode == CollectionViewMode.GRID) {
@@ -507,8 +505,7 @@ fun RecentActivityRow(
     onTitleClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
-    val formattedDate = remember(log.dateVue) { formatter.format(Date(log.dateVue)) }
+    val formattedDate = remember(log.dateVue) { DateFormatter.formatDayMonthYear(log.dateVue) }
     val titleType = remember(log.titleType) { TitleType.valueOf(log.titleType) }
 
     Card(
@@ -519,7 +516,7 @@ fun RecentActivityRow(
             // contentPadding, qu'on soit en mode Liste ou Grille.
             .padding(vertical = 6.dp)
             .testTag("log_entry_row_${log.id}")
-            .clickable { onTitleClick() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTitleClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
     ) {
@@ -536,9 +533,10 @@ fun RecentActivityRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (log.titlePosterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                    val formattedUrl = androidx.compose.runtime.remember(log.titlePosterUrl) { com.example.util.formatPosterUrl(log.titlePosterUrl, com.example.util.PosterSize.THUMBNAIL) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = log.titlePosterUrl,
+                        model = formattedUrl,
                         contentDescription = log.titleName,
                         placeholder = posterFallback,
                         error = posterFallback,
@@ -629,8 +627,7 @@ fun SagaActivityRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val formatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
-    val formattedDate = remember(latestDateVue) { formatter.format(Date(latestDateVue)) }
+    val formattedDate = remember(latestDateVue) { DateFormatter.formatDayMonthYear(latestDateVue) }
 
     val filmCountText = if (count > 1) "$count films vus" else "$count film vu"
     val compositeDescription = remember(collectionName, count, averageNote, formattedDate) {
@@ -649,7 +646,7 @@ fun SagaActivityRow(
             .clearAndSetSemantics {
                 contentDescription = compositeDescription
             }
-            .clickable { onClick() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
     ) {
@@ -666,9 +663,10 @@ fun SagaActivityRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Collections)
+                    val formattedUrl = androidx.compose.runtime.remember(posterUrl) { com.example.util.formatPosterUrl(posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.collections()
                     AsyncImage(
-                        model = posterUrl,
+                        model = formattedUrl,
                         contentDescription = collectionName,
                         placeholder = posterFallback,
                         error = posterFallback,
@@ -763,7 +761,7 @@ fun SuggestionItemCard(
         modifier = modifier
             .width(110.dp)
             .testTag("suggestion_card_${title.id}")
-            .clickable { onClick() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() },
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -780,8 +778,12 @@ fun SuggestionItemCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (title.posterUrl != null) {
+                    val formattedUrl = androidx.compose.runtime.remember(title.posterUrl) { com.example.util.formatPosterUrl(title.posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = title.posterUrl,
+                        model = formattedUrl,
+                        placeholder = posterFallback,
+                        error = posterFallback,
                         contentDescription = title.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

@@ -103,7 +103,8 @@ class MainActivity : ComponentActivity() {
             seasonProgressDao = database.seasonProgressDao(),
             collectionCacheDao = database.collectionCacheDao(),
             sagaSizeDao = database.sagaSizeDao(),
-            preferenceManager = preferenceManager
+            preferenceManager = preferenceManager,
+            context = applicationContext
         )
 
         // 2. Instantiate master view model
@@ -127,10 +128,10 @@ sealed class Screen(val route: String, val title: String) {
     object Profile : Screen("profile", "Profil")
     object Settings : Screen("settings", "Paramètres")
     object Detail : Screen("detail/{titleId}", "Détails") {
-        fun createRoute(titleId: String) = "detail/$titleId"
+        fun createRoute(titleId: String) = "detail/"
     }
     object SagaDetail : Screen("saga/{collectionId}", "Saga") {
-        fun createRoute(collectionId: Int) = "saga/$collectionId"
+        fun createRoute(collectionId: Int) = "saga/"
     }
 }
 
@@ -236,6 +237,7 @@ fun CineBottomNavigationBar(
 @Composable
 fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
     val navController = rememberNavController()
+
 
     // Logging sheet dialog trigger state
     var loggingTitle by remember { mutableStateOf<CineTitle?>(null) }

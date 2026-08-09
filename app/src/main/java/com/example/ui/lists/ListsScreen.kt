@@ -3,6 +3,7 @@ package com.example.ui.lists
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
@@ -228,7 +229,7 @@ fun ListsScreen(
                                         Text(
                                             text = list.name,
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = Color.White
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Icon(
                                             imageVector = Icons.Default.ChevronRight,
@@ -474,12 +475,13 @@ fun ListsScreen(
                                             .size(width = 40.dp, height = 60.dp)
                                             .clip(RoundedCornerShape(4.dp))
                                             .background(MaterialTheme.colorScheme.surface)
-                                            .clickable { onTitleClick(cineTitle.id) }
+                                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTitleClick(cineTitle.id) }
                                     ) {
                                         if (cineTitle.posterUrl != null) {
-                                            val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                                            val formattedUrl = androidx.compose.runtime.remember(cineTitle.posterUrl) { com.example.util.formatPosterUrl(cineTitle.posterUrl, com.example.util.PosterSize.THUMBNAIL) }
+                                            val posterFallback = com.example.util.ImagePlaceholders.movie()
                                             AsyncImage(
-                                                model = cineTitle.posterUrl,
+                                                model = formattedUrl,
                                                 contentDescription = cineTitle.title,
                                                 placeholder = posterFallback,
                                                 error = posterFallback,
@@ -507,12 +509,12 @@ fun ListsScreen(
                                     Column(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .clickable { onTitleClick(cineTitle.id) }
+                                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTitleClick(cineTitle.id) }
                                     ) {
                                         Text(
                                             text = cineTitle.title,
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )

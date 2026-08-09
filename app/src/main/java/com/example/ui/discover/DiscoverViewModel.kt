@@ -3,11 +3,19 @@ package com.example.ui.discover
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
 import com.example.data.*
 import com.example.ui.CachedSaga
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class DiscoverViewModel(
     private val repository: Repository
 ) : ViewModel() {
@@ -28,6 +36,12 @@ class DiscoverViewModel(
     private val _topAnime = MutableStateFlow<List<CineTitle>>(emptyList())
     val topAnime: StateFlow<List<CineTitle>> = _topAnime.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedFilter = MutableStateFlow<TitleType?>(null)
+    val selectedFilter: StateFlow<TitleType?> = _selectedFilter.asStateFlow()
+
     val allWatchlist: StateFlow<List<DbWatchlist>> = repository.allWatchlist
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -36,19 +50,61 @@ class DiscoverViewModel(
 
     val collectionCache: StateFlow<Map<String, CachedSaga>> = repository.collectionCache
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    private val _searchLoading = MutableStateFlow(false)
-    val searchLoading: StateFlow<Boolean> = _searchLoading.asStateFlow()
+    val searchPagingFlow: Flow<PagingData<CineTitle>> = combine(_searchQuery, _selectedFilter) { query, filter ->
+        Pair(query.trim(), filter)
+    }
+        .debounce(350)
+        .flatMapLatest { (query, filter) ->
+            if (query.length < 2) {
+                flowOf(PagingData.empty())
+            } else {
+                Pager(
+                    config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                    pagingSourceFactory = { SearchPagingSource(repository, query, filter) }
+                ).flow.map { pagingData ->
+                    val cache = collectionCache.value
+                    pagingData.map { title ->
+                        if (title.collectionId == null) {
+                            val cached = cache[title.id]
+                            if (cached != null) {
+                                title.copy(
+                                    collectionId = cached.collectionId,
+                                    collectionName = cached.collectionName,
+                                    collectionPosterUrl = cached.posterUrl
+                                )
+                            } else title
+                        } else title
+                    }
+                }
+            }
+        }
+        .cachedIn(viewModelScope)
 
-    private val _searchError = MutableStateFlow<String?>(null)
-    val searchError: StateFlow<String?> = _searchError.asStateFlow()
-
-    private val _searchResults = MutableStateFlow<List<CineTitle>>(emptyList())
-    val searchResults: StateFlow<List<CineTitle>> = _searchResults.asStateFlow()
+    val discoverPagingFlow: Flow<PagingData<CineTitle>> = _selectedFilter
+        .flatMapLatest { filter ->
+            if (filter == null) {
+                flowOf(PagingData.empty())
+            } else {
+                Pager(
+                    config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                    pagingSourceFactory = { DiscoverPagingSource(repository, filter) }
+                ).flow
+            }
+        }
+        .cachedIn(viewModelScope)
 
     init {
         loadDiscoverContent()
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setFilter(filter: TitleType?) {
+        _selectedFilter.value = filter
     }
 
     fun loadDiscoverContent() {
@@ -61,7 +117,7 @@ class DiscoverViewModel(
                 _topAnime.value = repository.getTrendingOrPopular(TitleType.ANIME)
             } catch (e: Exception) {
                 Log.e(tag, "Error loading discover content: ${e.localizedMessage}")
-                _discoverError.value = "Impossible de récupérer tout le contenu. Veuillez vérifier votre clé TMDB."
+                _discoverError.value = "Impossible de r?cup?rer tout le contenu. Veuillez v?rifier votre cl? TMDB."
             } finally {
                 _discoverLoading.value = false
             }
@@ -69,38 +125,7 @@ class DiscoverViewModel(
     }
 
     fun performSearch(query: String, filter: TitleType? = null) {
-        viewModelScope.launch {
-            if (query.trim().isEmpty()) {
-                _searchResults.value = emptyList()
-                return@launch
-            }
-            _searchLoading.value = true
-            _searchError.value = null
-            try {
-                val results = repository.searchTitles(query, filter)
-                val cache = collectionCache.value
-                _searchResults.value = results.map { title ->
-                    if (title.collectionId == null) {
-                        val cached = cache[title.id]
-                        if (cached != null) {
-                            title.copy(
-                                collectionId = cached.collectionId,
-                                collectionName = cached.collectionName,
-                                collectionPosterUrl = cached.posterUrl
-                            )
-                        } else {
-                            title
-                        }
-                    } else {
-                        title
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(tag, "Error performing search: ${e.localizedMessage}")
-                _searchError.value = "Erreur de connexion. Veuillez réessayer."
-            } finally {
-                _searchLoading.value = false
-            }
-        }
+        _searchQuery.value = query
+        _selectedFilter.value = filter
     }
 }

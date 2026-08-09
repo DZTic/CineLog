@@ -1,12 +1,11 @@
+
 package com.example.ui.discover
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,10 +22,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -35,17 +32,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.data.CineTitle
 import com.example.data.TitleType
-import com.example.ui.discover.DiscoverViewModel
 import com.example.ui.components.EmptyState
-import com.example.ui.components.GroupedDisplay
-import com.example.ui.components.SagaCard
 import com.example.ui.components.SkeletonDiscoverContent
 import com.example.ui.components.SkeletonDiscoverGrid
 import com.example.ui.components.TitleCard
-import com.example.ui.components.groupBySaga
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,8 +49,8 @@ fun DiscoverScreen(
     onSagaClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
+    val query by viewModel.searchQuery.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
     val focusManager = LocalFocusManager.current
 
     val trendingFilms by viewModel.trendingFilms.collectAsState()
@@ -65,55 +59,23 @@ fun DiscoverScreen(
     val discoverLoading by viewModel.discoverLoading.collectAsState()
     val discoverError by viewModel.discoverError.collectAsState()
     val watchlist by viewModel.allWatchlist.collectAsState()
-    val watchlistTitleIds by remember(watchlist) { derivedStateOf { watchlist.map { it.titleId }.toSet() } }
+    val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
     val allLogs by viewModel.allLogs.collectAsState()
-    val watchedTitleIds by remember(allLogs) { derivedStateOf { allLogs.map { it.titleId }.toSet() } }
+    val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
 
-    val filteredFilms by remember(trendingFilms, watchedTitleIds) {
-        derivedStateOf { trendingFilms.filter { it.id !in watchedTitleIds } }
+    val filteredFilms = remember(trendingFilms, watchedTitleIds) {
+        trendingFilms.filter { it.id !in watchedTitleIds }
     }
-    val filteredSeries by remember(trendingSeries, watchedTitleIds) {
-        derivedStateOf { trendingSeries.filter { it.id !in watchedTitleIds } }
+    val filteredSeries = remember(trendingSeries, watchedTitleIds) {
+        trendingSeries.filter { it.id !in watchedTitleIds }
     }
-    val filteredAnime by remember(topAnime, watchedTitleIds) {
-        derivedStateOf { topAnime.filter { it.id !in watchedTitleIds } }
-    }
-
-    val searchResults by viewModel.searchResults.collectAsState()
-    val searchLoading by viewModel.searchLoading.collectAsState()
-    val searchError by viewModel.searchError.collectAsState()
-
-    val filteredSearchResults by remember(searchResults, watchedTitleIds) {
-        derivedStateOf { searchResults.filter { it.id !in watchedTitleIds } }
+    val filteredAnime = remember(topAnime, watchedTitleIds) {
+        topAnime.filter { it.id !in watchedTitleIds }
     }
 
-    val displaySearchResults by remember(filteredSearchResults) {
-        derivedStateOf {
-            filteredSearchResults.groupBySaga(
-                collectionId = { it.collectionId },
-                collectionName = { it.collectionName },
-                posterUrl = { it.collectionPosterUrl }
-            ).sortedByDescending { display ->
-                when (display) {
-                    is GroupedDisplay.Single -> display.item.voteAverage
-                    is GroupedDisplay.Grouped -> display.group.items.maxOf { it.voteAverage }
-                }
-            }
-        }
-    }
-
-    var isDebouncing by remember { mutableStateOf(false) }
-    LaunchedEffect(query, selectedFilter) {
-        if (query.trim().length >= 2) {
-            isDebouncing = true
-            delay(350)
-            isDebouncing = false
-            viewModel.performSearch(query, selectedFilter)
-        } else {
-            isDebouncing = false
-        }
-    }
+    val searchPagingItems = viewModel.searchPagingFlow.collectAsLazyPagingItems()
+    val discoverPagingItems = viewModel.discoverPagingFlow.collectAsLazyPagingItems()
 
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -123,7 +85,7 @@ fun DiscoverScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Découvrir",
+                        "D?couvrir",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -139,17 +101,16 @@ fun DiscoverScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Persistent Search Bar
             TextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = { viewModel.setSearchQuery(it) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .testTag("search_input_field"),
                 placeholder = {
                     Text(
-                        "Rechercher un film, une série, un anime...",
+                        "Rechercher un film, une s?rie, un anime...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -162,7 +123,7 @@ fun DiscoverScreen(
                 },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { query = "" }) {
+                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Effacer"
@@ -175,9 +136,6 @@ fun DiscoverScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     focusManager.clearFocus()
-                    if (query.trim().length >= 2) {
-                        viewModel.performSearch(query, selectedFilter)
-                    }
                 }),
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
@@ -187,7 +145,6 @@ fun DiscoverScreen(
                 )
             )
 
-            // Filter Selector Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,7 +153,7 @@ fun DiscoverScreen(
             ) {
                 FilterChip(
                     selected = selectedFilter == null,
-                    onClick = { selectedFilter = null },
+                    onClick = { viewModel.setFilter(null) },
                     label = { Text("Tout") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -205,7 +162,7 @@ fun DiscoverScreen(
                 )
                 FilterChip(
                     selected = selectedFilter == TitleType.FILM,
-                    onClick = { selectedFilter = TitleType.FILM },
+                    onClick = { viewModel.setFilter(TitleType.FILM) },
                     label = { Text("Films") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -214,8 +171,8 @@ fun DiscoverScreen(
                 )
                 FilterChip(
                     selected = selectedFilter == TitleType.SERIE,
-                    onClick = { selectedFilter = TitleType.SERIE },
-                    label = { Text("Séries") },
+                    onClick = { viewModel.setFilter(TitleType.SERIE) },
+                    label = { Text("S?ries") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -223,7 +180,7 @@ fun DiscoverScreen(
                 )
                 FilterChip(
                     selected = selectedFilter == TitleType.ANIME,
-                    onClick = { selectedFilter = TitleType.ANIME },
+                    onClick = { viewModel.setFilter(TitleType.ANIME) },
                     label = { Text("Animes") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -233,18 +190,18 @@ fun DiscoverScreen(
             }
 
             if (query.trim().length >= 2) {
-                // Search Results Grid
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 ) {
-                    if (searchLoading || isDebouncing) {
+                    val refreshState = searchPagingItems.loadState.refresh
+                    if (refreshState is LoadState.Loading) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.align(Alignment.Center)
                         )
-                    } else if (searchError != null) {
+                    } else if (refreshState is LoadState.Error) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -253,15 +210,15 @@ fun DiscoverScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = searchError ?: "",
+                                text = (refreshState as LoadState.Error).error.localizedMessage ?: "Erreur de connexion.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
-                    } else if (searchResults.isEmpty()) {
+                    } else if (searchPagingItems.itemCount == 0) {
                         EmptyState(
-                            message = "Aucun titre trouvé pour \"$query\".",
+                            message = "Aucun titre trouv? pour '$query'.",
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
@@ -273,38 +230,22 @@ fun DiscoverScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(
-                                displaySearchResults,
-                                key = { display ->
-                                    when (display) {
-                                        is GroupedDisplay.Single -> display.item.id
-                                        is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
-                                    }
-                                }
-                            ) { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> {
-                                        TitleCard(
-                                            title = display.item,
-                                            onClick = { onTitleClick(display.item.id) },
-                                            isInWatchlist = display.item.id in watchlistTitleIds
-                                        )
-                                    }
-                                    is GroupedDisplay.Grouped -> {
-                                        val group = display.group
-                                        SagaCard(
-                                            name = group.collectionName,
-                                            posterUrl = group.posterUrl,
-                                            filmCount = group.items.size,
-                                            onClick = { onSagaClick(group.collectionId) }
-                                        )
-                                    }
+                                count = searchPagingItems.itemCount,
+                                key = { index -> searchPagingItems[index]?.id ?: index }
+                            ) { index ->
+                                val title = searchPagingItems[index]
+                                if (title != null && title.id !in watchedTitleIds) {
+                                    TitleCard(
+                                        title = title,
+                                        onClick = { onTitleClick(title.id) },
+                                        isInWatchlist = title.id in watchlistTitleIds
+                                    )
                                 }
                             }
                         }
                     }
                 }
             } else {
-                // Standard Discover Mode with PullToRefresh
                 PullToRefreshBox(
                     isRefreshing = discoverLoading,
                     onRefresh = { viewModel.loadDiscoverContent() },
@@ -339,7 +280,7 @@ fun DiscoverScreen(
                                 ) {
                                     Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Réessayer", color = Color.Black)
+                                    Text("R?essayer", color = Color.Black)
                                 }
                             }
                         }
@@ -351,70 +292,59 @@ fun DiscoverScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     EmptyState(
-                                        message = "Vous avez déjà vu tous les titres tendance !"
+                                        message = "Vous avez d?j? vu tous les titres tendance !"
                                     )
                                 }
                             } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(bottom = 16.dp)
-                            ) {
-                                if (filteredFilms.isNotEmpty()) {
-                                    CarouselSection(
-                                        title = "Films populaires",
-                                        items = filteredFilms,
-                                        onTitleClick = onTitleClick,
-                                        onViewAll = { selectedFilter = TitleType.FILM },
-                                        watchlistTitleIds = watchlistTitleIds
-                                    )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(bottom = 16.dp)
+                                ) {
+                                    if (filteredFilms.isNotEmpty()) {
+                                        CarouselSection(
+                                            title = "Films populaires",
+                                            items = filteredFilms,
+                                            onTitleClick = onTitleClick,
+                                            onViewAll = { viewModel.setFilter(TitleType.FILM) },
+                                            watchlistTitleIds = watchlistTitleIds
+                                        )
 
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                    }
 
-                                if (filteredSeries.isNotEmpty()) {
-                                    CarouselSection(
-                                        title = "Séries populaires",
-                                        items = filteredSeries,
-                                        onTitleClick = onTitleClick,
-                                        onViewAll = { selectedFilter = TitleType.SERIE },
-                                        watchlistTitleIds = watchlistTitleIds
-                                    )
+                                    if (filteredSeries.isNotEmpty()) {
+                                        CarouselSection(
+                                            title = "S?ries populaires",
+                                            items = filteredSeries,
+                                            onTitleClick = onTitleClick,
+                                            onViewAll = { viewModel.setFilter(TitleType.SERIE) },
+                                            watchlistTitleIds = watchlistTitleIds
+                                        )
 
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                    }
 
-                                if (filteredAnime.isNotEmpty()) {
-                                    CarouselSection(
-                                        title = "Animes les mieux notés",
-                                        items = filteredAnime,
-                                        onTitleClick = onTitleClick,
-                                        onViewAll = { selectedFilter = TitleType.ANIME },
-                                        watchlistTitleIds = watchlistTitleIds
-                                    )
-                                }
-                            }
-                            }
-                       } else {
-                            val gridItems by remember(selectedFilter, filteredFilms, filteredSeries, filteredAnime) {
-                                derivedStateOf {
-                                    when (selectedFilter) {
-                                        TitleType.FILM -> filteredFilms
-                                        TitleType.SERIE -> filteredSeries
-                                        TitleType.ANIME -> filteredAnime
-                                        else -> emptyList()
+                                    if (filteredAnime.isNotEmpty()) {
+                                        CarouselSection(
+                                            title = "Animes les mieux not?s",
+                                            items = filteredAnime,
+                                            onTitleClick = onTitleClick,
+                                            onViewAll = { viewModel.setFilter(TitleType.ANIME) },
+                                            watchlistTitleIds = watchlistTitleIds
+                                        )
                                     }
                                 }
                             }
-
-                            if (gridItems.isEmpty()) {
+                       } else {
+                            if (discoverPagingItems.itemCount == 0) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     EmptyState(
-                                        message = "Vous avez déjà vu tous les titres de cette catégorie !"
+                                        message = "Vous avez d?j? vu tous les titres de cette cat?gorie !"
                                     )
                                 }
                             } else {
@@ -425,12 +355,18 @@ fun DiscoverScreen(
                                     verticalArrangement = Arrangement.spacedBy(16.dp),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
-                                    items(gridItems, key = { "grid_" }) { title ->
-                                        TitleCard(
-                                            title = title,
-                                            onClick = { onTitleClick(title.id) },
-                                            isInWatchlist = title.id in watchlistTitleIds
-                                        )
+                                    items(
+                                        count = discoverPagingItems.itemCount,
+                                        key = { index -> discoverPagingItems[index]?.id ?: index }
+                                    ) { index ->
+                                        val title = discoverPagingItems[index]
+                                        if (title != null && title.id !in watchedTitleIds) {
+                                            TitleCard(
+                                                title = title,
+                                                onClick = { onTitleClick(title.id) },
+                                                isInWatchlist = title.id in watchlistTitleIds
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -490,7 +426,7 @@ fun CarouselSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(items, key = { "carousel_" }) { title ->
+            items(items, key = { "carousel_${it.id}" }) { title ->
                 TitleCard(
                     title = title,
                     onClick = { onTitleClick(title.id) },

@@ -26,7 +26,7 @@ import com.example.data.DbLogEntry
 import com.example.ui.log.LogViewModel
 import com.example.ui.components.HalfStarRatingBar
 import com.example.ui.theme.CinemaSurfaceVariant
-import java.text.SimpleDateFormat
+import com.example.util.DateFormatter
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +53,6 @@ fun LogBottomSheet(
         }
     }
     var dateSelected by remember { mutableStateOf(calendar.timeInMillis) }
-    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.FRENCH) }
 
     val datePickerDialog = remember {
         DatePickerDialog(
@@ -100,7 +99,7 @@ fun LogBottomSheet(
                         Text(
                             text = title.title,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.LightGray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = onDismiss) {
@@ -117,7 +116,7 @@ fun LogBottomSheet(
                 Text(
                     text = "Votre Note",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -144,7 +143,7 @@ fun LogBottomSheet(
                 Text(
                     text = "Date de visionnage",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -165,9 +164,9 @@ fun LogBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = dateFormatter.format(Date(dateSelected)),
+                            text = DateFormatter.formatDayMonthYear(dateSelected),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Text(
@@ -189,7 +188,7 @@ fun LogBottomSheet(
                         Text(
                             text = "Revisionnage (déjà vu)",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.LightGray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Switch(
@@ -208,7 +207,7 @@ fun LogBottomSheet(
                         Text(
                             text = "Contient des Spoilers",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.LightGray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Switch(
@@ -249,13 +248,13 @@ fun LogBottomSheet(
                 Text(
                     text = "Votre critique / notes (optionnel)",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 TextField(
                     value = critiqueText,
                     onValueChange = { critiqueText = it },
-                    placeholder = { Text("Qu'en avez-vous pensé ?", color = Color.Gray) },
+                    placeholder = { Text("Qu'en avez-vous pensé ?", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(110.dp)

@@ -2,6 +2,7 @@ package com.example.ui.saga
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -132,9 +133,10 @@ fun SagaDetailScreen(
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             if (info.posterUrl != null) {
-                                val posterFallback = rememberVectorPainter(Icons.Default.Collections)
+                                val formattedUrl = androidx.compose.runtime.remember(info.posterUrl) { com.example.util.formatPosterUrl(info.posterUrl, com.example.util.PosterSize.DETAIL) }
+                                val posterFallback = com.example.util.ImagePlaceholders.collections()
                                 AsyncImage(
-                                    model = info.posterUrl,
+                                    model = formattedUrl,
                                     contentDescription = info.name,
                                     placeholder = posterFallback,
                                     error = posterFallback,
@@ -284,7 +286,7 @@ private fun SagaMovieRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onClick() },
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant)
     ) {
@@ -299,9 +301,10 @@ private fun SagaMovieRow(
                     .background(MaterialTheme.colorScheme.surface)
             ) {
                 if (movie.posterUrl != null) {
-                    val posterFallback = rememberVectorPainter(Icons.Default.Movie)
+                    val formattedUrl = androidx.compose.runtime.remember(movie.posterUrl) { com.example.util.formatPosterUrl(movie.posterUrl, com.example.util.PosterSize.CARD) }
+                    val posterFallback = com.example.util.ImagePlaceholders.movie()
                     AsyncImage(
-                        model = movie.posterUrl,
+                        model = formattedUrl,
                         contentDescription = movie.title,
                         placeholder = posterFallback,
                         error = posterFallback,

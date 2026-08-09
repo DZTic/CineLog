@@ -45,11 +45,11 @@ open class SharedViewModel(
 
     val collectionCache: StateFlow<Map<String, CachedSaga>> = repository.collectionCache
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val sagaSizeCache: StateFlow<Map<Int, Int>> = repository.sagaSizeCache
         .map { list -> list.associate { it.collectionId to it.totalFilms } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     fun ensureSagaSizeLoaded(collectionId: Int) {
         if (sagaSizeCache.value.containsKey(collectionId)) return

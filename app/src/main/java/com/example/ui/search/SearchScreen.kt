@@ -1,3 +1,4 @@
+
 package com.example.ui.search
 
 import androidx.compose.foundation.background
@@ -7,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -18,8 +18,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PushPin
@@ -42,17 +40,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.example.data.CineTitle
 import com.example.data.TitleType
-import com.example.ui.search.SearchViewModel
-import com.example.ui.log.LogViewModel
 import com.example.ui.components.EmptyState
-import com.example.ui.components.GroupedDisplay
-import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
-import com.example.ui.components.groupBySaga
 import com.example.ui.log.LogBottomSheet
-import kotlinx.coroutines.delay
+import com.example.ui.log.LogViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,17 +59,12 @@ fun SearchScreen(
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var selectedFilter by rememberSaveable { mutableStateOf<TitleType?>(null) }
-    var selectedGenre by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedYear by rememberSaveable { mutableStateOf<String?>(null) }
+    val query by viewModel.searchQuery.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
     var manualLogTitle by remember { mutableStateOf<CineTitle?>(null) }
     val focusManager = LocalFocusManager.current
 
-    val searchResults by viewModel.searchResults.collectAsState()
-    val loading by viewModel.searchLoading.collectAsState()
-    val error by viewModel.searchError.collectAsState()
-    val apiKey by viewModel.tmdbApiKey.collectAsState()
+    val lazyPagingItems = viewModel.searchPagingFlow.collectAsLazyPagingItems()
 
     val searchHistory by viewModel.searchHistory.collectAsState()
     val pinnedSearches by viewModel.pinnedSearches.collectAsState()
@@ -83,58 +73,10 @@ fun SearchScreen(
     val trendingSeries by viewModel.trendingSeries.collectAsState()
     val topAnime by viewModel.topAnime.collectAsState()
 
+    val apiKey by viewModel.tmdbApiKey.collectAsState()
+
     val popularSuggestions = remember(trendingFilms, trendingSeries, topAnime) {
         (trendingFilms.take(3) + trendingSeries.take(3) + topAnime.take(3)).distinctBy { it.id }
-    }
-
-    // Dynamic Genre and Year options derived from search results
-    val availableGenres = remember(searchResults) {
-        searchResults.flatMap { it.genres }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-    }
-
-    val availableYears = remember(searchResults) {
-        searchResults.mapNotNull { title ->
-            title.year.takeIf { it.isNotBlank() && it != "N/A" }
-        }
-        .distinct()
-        .sortedDescending()
-    }
-
-    // Filter search results by selected genre and year
-    val filteredResults = remember(searchResults, selectedGenre, selectedYear) {
-        searchResults.filter { title ->
-            val matchesGenre = selectedGenre == null || title.genres.any { it.equals(selectedGenre, ignoreCase = true) }
-            val matchesYear = selectedYear == null || title.year.equals(selectedYear, ignoreCase = true)
-            matchesGenre && matchesYear
-        }
-    }
-
-    val displayResults = remember(filteredResults) {
-        filteredResults.groupBySaga(
-            collectionId = { it.collectionId },
-            collectionName = { it.collectionName },
-            posterUrl = { it.collectionPosterUrl }
-        ).sortedByDescending { display ->
-            when (display) {
-                is GroupedDisplay.Single -> display.item.voteAverage
-                is GroupedDisplay.Grouped -> display.group.items.maxOf { it.voteAverage }
-            }
-        }
-    }
-
-    var isDebouncing by remember { mutableStateOf(false) }
-    LaunchedEffect(query, selectedFilter) {
-        if (query.trim().length >= 2) {
-            isDebouncing = true
-            delay(350)
-            isDebouncing = false
-            viewModel.performSearch(query, selectedFilter)
-        } else {
-            isDebouncing = false
-        }
     }
 
     Scaffold(
@@ -159,13 +101,10 @@ fun SearchScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Search Input Field
             TextField(
                 value = query,
                 onValueChange = { 
-                    query = it 
-                    selectedGenre = null
-                    selectedYear = null
+                    viewModel.setSearchQuery(it)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -173,7 +112,7 @@ fun SearchScreen(
                     .testTag("search_input_field"),
                 placeholder = {
                     Text(
-                        "Rechercher un film, une série, un anime...",
+                        "Rechercher un film, une s?rie, un anime...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -191,16 +130,14 @@ fun SearchScreen(
                             IconButton(onClick = { viewModel.togglePinSearch(query.trim()) }) {
                                 Icon(
                                     imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                                    contentDescription = if (isPinned) "Dépingler cette recherche" else "Épingler cette recherche",
+                                    contentDescription = if (isPinned) "D?pingler cette recherche" else "?pingler cette recherche",
                                     tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { 
-                                query = ""
-                                selectedGenre = null
-                                selectedYear = null
+                                viewModel.setSearchQuery("")
                             }) {
                                 Icon(
                                     imageVector = Icons.Default.Clear,
@@ -216,7 +153,7 @@ fun SearchScreen(
                 keyboardActions = KeyboardActions(onSearch = {
                     focusManager.clearFocus()
                     if (query.trim().length >= 2) {
-                        viewModel.performSearch(query, selectedFilter)
+                        viewModel.addSearchHistory(query)
                     }
                 }),
                 colors = TextFieldDefaults.colors(
@@ -227,7 +164,6 @@ fun SearchScreen(
                 )
             )
 
-            // Search Filters (Type)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -236,7 +172,7 @@ fun SearchScreen(
             ) {
                 FilterChip(
                     selected = selectedFilter == null,
-                    onClick = { selectedFilter = null },
+                    onClick = { viewModel.setFilter(null) },
                     label = { Text("Tout") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -245,7 +181,7 @@ fun SearchScreen(
                 )
                 FilterChip(
                     selected = selectedFilter == TitleType.FILM,
-                    onClick = { selectedFilter = TitleType.FILM },
+                    onClick = { viewModel.setFilter(TitleType.FILM) },
                     label = { Text("Films") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -254,8 +190,8 @@ fun SearchScreen(
                 )
                 FilterChip(
                     selected = selectedFilter == TitleType.SERIE,
-                    onClick = { selectedFilter = TitleType.SERIE },
-                    label = { Text("Séries") },
+                    onClick = { viewModel.setFilter(TitleType.SERIE) },
+                    label = { Text("S?ries") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -263,68 +199,13 @@ fun SearchScreen(
                 )
                 FilterChip(
                     selected = selectedFilter == TitleType.ANIME,
-                    onClick = { selectedFilter = TitleType.ANIME },
+                    onClick = { viewModel.setFilter(TitleType.ANIME) },
                     label = { Text("Animes") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
-            }
-
-            // Dynamic Sub-filters (Genre & Year) when search results exist
-            if (searchResults.isNotEmpty() && (availableGenres.isNotEmpty() || availableYears.isNotEmpty())) {
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (selectedGenre != null || selectedYear != null) {
-                        item {
-                            SuggestionChip(
-                                onClick = {
-                                    selectedGenre = null
-                                    selectedYear = null
-                                },
-                                label = { Text("Réinitialiser") },
-                                icon = { Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(14.dp)) },
-                                colors = SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                            )
-                        }
-                    }
-
-                    // Available Genre Filter Chips
-                    items(availableGenres, key = { "genre_" }) { genre ->
-                        FilterChip(
-                            selected = selectedGenre.equals(genre, ignoreCase = true),
-                            onClick = {
-                                selectedGenre = if (selectedGenre.equals(genre, ignoreCase = true)) null else genre
-                            },
-                            label = { Text(genre) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        )
-                    }
-
-                    // Available Year Filter Chips
-                    items(availableYears, key = { "year_" }) { year ->
-                        FilterChip(
-                            selected = selectedYear == year,
-                            onClick = {
-                                selectedYear = if (selectedYear == year) null else year
-                            },
-                            label = { Text(year) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                        )
-                    }
-                }
             }
 
             if (apiKey.isEmpty()) {
@@ -353,73 +234,40 @@ fun SearchScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Clé API TMDB non renseignée",
+                                text = "Cl? API TMDB non renseign?e",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "Pour un accès complet et direct à la recherche TMDB, vous pouvez configurer votre propre clé dans les Paramètres.",
+                                text = "Pour un acc?s complet et direct ? la recherche TMDB, vous pouvez configurer votre propre cl? dans les Param?tres.",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                         if (onNavigateToSettings != null) {
                             Spacer(modifier = Modifier.width(8.dp))
                             TextButton(onClick = onNavigateToSettings) {
-                                Text("Paramètres", fontWeight = FontWeight.Bold)
+                                Text("Param?tres", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             }
 
-            // Results / Suggestions Area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                if (loading || isDebouncing) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                } else if (error != null) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp)
-                            .align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = error ?: "",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                        if (onNavigateToSettings != null && apiKey.isEmpty()) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = onNavigateToSettings,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Paramètres API", color = Color.Black)
-                            }
-                        }
-                    }
-                } else if (query.trim().length < 2) {
-                    // Search Suggestions (Pinned & Recent History)
+                val refreshState = lazyPagingItems.loadState.refresh
+                if (query.trim().length < 2) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(16.dp)
                     ) {
-                        // Pinned Searches Section
                         if (pinnedSearches.isNotEmpty()) {
                             Text(
-                                text = "Recherches enregistrées",
+                                text = "Recherches enregistr?es",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -431,8 +279,7 @@ fun SearchScreen(
                                         .padding(vertical = 4.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            query = pinnedItem
-                                            viewModel.performSearch(pinnedItem, selectedFilter)
+                                            viewModel.setSearchQuery(pinnedItem)
                                         },
                                     color = MaterialTheme.colorScheme.surfaceVariant
                                 ) {
@@ -455,7 +302,7 @@ fun SearchScreen(
                                         IconButton(onClick = { viewModel.togglePinSearch(pinnedItem) }) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "Dépingler",
+                                                contentDescription = "D?pingler",
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
@@ -465,7 +312,6 @@ fun SearchScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
 
-                        // Search History Section
                         if (searchHistory.isNotEmpty()) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -489,8 +335,7 @@ fun SearchScreen(
                                         .padding(vertical = 4.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            query = historyItem
-                                            viewModel.performSearch(historyItem, selectedFilter)
+                                            viewModel.setSearchQuery(historyItem)
                                         },
                                     color = MaterialTheme.colorScheme.surface
                                 ) {
@@ -513,7 +358,7 @@ fun SearchScreen(
                                         IconButton(onClick = { viewModel.togglePinSearch(historyItem) }) {
                                             Icon(
                                                 imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                                                contentDescription = if (isPinned) "Dépingler" else "Épingler",
+                                                contentDescription = if (isPinned) "D?pingler" else "?pingler",
                                                 tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -533,13 +378,43 @@ fun SearchScreen(
                         if (pinnedSearches.isEmpty() && searchHistory.isEmpty()) {
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                                 EmptyState(
-                                    message = "Entrez au moins 2 caractères pour lancer la recherche globale."
+                                    message = "Entrez au moins 2 caract?res pour lancer la recherche globale."
                                 )
                             }
                         }
                     }
-                } else if (searchResults.isEmpty() || filteredResults.isEmpty()) {
-                    // Enriched Empty State with Manual Add Button & Popular Suggestions
+                } else if (refreshState is LoadState.Loading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else if (refreshState is LoadState.Error) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp)
+                            .align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = (refreshState as LoadState.Error).error.localizedMessage ?: "Erreur de connexion.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        if (onNavigateToSettings != null && apiKey.isEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = onNavigateToSettings,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Param?tres API", color = Color.Black)
+                            }
+                        }
+                    }
+                } else if (lazyPagingItems.itemCount == 0) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -548,13 +423,12 @@ fun SearchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = if (searchResults.isEmpty()) "Aucun titre trouvé pour '$query'." else "Aucun résultat correspondant aux filtres sélectionnés.",
+                            text = "Aucun titre trouv? pour '$query'.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
-                        // Button to add title manually
                         Button(
                             onClick = {
                                 manualLogTitle = CineTitle(
@@ -576,7 +450,6 @@ fun SearchScreen(
                             Text("Ajouter manuellement", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                         }
 
-                        // Recommendation Section
                         if (popularSuggestions.isNotEmpty()) {
                             Text(
                                 text = "Suggestions de titres populaires",
@@ -587,7 +460,7 @@ fun SearchScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(popularSuggestions, key = { "popular_" }) { suggestion ->
+                                items(popularSuggestions, key = { "popular_${it.id}" }) { suggestion ->
                                     TitleCard(
                                         title = suggestion,
                                         onClick = { onTitleClick(suggestion.id) },
@@ -606,30 +479,15 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(
-                            displayResults,
-                            key = { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> display.item.id
-                                    is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
-                                }
-                            }
-                        ) { display ->
-                            when (display) {
-                                is GroupedDisplay.Single -> {
-                                    TitleCard(
-                                        title = display.item,
-                                        onClick = { onTitleClick(display.item.id) }
-                                    )
-                                }
-                                is GroupedDisplay.Grouped -> {
-                                    val group = display.group
-                                    SagaCard(
-                                        name = group.collectionName,
-                                        posterUrl = group.posterUrl,
-                                        filmCount = group.items.size,
-                                        onClick = { onSagaClick(group.collectionId) }
-                                    )
-                                }
+                            count = lazyPagingItems.itemCount,
+                            key = { index -> lazyPagingItems[index]?.id ?: index }
+                        ) { index ->
+                            val title = lazyPagingItems[index]
+                            if (title != null) {
+                                TitleCard(
+                                    title = title,
+                                    onClick = { onTitleClick(title.id) }
+                                )
                             }
                         }
                     }
@@ -637,7 +495,6 @@ fun SearchScreen(
             }
         }
 
-        // Dialog to manually add/log a title when empty state button is clicked
         val customTitle = manualLogTitle
         if (customTitle != null && logViewModel != null) {
             LogBottomSheet(
