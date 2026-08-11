@@ -19,6 +19,10 @@ class ProfileViewModel(
     val allCustomLists: StateFlow<List<DbCustomList>> = repository.allCustomLists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val profileStats: StateFlow<ProfileStats> = combine(allLogs, allWatchlist) { logs, watchlist ->
+        repository.getProfileStats(logs, watchlist)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileStats())
+
     private val _profileRefreshing = MutableStateFlow(false)
     val profileRefreshing: StateFlow<Boolean> = _profileRefreshing.asStateFlow()
 
@@ -26,6 +30,7 @@ class ProfileViewModel(
         viewModelScope.launch {
             _profileRefreshing.value = true
             try {
+                repository.enrichLogMetadata(allLogs.value)
                 delay(600)
             } finally {
                 _profileRefreshing.value = false
