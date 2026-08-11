@@ -92,7 +92,8 @@ data class TmdbTvResult(
     @Json(name = "vote_average") val voteAverage: Float?,
     @Json(name = "genre_ids") val genreIds: List<Int>? = null,
     @Json(name = "origin_country") val originCountry: List<String>? = null,
-    @Json(name = "original_language") val originalLanguage: String? = null
+    @Json(name = "original_language") val originalLanguage: String? = null,
+    @Json(name = "episode_run_time") val episodeRunTime: List<Int>? = null
 )
 
 data class TmdbTvSearchResponse(

@@ -16,6 +16,8 @@ class NavigationTest {
     assertEquals("lists", Screen.Lists.route)
     assertEquals("profile", Screen.Profile.route)
     assertEquals("settings", Screen.Settings.route)
+    assertEquals("detail/movie_123", Screen.Detail.createRoute("movie_123"))
+    assertEquals("saga/456", Screen.SagaDetail.createRoute(456))
   }
 
   @Test

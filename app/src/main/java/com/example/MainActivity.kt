@@ -128,10 +128,10 @@ sealed class Screen(val route: String, val title: String) {
     object Profile : Screen("profile", "Profil")
     object Settings : Screen("settings", "Paramètres")
     object Detail : Screen("detail/{titleId}", "Détails") {
-        fun createRoute(titleId: String) = "detail/"
+        fun createRoute(titleId: String) = "detail/$titleId"
     }
     object SagaDetail : Screen("saga/{collectionId}", "Saga") {
-        fun createRoute(collectionId: Int) = "saga/"
+        fun createRoute(collectionId: Int) = "saga/$collectionId"
     }
 }
 
