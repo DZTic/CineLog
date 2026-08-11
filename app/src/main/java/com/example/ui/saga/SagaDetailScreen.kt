@@ -261,7 +261,7 @@ fun SagaDetailScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                items(sagaTitles, key = { "saga_movie_" }) { movie ->
+                items(sagaTitles, key = { "saga_movie_${it.id}" }) { movie ->
                     SagaMovieRow(
                         movie = movie,
                         isWatched = movie.id in watchedTitleIds,

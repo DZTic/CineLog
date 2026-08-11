@@ -203,7 +203,7 @@ fun ListsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(customLists, key = { "list_" }) { list ->
+                    items(customLists, key = { "list_${it.id}" }) { list ->
                         SwipeToDismissContainer(
                             onDelete = { listToDelete = list },
                             cornerRadius = 12.dp
@@ -425,7 +425,7 @@ fun ListsScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        itemsIndexed(localListTitles, key = { _, item -> "list_item_" }) { index, item ->
+                        itemsIndexed(localListTitles, key = { index, item -> "list_item_${item.id}_$index" }) { index, item ->
                             val cineTitle = item.toCineTitle()
                             val isDragging = index == dragDropState.draggingItemIndex
 

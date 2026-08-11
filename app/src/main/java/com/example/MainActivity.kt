@@ -121,13 +121,13 @@ class MainActivity : ComponentActivity() {
 // Navigation Routes
 sealed class Screen(val route: String, val title: String) {
     object Home : Screen("home", "Accueil")
-    object Discover : Screen("discover", "Découvrir")
+    object Discover : Screen("discover", "D?couvrir")
     object Search : Screen("search", "Recherche")
     object Watchlist : Screen("watchlist", "Watchlist")
     object Lists : Screen("lists", "Mes Listes")
     object Profile : Screen("profile", "Profil")
-    object Settings : Screen("settings", "Paramètres")
-    object Detail : Screen("detail/{titleId}", "Détails") {
+    object Settings : Screen("settings", "Param?tres")
+    object Detail : Screen("detail/{titleId}", "D?tails") {
         fun createRoute(titleId: String) = "detail/$titleId"
     }
     object SagaDetail : Screen("saga/{collectionId}", "Saga") {
@@ -168,8 +168,8 @@ fun CineBottomNavigationBar(
 
                     val label = when (screen) {
                         Screen.Home -> "Accueil"
-                        Screen.Discover -> "Découvrir"
-                        Screen.Watchlist -> "À Voir"
+                        Screen.Discover -> "D?couvrir"
+                        Screen.Watchlist -> "? Voir"
                         Screen.Profile -> "Profil"
                         else -> screen.title
                     }
