@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.DbLogEntry
+import com.example.data.ProfileStats
 import com.example.data.TitleType
 import com.example.ui.profile.ProfileViewModel
 import com.example.ui.components.EmptyState
@@ -136,8 +137,19 @@ fun ProfileScreen(
                             )
                         }
                     } else {
+                        val stats by viewModel.profileStats.collectAsState()
+
                         // Key Stats Rows
                         StatsOverviewPanel(logs = logs, watchlistCount = watchlist.size)
+
+                        // Nouvelles statistiques issue #29
+                        StreakCard(stats = stats)
+                        MonthlyScoreCard(stats = stats)
+                        TopGenresCard(stats = stats)
+                        TopDirectorsOrStudiosCard(stats = stats)
+                        CommunityDeltaCard(stats = stats)
+                        TotalRuntimeCard(stats = stats)
+                        MostProductiveYearCard(stats = stats)
 
                         // 1. Segmented Bar: Proportion of FILM / SERIE / ANIME
                         TypeDistributionCard(logs = logs)
@@ -489,6 +501,252 @@ fun ScoreDistributionCard(
                     }
                 }
             }
+        }
+    }
+}
+
+// -------------------------------------------------------
+// Composables statistiques issue #29
+// -------------------------------------------------------
+
+@Composable
+fun StreakCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${stats.currentStreak}j",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(text = "Streak en cours", style = MaterialTheme.typography.bodySmall, color = GrayText)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${stats.maxStreak}j",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = StarGold
+                )
+                Text(text = "Record de streak", style = MaterialTheme.typography.bodySmall, color = GrayText)
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthlyScoreCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Note moyenne (12 mois)",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                stats.monthlyAverageScores.forEach { (label, score) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (score > 0) String.format("%.1f", score) else "–",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = StarGold,
+                            fontSize = 9.sp
+                        )
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = GrayText,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TopGenresCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    if (stats.topGenres.isEmpty()) return
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Top genres",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            stats.topGenres.forEach { (genre, count) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = genre,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$count",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun TopDirectorsOrStudiosCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    if (stats.topDirectorsOrStudios.isEmpty()) return
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Top réalisateurs / studios",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            stats.topDirectorsOrStudios.forEach { (name, count) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$count",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun CommunityDeltaCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    val delta = stats.communityScoreDelta ?: return
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Écart note perso vs. communauté",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = String.format("%+.2f", delta),
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = if (delta >= 0) StarGold else MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Text(
+                text = if (delta >= 0) "Tu notes plus généreusement" else "Tu es plus sévère que la communauté",
+                style = MaterialTheme.typography.bodySmall,
+                color = GrayText,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun TotalRuntimeCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    if (stats.totalRuntimeMinutes <= 0) return
+    val days = stats.totalRuntimeMinutes / (24 * 60)
+    val hours = (stats.totalRuntimeMinutes % (24 * 60)) / 60
+    val mins = stats.totalRuntimeMinutes % 60
+    val label = buildString {
+        if (days > 0) append("${days}j ")
+        if (hours > 0) append("${hours}h ")
+        if (mins > 0 && days == 0) append("${mins}min")
+    }.trim()
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Temps total estimé",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun MostProductiveYearCard(stats: ProfileStats, modifier: Modifier = Modifier) {
+    val year = stats.mostProductiveYear ?: return
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Année la plus productive",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = year.first,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = CinemaTertiary,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Text(
+                text = "${year.second} visionnage${if (year.second > 1) "s" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = GrayText,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }

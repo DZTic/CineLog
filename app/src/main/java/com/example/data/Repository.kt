@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -17,6 +19,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+import com.example.util.DateFormatter
+import java.util.Calendar
+import java.util.concurrent.ConcurrentHashMap
 
 enum class TitleType {
     FILM, SERIE, ANIME;
@@ -46,6 +52,29 @@ enum class SeasonStatus {
         }
 }
 
+data class ProfileStats(
+    val totalLogs: Int = 0,
+    val averageScore: Float = 0f,
+    val rewatchCount: Int = 0,
+    val currentStreak: Int = 0,
+    val maxStreak: Int = 0,
+    val mostProductiveYear: Pair<String, Int>? = null,
+    val monthlyAverageScores: List<Pair<String, Float>> = emptyList(),
+    val topGenres: List<Pair<String, Int>> = emptyList(),
+    val topDirectorsOrStudios: List<Pair<String, Int>> = emptyList(),
+    val communityScoreDelta: Float? = null,
+    val totalRuntimeMinutes: Int = 0
+)
+
+// Informations enrichies recuperées depuis la fiche détaillée d'un titre
+// (utilisées par les statistiques du profil, issue #29).
+private data class TitleMeta(
+    val genres: List<String>,
+    val studioOrDirector: String?,
+    val voteAverage: Float,
+    val runtime: Int?
+)
+
 data class CineTitle(
     val id: String,          // e.g., "movie_123", "tv_456", "anime_789"
     val type: TitleType,     // FILM, SERIE, ANIME
@@ -59,7 +88,8 @@ data class CineTitle(
     val seasons: List<CineSeason> = emptyList(),
     val collectionId: Int? = null,   // TMDB "saga" this movie belongs to, if any
     val collectionName: String? = null,
-    val collectionPosterUrl: String? = null // official saga poster, distinct from this movie's own poster
+    val collectionPosterUrl: String? = null, // official saga poster, distinct from this movie's own poster
+    val runtime: Int? = null
 )
 
 class SearchPagingSource(
@@ -590,7 +620,8 @@ class Repository(
             studioOrDirector = director,
             collectionId = belongsToCollection?.id,
             collectionName = belongsToCollection?.name,
-            collectionPosterUrl = belongsToCollection?.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+            collectionPosterUrl = belongsToCollection?.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
+            runtime = runtime
         )
     }
 
@@ -615,6 +646,8 @@ class Repository(
             voteAverage = (voteAverage ?: 0f) / 2f,
             studioOrDirector = director,
             seasons = seasons?.map { CineSeason(it.seasonNumber, it.name, it.episodeCount) } ?: emptyList()
+            ,
+            runtime = episodeRunTime?.firstOrNull()
         )
     }
 
@@ -674,7 +707,162 @@ class Repository(
             seasonProgress = seasonProgressDao.getAllSeasonProgressList()
         )
         val adapter = moshi.adapter(CineLogBackup::class.java)
-        adapter.indent("  ").toJson(backup)
+        adapter.toJson(backup)
+    }
+
+    // ==========================================
+    // STATISTIQUES DU PROFIL (issue #29)
+    // ==========================================
+
+    // Cache en mémoire des métadonnées détaillées par titre afin d'éviter
+    // des appels réseau redondants lors du calcul des stats du profil.
+    private val titleMetaCache = ConcurrentHashMap<String, TitleMeta>()
+
+    // Récupère les métadonnées détaillées pour tous les titres journalisés.
+    // Limité à 3 appels réseau simultanés pour ne pas saturer la connexion.
+    suspend fun enrichLogMetadata(logs: List<DbLogEntry>) = coroutineScope {
+        val uniqueTitles = logs.map { it.titleId }.distinct()
+        val missing = uniqueTitles.filter { !titleMetaCache.containsKey(it) }
+        if (missing.isEmpty()) return@coroutineScope
+        val semaphore = Semaphore(3)
+        val jobs = missing.map { titleId ->
+            async(Dispatchers.IO) {
+                semaphore.withPermit {
+                    try {
+                        val detail = getTitleDetail(titleId)
+                        titleMetaCache[titleId] = TitleMeta(
+                            genres = detail.genres,
+                            studioOrDirector = detail.studioOrDirector,
+                            voteAverage = detail.voteAverage,
+                            runtime = detail.runtime
+                        )
+                    } catch (e: Exception) {
+                        Log.w(tag, "enrichLogMetadata: impossible de charger $titleId: ${e.localizedMessage}")
+                    }
+                }
+            }
+        }
+        jobs.forEach { it.await() }
+    }
+
+    // Calcule l'ensemble des statistiques du profil à partir des logs et
+    // des métadonnées enrichies disponibles dans le cache local.
+    fun getProfileStats(logs: List<DbLogEntry>, watchlist: List<DbWatchlist>): ProfileStats {
+        if (logs.isEmpty()) return ProfileStats()
+
+        val totalLogs = logs.size
+        val averageScore = logs.map { it.note }.average().toFloat()
+        val rewatchCount = logs.count { it.revisionnage }
+
+        // Récupération des métadonnées disponibles (titres déjà chargés)
+        val enriched = logs.mapNotNull { log -> titleMetaCache[log.titleId]?.let { log to it } }
+
+        // Top genres (sur les titres enrichis)
+        val topGenres = enriched
+            .flatMap { (_, meta) -> meta.genres }
+            .groupingBy { it }.eachCount()
+            .toList().sortedByDescending { it.second }.take(5)
+
+        // Top réalisateurs / studios
+        val topDirectorsOrStudios = enriched
+            .groupingBy { (_, meta) -> meta.studioOrDirector ?: return@groupingBy "Inconnu" }
+            .eachCount()
+            .filterKeys { it != "Inconnu" && it.isNotBlank() }
+            .toList().sortedByDescending { it.second }.take(5)
+
+        // Streak de visionnage (jours consécutifs avec au moins un log)
+        val days = logs.map { log ->
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = log.dateVue
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            cal.timeInMillis
+        }.distinct().sorted()
+
+        val (currentStreak, maxStreak) = computeStreaks(days)
+
+        // Année la plus productive (nombre de visionnages par année civile)
+        val mostProductiveYear = logs
+            .groupingBy { log ->
+                val cal = Calendar.getInstance()
+                cal.timeInMillis = log.dateVue
+                cal.get(Calendar.YEAR).toString()
+            }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.let { it.key to it.value }
+
+        // Évolution de la note moyenne sur 12 mois glissants
+        val monthlyAverageScores = buildMonthlyScoreSeries(logs)
+
+        // Comparaison note perso vs. note communauté
+        val deltas = enriched.map { (log, meta) -> log.note - meta.voteAverage }
+        val communityScoreDelta = if (deltas.isNotEmpty()) deltas.average().toFloat() else null
+
+        // Temps total estimé (somme des runtimes des titres uniques)
+        val totalRuntimeMinutes = logs
+            .mapNotNull { log -> titleMetaCache[log.titleId]?.runtime }
+            .sum()
+
+        return ProfileStats(
+            totalLogs = totalLogs,
+            averageScore = averageScore,
+            rewatchCount = rewatchCount,
+            currentStreak = currentStreak,
+            maxStreak = maxStreak,
+            mostProductiveYear = mostProductiveYear,
+            monthlyAverageScores = monthlyAverageScores,
+            topGenres = topGenres,
+            topDirectorsOrStudios = topDirectorsOrStudios,
+            communityScoreDelta = communityScoreDelta,
+            totalRuntimeMinutes = totalRuntimeMinutes
+        )
+    }
+
+    // Calcule le streak courant et le streak max à partir d'une liste
+    // ordonnée de timestamps (minuit, normalisés).
+    private fun computeStreaks(days: List<Long>): Pair<Int, Int> {
+        if (days.isEmpty()) return 0 to 0
+        var current = 1
+        var max = 1
+        for (i in 1 until days.size) {
+            val diff = (days[i] - days[i - 1]) / (24 * 60 * 60 * 1000)
+            current = if (diff == 1L) current + 1 else 1
+            if (current > max) max = current
+        }
+        // Un streak "courant" n'est valide que si le dernier jour loggé est aujourd'hui ou hier
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val lastDay = days.last()
+        val activeCurrent = if (today - lastDay <= 24L * 60 * 60 * 1000) current else 0
+        return activeCurrent to max
+    }
+
+    // Construit la série des notes moyennes mensuelles sur les 12 derniers mois
+    // (ordre chronologique, mois sans log rapportés avec une note de 0).
+    private fun buildMonthlyScoreSeries(logs: List<DbLogEntry>): List<Pair<String, Float>> {
+        val cal = Calendar.getInstance()
+        val now = System.currentTimeMillis()
+        val result = mutableListOf<Pair<String, Float>>()
+        for (i in 11 downTo 0) {
+            cal.timeInMillis = now
+            cal.add(Calendar.MONTH, -i)
+            val year = cal.get(Calendar.YEAR)
+            val month = cal.get(Calendar.MONTH)
+            val label = "${String.format("%02d", month + 1)}/${year % 100}"
+            val monthLogs = logs.filter { log ->
+                val logCal = Calendar.getInstance()
+                logCal.timeInMillis = log.dateVue
+                logCal.get(Calendar.YEAR) == year && logCal.get(Calendar.MONTH) == month
+            }
+            val avg = if (monthLogs.isNotEmpty()) monthLogs.map { it.note }.average().toFloat() else 0f
+            result.add(label to avg)
+        }
+        return result
     }
 
     suspend fun exportBackupCsv(): String = withContext(Dispatchers.IO) {
