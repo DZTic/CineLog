@@ -162,7 +162,8 @@ data class TmdbTvDetail(
     @Json(name = "seasons") val seasons: List<TmdbSeason>?,
     @Json(name = "credits") val credits: TmdbCredits?,
     @Json(name = "origin_country") val originCountry: List<String>? = null,
-    @Json(name = "original_language") val originalLanguage: String? = null
+    @Json(name = "original_language") val originalLanguage: String? = null,
+    @Json(name = "episode_run_time") val episodeRunTime: List<Int>? = null
 )
 
 // Standard Trending responses
