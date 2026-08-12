@@ -402,7 +402,7 @@ class Repository(
             async(Dispatchers.IO) {
                 try {
                     val response = jikanApi.searchAnime(query, page = page)
-                    response.data.map { it.toCineTitle() }
+                    response.data?.map { it.toCineTitle() } ?: emptyList()
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching Jikan Anime: ${e.localizedMessage}")
                     emptyList()
@@ -449,7 +449,7 @@ class Repository(
             }
             "anime" -> {
                 val animeResponse = jikanApi.getAnimeDetail(rawId)
-                animeResponse.data.toCineTitle()
+                animeResponse.data?.toCineTitle() ?: throw IllegalArgumentException("Anime introuvable")
             }
             else -> throw IllegalArgumentException("Type inconnu pour l'ID: $id")
         }
@@ -550,7 +550,7 @@ class Repository(
             }
             TitleType.ANIME -> {
                 try {
-                    jikanApi.getTopAnime(page = page).data.map { it.toCineTitle() }
+                    jikanApi.getTopAnime(page = page).data?.map { it.toCineTitle() } ?: emptyList()
                 } catch (e: Exception) {
                     Log.e(tag, "Error fetching top anime: ${e.localizedMessage}")
                     if (page == 1) getFallbackAnime() else emptyList()
