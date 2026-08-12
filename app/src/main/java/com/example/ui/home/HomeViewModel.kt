@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import com.example.ui.CachedSaga
 import com.example.ui.CollectionViewMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -77,8 +80,12 @@ class HomeViewModel(
     private fun loadSuggestions() {
         viewModelScope.launch {
             try {
-                _trendingFilms.value = repository.getTrendingOrPopular(TitleType.FILM)
-                _trendingSeries.value = repository.getTrendingOrPopular(TitleType.SERIE)
+                coroutineScope {
+                    val filmsDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.FILM) }
+                    val seriesDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.SERIE) }
+                    _trendingFilms.value = filmsDeferred.await()
+                    _trendingSeries.value = seriesDeferred.await()
+                }
             } catch (e: Exception) {
                 Log.e(tag, "Error loading home suggestions: ${e.localizedMessage}")
             }

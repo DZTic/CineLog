@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -152,6 +154,7 @@ class Repository(
     private val seasonProgressDao: SeasonProgressDao,
     private val collectionCacheDao: CollectionCacheDao,
     private val sagaSizeDao: SagaSizeDao,
+    private val titleMetaCacheDao: TitleMetaCacheDao? = null,
     private val preferenceManager: PreferenceManager,
     private val context: Context? = null
 ) {
@@ -241,6 +244,13 @@ class Repository(
 
     suspend fun insertLog(entry: DbLogEntry) = withContext(Dispatchers.IO) {
         logDao.insertLog(entry)
+        if (!titleMetaCache.containsKey(entry.titleId)) {
+            try {
+                enrichLogMetadata(listOf(entry))
+            } catch (e: Exception) {
+                Log.w(tag, "Background enrichLogMetadata failed for ${entry.titleId}: ${e.localizedMessage}")
+            }
+        }
     }
 
     suspend fun deleteLogById(id: Int) = withContext(Dispatchers.IO) {
@@ -752,26 +762,73 @@ class Repository(
 
     // Cache en mémoire des métadonnées détaillées par titre afin d'éviter
     // des appels réseau redondants lors du calcul des stats du profil.
+    
+private fun DbTitleMetaCache.toTitleMeta(): TitleMeta {
+    return TitleMeta(
+        genres = if (genres.isBlank()) emptyList() else genres.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+        studioOrDirector = studioOrDirector,
+        voteAverage = voteAverage,
+        runtime = runtime
+    )
+}
+
+private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
+    return DbTitleMetaCache(
+        titleId = titleId,
+        genres = genres.joinToString(","),
+        studioOrDirector = studioOrDirector,
+        voteAverage = voteAverage,
+        runtime = runtime
+    )
+}
+
     private val titleMetaCache = ConcurrentHashMap<String, TitleMeta>()
+
+    val titleMetaCacheFlow: Flow<List<DbTitleMetaCache>> = titleMetaCacheDao?.getAllFlow()
+        ?.onEach { list ->
+            list.forEach { item ->
+                titleMetaCache[item.titleId] = item.toTitleMeta()
+            }
+        } ?: flowOf(emptyList())
+
+    suspend fun loadTitleMetaCacheFromDb() = withContext(Dispatchers.IO) {
+        if (titleMetaCacheDao == null) return@withContext
+        val cached = titleMetaCacheDao.getAllList()
+        cached.forEach { item ->
+            titleMetaCache[item.titleId] = item.toTitleMeta()
+        }
+    }
 
     // Récupère les métadonnées détaillées pour tous les titres journalisés.
     // Limité à 3 appels réseau simultanés pour ne pas saturer la connexion.
     suspend fun enrichLogMetadata(logs: List<DbLogEntry>) = coroutineScope {
         val uniqueTitles = logs.map { it.titleId }.distinct()
+
+        if (titleMetaCacheDao != null) {
+            val dbCached = titleMetaCacheDao.getByTitleIds(uniqueTitles)
+            dbCached.forEach { item ->
+                titleMetaCache[item.titleId] = item.toTitleMeta()
+            }
+        }
+
         val missing = uniqueTitles.filter { !titleMetaCache.containsKey(it) }
         if (missing.isEmpty()) return@coroutineScope
+
+        val newEntries = ConcurrentHashMap<String, DbTitleMetaCache>()
         val semaphore = Semaphore(3)
         val jobs = missing.map { titleId ->
             async(Dispatchers.IO) {
                 semaphore.withPermit {
                     try {
                         val detail = getTitleDetail(titleId)
-                        titleMetaCache[titleId] = TitleMeta(
+                        val meta = TitleMeta(
                             genres = detail.genres,
                             studioOrDirector = detail.studioOrDirector,
                             voteAverage = detail.voteAverage,
                             runtime = detail.runtime
                         )
+                        titleMetaCache[titleId] = meta
+                        newEntries[titleId] = meta.toDbTitleMetaCache(titleId)
                     } catch (e: Exception) {
                         Log.w(tag, "enrichLogMetadata: impossible de charger $titleId: ${e.localizedMessage}")
                     }
@@ -779,6 +836,12 @@ class Repository(
             }
         }
         jobs.forEach { it.await() }
+
+        if (newEntries.isNotEmpty() && titleMetaCacheDao != null) {
+            withContext(Dispatchers.IO) {
+                titleMetaCacheDao.upsertAll(newEntries.values.toList())
+            }
+        }
     }
 
     // Calcule l'ensemble des statistiques du profil à partir des logs et

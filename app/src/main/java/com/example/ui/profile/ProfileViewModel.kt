@@ -10,6 +10,11 @@ import kotlinx.coroutines.launch
 class ProfileViewModel(
     private val repository: Repository
 ) : ViewModel() {
+    init {
+        viewModelScope.launch {
+            repository.loadTitleMetaCacheFromDb()
+        }
+    }
     val allLogs: StateFlow<List<DbLogEntry>> = repository.allLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -19,7 +24,7 @@ class ProfileViewModel(
     val allCustomLists: StateFlow<List<DbCustomList>> = repository.allCustomLists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val profileStats: StateFlow<ProfileStats> = combine(allLogs, allWatchlist) { logs, watchlist ->
+    val profileStats: StateFlow<ProfileStats> = combine(allLogs, allWatchlist, repository.titleMetaCacheFlow) { logs, watchlist, _ ->
         repository.getProfileStats(logs, watchlist)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileStats())
 
