@@ -42,3 +42,23 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("ALTER TABLE `watchlist` ADD COLUMN `titleVoteAverage` REAL DEFAULT NULL")
     }
 }
+
+
+// v6 -> v7: ajoute la table title_meta_cache pour persister le cache de
+// metadonnees enrichies du profil (genres, studio/realisateur, note, duree).
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `title_meta_cache` (
+                `titleId` TEXT NOT NULL,
+                `genres` TEXT NOT NULL DEFAULT '',
+                `studioOrDirector` TEXT DEFAULT NULL,
+                `voteAverage` REAL NOT NULL DEFAULT 0,
+                `runtime` INTEGER DEFAULT NULL,
+                PRIMARY KEY(`titleId`)
+            )
+            """.trimIndent()
+        )
+    }
+}

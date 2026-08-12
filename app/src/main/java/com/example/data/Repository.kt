@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -152,6 +154,7 @@ class Repository(
     private val seasonProgressDao: SeasonProgressDao,
     private val collectionCacheDao: CollectionCacheDao,
     private val sagaSizeDao: SagaSizeDao,
+    private val titleMetaCacheDao: TitleMetaCacheDao? = null,
     private val preferenceManager: PreferenceManager,
     private val context: Context? = null
 ) {
@@ -167,6 +170,13 @@ class Repository(
         val builder = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
+
+        builder.addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 CineLog/1.0")
+                .build()
+            chain.proceed(request)
+        }
 
         context?.cacheDir?.let { cacheDir ->
             builder.cache(Cache(File(cacheDir, "http_cache"), 10L * 1024 * 1024))
@@ -234,6 +244,13 @@ class Repository(
 
     suspend fun insertLog(entry: DbLogEntry) = withContext(Dispatchers.IO) {
         logDao.insertLog(entry)
+        if (!titleMetaCache.containsKey(entry.titleId)) {
+            try {
+                enrichLogMetadata(listOf(entry))
+            } catch (e: Exception) {
+                Log.w(tag, "Background enrichLogMetadata failed for ${entry.titleId}: ${e.localizedMessage}")
+            }
+        }
     }
 
     suspend fun deleteLogById(id: Int) = withContext(Dispatchers.IO) {
@@ -550,12 +567,29 @@ class Repository(
             }
             TitleType.ANIME -> {
                 try {
-                    jikanApi.getTopAnime(page = page).data?.map { it.toCineTitle() } ?: emptyList()
+                    val jikanAnime = jikanApi.getTopAnime(page = page).data?.map { it.toCineTitle() } ?: emptyList()
+                    if (jikanAnime.isNotEmpty()) {
+                        jikanAnime
+                    } else {
+                        getAnimeFromTmdbFallback(tmdbKey, page)
+                    }
                 } catch (e: Exception) {
-                    Log.e(tag, "Error fetching top anime: ${e.localizedMessage}")
-                    if (page == 1) getFallbackAnime() else emptyList()
+                    Log.e(tag, "Error fetching top anime from Jikan: ${e.localizedMessage}")
+                    getAnimeFromTmdbFallback(tmdbKey, page)
                 }
             }
+        }
+    }
+
+    private suspend fun getAnimeFromTmdbFallback(tmdbKey: String, page: Int): List<CineTitle> {
+        return try {
+            val tmdbAnime = tmdbApi.getTrendingTv(tmdbKey, page = page).results
+                .filter { it.isLikelyAnime() }
+                .map { it.toAnimeCineTitle() }
+            if (tmdbAnime.isNotEmpty()) tmdbAnime else if (page == 1) getFallbackAnime() else emptyList()
+        } catch (e: Exception) {
+            Log.e(tag, "Error fetching TMDB fallback anime: ${e.localizedMessage}")
+            if (page == 1) getFallbackAnime() else emptyList()
         }
     }
 
@@ -688,8 +722,20 @@ class Repository(
 
     private fun getFallbackAnime(): List<CineTitle> = listOf(
         CineTitle("anime_5114", TitleType.ANIME, "Fullmetal Alchemist: Brotherhood", "2009", "https://cdn.myanimelist.net/images/anime/1208/94745l.jpg", "Deux frères alchimistes cherchent à récupérer leurs corps.", listOf("Action", "Drame", "Fantastique"), 4.6f, "Bones"),
-        CineTitle("anime_38524", TitleType.ANIME, "Shingeki no Kyojin Season 3 Part 2", "2019", "https://cdn.myanimelist.net/images/anime/1517/100633l.jpg", "La reconquête du Mur Maria commence, face aux Titans.", listOf("Action", "Drame", "Mystère"), 4.5f, "Wit Studio"),
-        CineTitle("anime_21", TitleType.ANIME, "One Piece", "1999", "https://cdn.myanimelist.net/images/anime/1244/138851l.jpg", "Monkey D. Luffy explore Grand Line à la recherche du trésor ultime.", listOf("Action", "Aventure", "Comédie"), 4.4f, "Toei Animation")
+        CineTitle("anime_38524", TitleType.ANIME, "Shingeki no Kyojin Season 3 Part 2", "2019", "https://cdn.myanimelist.net/images/anime/1517/100633l.jpg", "La reconquêté du Mur Maria commence, face aux Titans.", listOf("Action", "Drame", "Mystère"), 4.5f, "Wit Studio"),
+        CineTitle("anime_21", TitleType.ANIME, "One Piece", "1999", "https://cdn.myanimelist.net/images/anime/1244/138851l.jpg", "Monkey D. Luffy explore Grand Line à la recherche du trésor ultime.", listOf("Action", "Aventure", "Comédie"), 4.4f, "Toei Animation"),
+        CineTitle("anime_1535", TitleType.ANIME, "Death Note", "2006", "https://cdn.myanimelist.net/images/anime/9/9444l.jpg", "Un lycéen découvre un cahier capable de tuer quiconque y voit son nom écrit.", listOf("Mystère", "Psychologique", "Thriller"), 4.3f, "Madhouse"),
+        CineTitle("anime_38000", TitleType.ANIME, "Demon Slayer: Kimetsu no Yaiba", "2019", "https://cdn.myanimelist.net/images/anime/1286/99889l.jpg", "Tanjiro cherche un remède pour sa sœur transformée en démon.", listOf("Action", "Fantastique"), 4.3f, "ufotable"),
+        CineTitle("anime_40748", TitleType.ANIME, "Jujutsu Kaisen", "2020", "https://cdn.myanimelist.net/images/anime/1171/109222l.jpg", "Un lycéen rejoint une organisation secrète d'exorcistes.", listOf("Action", "Fantastique"), 4.3f, "MAPPA"),
+        CineTitle("anime_11061", TitleType.ANIME, "Hunter x Hunter (2011)", "2011", "https://cdn.myanimelist.net/images/anime/1337/99013l.jpg", "Gon veut devenir Hunter pour retrouver son père disparu.", listOf("Action", "Aventure", "Fantastique"), 4.5f, "Madhouse"),
+        CineTitle("anime_1735", TitleType.ANIME, "Naruto Shippuden", "2007", "https://cdn.myanimelist.net/images/anime/1565/111305l.jpg", "Naruto s'entraîne sans relâche pour ramener Sasuke et protéger son village.", listOf("Action", "Aventure"), 4.2f, "Studio Pierrot"),
+        CineTitle("anime_9253", TitleType.ANIME, "Steins;Gate", "2011", "https://cdn.myanimelist.net/images/anime/1935/127974l.jpg", "Des jeunes chercheurs découvrent le moyen d'envoyer des messages dans le passé.", listOf("Science-Fiction", "Thriller"), 4.5f, "White Fox"),
+        CineTitle("anime_31964", TitleType.ANIME, "My Hero Academia", "2016", "https://cdn.myanimelist.net/images/anime/10/79238l.jpg", "Dans un monde de super-héros, un garçon sans pouvoir rêve de devenir le numéro un.", listOf("Action", "Aventure"), 4.1f, "Bones"),
+        CineTitle("anime_22319", TitleType.ANIME, "Tokyo Ghoul", "2014", "https://cdn.myanimelist.net/images/anime/1498/134443l.jpg", "Un étudiant devient demi-ghoul après une attaque mystérieuse.", listOf("Action", "Horreur", "Mystère"), 4.0f, "Studio Pierrot"),
+        CineTitle("anime_1575", TitleType.ANIME, "Code Geass: Lelouch of the Rebellion", "2006", "https://cdn.myanimelist.net/images/anime/1032/135088l.jpg", "Un prince exilé obtient un pouvoir absolu pour renverser un empire.", listOf("Action", "Drame", "Mecha"), 4.4f, "Sunrise"),
+        CineTitle("anime_44511", TitleType.ANIME, "Chainsaw Man", "2022", "https://cdn.myanimelist.net/images/anime/1806/126216l.jpg", "Un jeune homme fusionne avec son chien démon tronçonneuse.", listOf("Action", "Horreur", "Fantastique"), 4.2f, "MAPPA"),
+        CineTitle("anime_269", TitleType.ANIME, "Bleach", "2004", "https://cdn.myanimelist.net/images/anime/3/40451l.jpg", "Ichigo Kurosaki devient Shinigami pour défendre les humains contre les Hollows.", listOf("Action", "Aventure", "Fantastique"), 4.0f, "Studio Pierrot"),
+        CineTitle("anime_11757", TitleType.ANIME, "Sword Art Online", "2012", "https://cdn.myanimelist.net/images/anime/11/39717l.jpg", "Des joueurs sont piégés dans un jeu de réalité virtuelle mortel.", listOf("Action", "Aventure", "Romance"), 3.7f, "A-1 Pictures")
     )
 
     // ==========================================
@@ -716,26 +762,73 @@ class Repository(
 
     // Cache en mémoire des métadonnées détaillées par titre afin d'éviter
     // des appels réseau redondants lors du calcul des stats du profil.
+    
+private fun DbTitleMetaCache.toTitleMeta(): TitleMeta {
+    return TitleMeta(
+        genres = if (genres.isBlank()) emptyList() else genres.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+        studioOrDirector = studioOrDirector,
+        voteAverage = voteAverage,
+        runtime = runtime
+    )
+}
+
+private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
+    return DbTitleMetaCache(
+        titleId = titleId,
+        genres = genres.joinToString(","),
+        studioOrDirector = studioOrDirector,
+        voteAverage = voteAverage,
+        runtime = runtime
+    )
+}
+
     private val titleMetaCache = ConcurrentHashMap<String, TitleMeta>()
+
+    val titleMetaCacheFlow: Flow<List<DbTitleMetaCache>> = titleMetaCacheDao?.getAllFlow()
+        ?.onEach { list ->
+            list.forEach { item ->
+                titleMetaCache[item.titleId] = item.toTitleMeta()
+            }
+        } ?: flowOf(emptyList())
+
+    suspend fun loadTitleMetaCacheFromDb() = withContext(Dispatchers.IO) {
+        if (titleMetaCacheDao == null) return@withContext
+        val cached = titleMetaCacheDao.getAllList()
+        cached.forEach { item ->
+            titleMetaCache[item.titleId] = item.toTitleMeta()
+        }
+    }
 
     // Récupère les métadonnées détaillées pour tous les titres journalisés.
     // Limité à 3 appels réseau simultanés pour ne pas saturer la connexion.
     suspend fun enrichLogMetadata(logs: List<DbLogEntry>) = coroutineScope {
         val uniqueTitles = logs.map { it.titleId }.distinct()
+
+        if (titleMetaCacheDao != null) {
+            val dbCached = titleMetaCacheDao.getByTitleIds(uniqueTitles)
+            dbCached.forEach { item ->
+                titleMetaCache[item.titleId] = item.toTitleMeta()
+            }
+        }
+
         val missing = uniqueTitles.filter { !titleMetaCache.containsKey(it) }
         if (missing.isEmpty()) return@coroutineScope
+
+        val newEntries = ConcurrentHashMap<String, DbTitleMetaCache>()
         val semaphore = Semaphore(3)
         val jobs = missing.map { titleId ->
             async(Dispatchers.IO) {
                 semaphore.withPermit {
                     try {
                         val detail = getTitleDetail(titleId)
-                        titleMetaCache[titleId] = TitleMeta(
+                        val meta = TitleMeta(
                             genres = detail.genres,
                             studioOrDirector = detail.studioOrDirector,
                             voteAverage = detail.voteAverage,
                             runtime = detail.runtime
                         )
+                        titleMetaCache[titleId] = meta
+                        newEntries[titleId] = meta.toDbTitleMetaCache(titleId)
                     } catch (e: Exception) {
                         Log.w(tag, "enrichLogMetadata: impossible de charger $titleId: ${e.localizedMessage}")
                     }
@@ -743,6 +836,12 @@ class Repository(
             }
         }
         jobs.forEach { it.await() }
+
+        if (newEntries.isNotEmpty() && titleMetaCacheDao != null) {
+            withContext(Dispatchers.IO) {
+                titleMetaCacheDao.upsertAll(newEntries.values.toList())
+            }
+        }
     }
 
     // Calcule l'ensemble des statistiques du profil à partir des logs et
