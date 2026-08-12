@@ -565,7 +565,7 @@ class Repository(
         return CineTitle(
             id = "movie_$id",
             type = TitleType.FILM,
-            title = title,
+            title = title ?: "Anime sans titre",
             year = y,
             posterUrl = poster,
             synopsis = overview ?: "",
@@ -611,11 +611,11 @@ class Repository(
         return CineTitle(
             id = "movie_$id",
             type = TitleType.FILM,
-            title = title,
+            title = title ?: "Anime sans titre",
             year = y,
             posterUrl = poster,
             synopsis = overview ?: "",
-            genres = genres?.map { it.name } ?: emptyList(),
+            genres = genres?.mapNotNull { it?.name } ?: emptyList(),
             voteAverage = (voteAverage ?: 0f) / 2f,
             studioOrDirector = director,
             collectionId = belongsToCollection?.id,
@@ -642,7 +642,7 @@ class Repository(
             year = y,
             posterUrl = poster,
             synopsis = overview ?: "",
-            genres = genres?.map { it.name } ?: emptyList(),
+            genres = genres?.mapNotNull { it?.name } ?: emptyList(),
             voteAverage = (voteAverage ?: 0f) / 2f,
             studioOrDirector = director,
             seasons = seasons?.map { CineSeason(it.seasonNumber, it.name, it.episodeCount) } ?: emptyList()
@@ -654,7 +654,7 @@ class Repository(
     private fun JikanAnimeData.toCineTitle(): CineTitle {
         val y = year?.toString() ?: "N/A"
         val poster = images?.jpg?.largeImageUrl ?: images?.jpg?.imageUrl
-        val studio = studios?.firstOrNull()?.name
+        val studio = studios?.firstOrNull { it != null }?.name
         val mappedSeasons = if (episodes != null) {
             listOf(CineSeason(1, "Saison Unique", episodes))
         } else emptyList()
@@ -662,11 +662,11 @@ class Repository(
         return CineTitle(
             id = "anime_$malId",
             type = TitleType.ANIME,
-            title = title,
+            title = title ?: "Anime sans titre",
             year = y,
             posterUrl = poster,
             synopsis = synopsis ?: "",
-            genres = genres?.map { it.name } ?: emptyList(),
+            genres = genres?.mapNotNull { it?.name } ?: emptyList(),
             voteAverage = (score ?: 0f) / 2f,
             studioOrDirector = studio,
             seasons = mappedSeasons

@@ -10,40 +10,40 @@ import retrofit2.http.Query
 // ==========================================
 
 data class JikanGenre(
-    @Json(name = "name") val name: String
+    @Json(name = "name") val name: String? = null
 )
 
 data class JikanStudio(
-    @Json(name = "name") val name: String
+    @Json(name = "name") val name: String? = null
 )
 
 data class JikanImageJpg(
-    @Json(name = "image_url") val imageUrl: String?,
-    @Json(name = "large_image_url") val largeImageUrl: String?
+    @Json(name = "image_url") val imageUrl: String? = null,
+    @Json(name = "large_image_url") val largeImageUrl: String? = null
 )
 
 data class JikanImages(
-    @Json(name = "jpg") val jpg: JikanImageJpg?
+    @Json(name = "jpg") val jpg: JikanImageJpg? = null
 )
 
 data class JikanAnimeData(
-    @Json(name = "mal_id") val malId: Int,
-    @Json(name = "title") val title: String,
+    @Json(name = "mal_id") val malId: Int = 0,
+    @Json(name = "title") val title: String? = null,
     @Json(name = "synopsis") val synopsis: String?,
     @Json(name = "images") val images: JikanImages?,
     @Json(name = "score") val score: Float?,
     @Json(name = "year") val year: Int?,
-    @Json(name = "genres") val genres: List<JikanGenre>?,
-    @Json(name = "studios") val studios: List<JikanStudio>?,
+    @Json(name = "genres") val genres: List<JikanGenre?>? = null,
+    @Json(name = "studios") val studios: List<JikanStudio?>? = null,
     @Json(name = "episodes") val episodes: Int?
 )
 
 data class JikanAnimeSearchResponse(
-    @Json(name = "data") val data: List<JikanAnimeData>
+    @Json(name = "data") val data: List<JikanAnimeData>? = null
 )
 
 data class JikanAnimeDetailResponse(
-    @Json(name = "data") val data: JikanAnimeData
+    @Json(name = "data") val data: JikanAnimeData? = null
 )
 
 interface JikanApiService {
@@ -72,7 +72,7 @@ interface JikanApiService {
 
 data class TmdbMovieResult(
     @Json(name = "id") val id: Int,
-    @Json(name = "title") val title: String,
+    @Json(name = "title") val title: String? = null,
     @Json(name = "overview") val overview: String?,
     @Json(name = "release_date") val releaseDate: String?,
     @Json(name = "poster_path") val posterPath: String?,
@@ -85,7 +85,7 @@ data class TmdbMovieSearchResponse(
 
 data class TmdbTvResult(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "overview") val overview: String?,
     @Json(name = "first_air_date") val firstAirDate: String?,
     @Json(name = "poster_path") val posterPath: String?,
@@ -102,12 +102,12 @@ data class TmdbTvSearchResponse(
 
 data class TmdbGenre(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String
+    @Json(name = "name") val name: String? = null
 )
 
 data class TmdbCast(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "character") val character: String?,
     @Json(name = "profile_path") val profilePath: String?
 )
@@ -118,7 +118,7 @@ data class TmdbCredits(
 
 data class TmdbSeason(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "season_number") val seasonNumber: Int,
     @Json(name = "episode_count") val episodeCount: Int,
     @Json(name = "poster_path") val posterPath: String?
@@ -126,13 +126,13 @@ data class TmdbSeason(
 
 data class TmdbCollectionRef(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "poster_path") val posterPath: String?
 )
 
 data class TmdbMovieDetail(
     @Json(name = "id") val id: Int,
-    @Json(name = "title") val title: String,
+    @Json(name = "title") val title: String? = null,
     @Json(name = "overview") val overview: String?,
     @Json(name = "release_date") val releaseDate: String?,
     @Json(name = "poster_path") val posterPath: String?,
@@ -145,7 +145,7 @@ data class TmdbMovieDetail(
 
 data class TmdbCollectionDetail(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "overview") val overview: String?,
     @Json(name = "poster_path") val posterPath: String?,
     @Json(name = "parts") val parts: List<TmdbMovieResult>
@@ -153,7 +153,7 @@ data class TmdbCollectionDetail(
 
 data class TmdbTvDetail(
     @Json(name = "id") val id: Int,
-    @Json(name = "name") val name: String,
+    @Json(name = "name") val name: String? = null,
     @Json(name = "overview") val overview: String?,
     @Json(name = "first_air_date") val firstAirDate: String?,
     @Json(name = "poster_path") val posterPath: String?,
