@@ -84,7 +84,7 @@ fun TypeBadge(
 
     val accessibleTypeLabel = when (type) {
         TitleType.FILM -> "Film"
-        TitleType.SERIE -> "S?rie"
+        TitleType.SERIE -> "Série"
         TitleType.ANIME -> "Anime"
     }
 
@@ -131,7 +131,7 @@ fun WatchedBadge(
             .background(watchedGreen.copy(alpha = 0.15f))
             .then(paddingValues)
             .clearAndSetSemantics {
-                contentDescription = "D?j? vu"
+                contentDescription = "Déjà vu"
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -220,7 +220,7 @@ fun TitleCard(
 ) {
     val typeLabel = when (title.type) {
         TitleType.FILM -> "Film"
-        TitleType.SERIE -> "S?rie"
+        TitleType.SERIE -> "Série"
         TitleType.ANIME -> "Anime"
     }
     val compositeDescription = buildString {
@@ -233,7 +233,7 @@ fun TitleCard(
             append(", note ").append(String.format(Locale.FRENCH, "%.1f", title.voteAverage))
         }
         if (isInWatchlist) {
-            append(", d?j? dans la watchlist")
+            append(", déjà dans la watchlist")
         }
     }
 

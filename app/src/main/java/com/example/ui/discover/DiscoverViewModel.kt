@@ -117,7 +117,7 @@ class DiscoverViewModel(
                 _topAnime.value = repository.getTrendingOrPopular(TitleType.ANIME)
             } catch (e: Exception) {
                 Log.e(tag, "Error loading discover content: ${e.localizedMessage}")
-                _discoverError.value = "Impossible de r?cup?rer tout le contenu. Veuillez v?rifier votre cl? TMDB."
+                _discoverError.value = "Impossible de récupérer tout le contenu. Veuillez vérifier votre clé TMDB."
             } finally {
                 _discoverLoading.value = false
             }

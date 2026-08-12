@@ -112,7 +112,7 @@ fun SearchScreen(
                     .testTag("search_input_field"),
                 placeholder = {
                     Text(
-                        "Rechercher un film, une s?rie, un anime...",
+                        "Rechercher un film, une série, un anime...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -130,7 +130,7 @@ fun SearchScreen(
                             IconButton(onClick = { viewModel.togglePinSearch(query.trim()) }) {
                                 Icon(
                                     imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                                    contentDescription = if (isPinned) "D?pingler cette recherche" else "?pingler cette recherche",
+                                    contentDescription = if (isPinned) "Dépingler cette recherche" else "Épingler cette recherche",
                                     tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -191,7 +191,7 @@ fun SearchScreen(
                 FilterChip(
                     selected = selectedFilter == TitleType.SERIE,
                     onClick = { viewModel.setFilter(TitleType.SERIE) },
-                    label = { Text("S?ries") },
+                    label = { Text("Séries") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -234,18 +234,18 @@ fun SearchScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Cl? API TMDB non renseign?e",
+                                text = "Clé API TMDB non renseignée",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "Pour un acc?s complet et direct ? la recherche TMDB, vous pouvez configurer votre propre cl? dans les Param?tres.",
+                                text = "Pour un accès complet et direct à la recherche TMDB, vous pouvez configurer votre propre clé dans les Paramètres.",
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
                         if (onNavigateToSettings != null) {
                             Spacer(modifier = Modifier.width(8.dp))
                             TextButton(onClick = onNavigateToSettings) {
-                                Text("Param?tres", fontWeight = FontWeight.Bold)
+                                Text("Paramètres", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -267,7 +267,7 @@ fun SearchScreen(
                     ) {
                         if (pinnedSearches.isNotEmpty()) {
                             Text(
-                                text = "Recherches enregistr?es",
+                                text = "Recherches enregistrées",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -302,7 +302,7 @@ fun SearchScreen(
                                         IconButton(onClick = { viewModel.togglePinSearch(pinnedItem) }) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "D?pingler",
+                                                contentDescription = "Dépingler",
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
@@ -358,7 +358,7 @@ fun SearchScreen(
                                         IconButton(onClick = { viewModel.togglePinSearch(historyItem) }) {
                                             Icon(
                                                 imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                                                contentDescription = if (isPinned) "D?pingler" else "?pingler",
+                                                contentDescription = if (isPinned) "Dépingler" else "Épingler",
                                                 tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -378,7 +378,7 @@ fun SearchScreen(
                         if (pinnedSearches.isEmpty() && searchHistory.isEmpty()) {
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                                 EmptyState(
-                                    message = "Entrez au moins 2 caract?res pour lancer la recherche globale."
+                                    message = "Entrez au moins 2 caractères pour lancer la recherche globale."
                                 )
                             }
                         }
@@ -410,7 +410,7 @@ fun SearchScreen(
                             ) {
                                 Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Param?tres API", color = Color.Black)
+                                Text("Paramètres API", color = Color.Black)
                             }
                         }
                     }
@@ -423,7 +423,7 @@ fun SearchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Aucun titre trouv? pour '$query'.",
+                            text = "Aucun titre trouvé pour '$query'.",
                             style = MaterialTheme.typography.bodyLarge,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(bottom = 16.dp)
