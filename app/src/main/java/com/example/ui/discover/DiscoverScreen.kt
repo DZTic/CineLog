@@ -85,7 +85,7 @@ fun DiscoverScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "D?couvrir",
+                        "Découvrir",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -110,7 +110,7 @@ fun DiscoverScreen(
                     .testTag("search_input_field"),
                 placeholder = {
                     Text(
-                        "Rechercher un film, une s?rie, un anime...",
+                        "Rechercher un film, une série, un anime...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -172,7 +172,7 @@ fun DiscoverScreen(
                 FilterChip(
                     selected = selectedFilter == TitleType.SERIE,
                     onClick = { viewModel.setFilter(TitleType.SERIE) },
-                    label = { Text("S?ries") },
+                    label = { Text("Séries") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primary,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimary
@@ -218,7 +218,7 @@ fun DiscoverScreen(
                         }
                     } else if (searchPagingItems.itemCount == 0) {
                         EmptyState(
-                            message = "Aucun titre trouv? pour '$query'.",
+                            message = "Aucun titre trouvé pour '$query'.",
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
@@ -280,7 +280,7 @@ fun DiscoverScreen(
                                 ) {
                                     Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("R?essayer", color = Color.Black)
+                                    Text("Réessayer", color = Color.Black)
                                 }
                             }
                         }
@@ -292,7 +292,7 @@ fun DiscoverScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     EmptyState(
-                                        message = "Vous avez d?j? vu tous les titres tendance !"
+                                        message = "Vous avez déjà vu tous les titres tendance !"
                                     )
                                 }
                             } else {
@@ -316,7 +316,7 @@ fun DiscoverScreen(
 
                                     if (filteredSeries.isNotEmpty()) {
                                         CarouselSection(
-                                            title = "S?ries populaires",
+                                            title = "Séries populaires",
                                             items = filteredSeries,
                                             onTitleClick = onTitleClick,
                                             onViewAll = { viewModel.setFilter(TitleType.SERIE) },
@@ -328,7 +328,7 @@ fun DiscoverScreen(
 
                                     if (filteredAnime.isNotEmpty()) {
                                         CarouselSection(
-                                            title = "Animes les mieux not?s",
+                                            title = "Animes les mieux notés",
                                             items = filteredAnime,
                                             onTitleClick = onTitleClick,
                                             onViewAll = { viewModel.setFilter(TitleType.ANIME) },
@@ -344,7 +344,7 @@ fun DiscoverScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     EmptyState(
-                                        message = "Vous avez d?j? vu tous les titres de cette cat?gorie !"
+                                        message = "Vous avez déjà vu tous les titres de cette catégorie !"
                                     )
                                 }
                             } else {

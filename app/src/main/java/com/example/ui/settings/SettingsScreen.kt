@@ -64,7 +64,7 @@ fun SettingsScreen(
                         context.contentResolver.openOutputStream(uri)?.use { stream ->
                             stream.write(json.toByteArray(Charsets.UTF_8))
                         }
-                        Toast.makeText(context, "Sauvegarde JSON exportÈe avec succËs !", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Sauvegarde JSON export√©e avec succ√®s !", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
                         Toast.makeText(context, "Erreur lors de la sauvegarde : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                     }
@@ -84,7 +84,7 @@ fun SettingsScreen(
                         context.contentResolver.openOutputStream(uri)?.use { stream ->
                             stream.write(csv.toByteArray(Charsets.UTF_8))
                         }
-                        Toast.makeText(context, "Export CSV enregistrÈ avec succËs !", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Export CSV enregistr√© avec succ√®s !", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
                         Toast.makeText(context, "Erreur d'export CSV : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                     }
@@ -106,7 +106,7 @@ fun SettingsScreen(
                             val summary = result.getOrThrow()
                             Toast.makeText(
                                 context,
-                                "Restauration rÈussie : ${summary.logsCount} logs, ${summary.watchlistCount} ‡ voir, ${summary.customListsCount} listes",
+                                "Restauration r√©ussie : ${summary.logsCount} logs, ${summary.watchlistCount} √† voir, ${summary.customListsCount} listes",
                                 Toast.LENGTH_LONG
                             ).show()
                         } else {
@@ -125,7 +125,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "ParamËtres",
+                        "Param√®tres",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -133,7 +133,7 @@ fun SettingsScreen(
                     IconButton(onClick = onCloseClick) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Fermer les paramËtres"
+                            contentDescription = "Fermer les param√®tres"
                         )
                     }
                 },
@@ -154,7 +154,7 @@ fun SettingsScreen(
         ) {
             // Backup & Export Section
             Text(
-                text = "Sauvegarde et Export des donnÈes",
+                text = "Sauvegarde et Export des donn√©es",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -171,7 +171,7 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Sauvegardez vos donnÈes localement ou exportez-les pour les utiliser dans d'autres applications.",
+                        text = "Sauvegardez vos donn√©es localement ou exportez-les pour les utiliser dans d'autres applications.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -262,8 +262,8 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "L'application fonctionne sans configuration : les films et sÈries passent par un proxy intÈgrÈ qui fournit la clÈ TMDB. Vous pouvez optionnellement renseigner votre propre clÈ API ci-dessous.\n\n" +
-                                "?? Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clÈ.",
+                        text = "L'application fonctionne sans configuration : les films et s√©ries passent par un proxy int√©gr√© qui fournit la cl√© TMDB. Vous pouvez optionnellement renseigner votre propre cl√© API ci-dessous.\n\n" +
+                                "üí° Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans cl√©.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp
@@ -273,7 +273,7 @@ fun SettingsScreen(
 
             // Key Input Box
             Text(
-                text = "ClÈ API TMDB (v3)",
+                text = "Cl√© API TMDB (v3)",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -286,7 +286,7 @@ fun SettingsScreen(
                     .testTag("tmdb_api_key_field"),
                 placeholder = {
                     Text(
-                        "Collez votre clÈ API TMDB ici...",
+                        "Collez votre cl√© API TMDB ici...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -302,7 +302,7 @@ fun SettingsScreen(
                     IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
                         Icon(
                             imageVector = if (isKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (isKeyVisible) "Masquer la clÈ" else "Afficher la clÈ"
+                            contentDescription = if (isKeyVisible) "Masquer la cl√©" else "Afficher la cl√©"
                         )
                     }
                 },
@@ -328,7 +328,7 @@ fun SettingsScreen(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "? Une clÈ API est actuellement configurÈe et active.",
+                        text = "‚úì Une cl√© API est actuellement configur√©e et active.",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -343,7 +343,7 @@ fun SettingsScreen(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "?? ClÈ API absente. Recherche et carrousels de films/sÈries dÈsactivÈs.",
+                        text = "‚ö†Ô∏è Cl√© API absente. Recherche et carrousels de films/s√©ries d√©sactiv√©s.",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.error
                     )
@@ -354,7 +354,7 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     viewModel.setTmdbApiKey(inputKey.trim())
-                    Toast.makeText(context, "ClÈ API enregistrÈe avec succËs !", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Cl√© API enregistr√©e avec succ√®s !", Toast.LENGTH_SHORT).show()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier
@@ -377,16 +377,16 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Comment obtenir une clÈ ?",
+                        text = "Comment obtenir une cl√© ?",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "1. CrÈez un compte gratuit sur themoviedb.org\n" +
-                                "2. Allez dans les ParamËtres de votre profil, puis section 'API'\n" +
-                                "3. Demandez une clÈ d'accËs dÈveloppeur\n" +
-                                "4. Copiez la clÈ API (v3 auth) et collez-la ci-dessus !",
+                        text = "1. Cr√©ez un compte gratuit sur themoviedb.org\n" +
+                                "2. Allez dans les Param√®tres de votre profil, puis section 'API'\n" +
+                                "3. Demandez une cl√© d'acc√®s d√©veloppeur\n" +
+                                "4. Copiez la cl√© API (v3 auth) et collez-la ci-dessus !",
                         style = MaterialTheme.typography.bodySmall,
                         color = GrayText,
                         lineHeight = 16.sp
@@ -395,4 +395,4 @@ fun SettingsScreen(
             }
         }
     }
-}
+}

@@ -429,7 +429,7 @@ private fun WatchlistRow(
     val typeLabel = remember(titleType) {
         when (titleType) {
             TitleType.FILM -> "Film"
-            TitleType.SERIE -> "S?rie"
+            TitleType.SERIE -> "Série"
             TitleType.ANIME -> "Anime"
         }
     }
@@ -437,7 +437,7 @@ private fun WatchlistRow(
         buildString {
             append(entry.titleName)
             append(", ").append(typeLabel)
-            append(", ajout? le ").append(formattedDate)
+            append(", ajouté le ").append(formattedDate)
         }
     }
 
@@ -531,7 +531,7 @@ private fun SagaWatchlistRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filmCountText = if (count > 1) "$count films ? voir" else "$count film ? voir"
+    val filmCountText = if (count > 1) "$count films à voir" else "$count film à voir"
     val compositeDescription = remember(collectionName, count) {
         "Saga $collectionName, $filmCountText"
     }
