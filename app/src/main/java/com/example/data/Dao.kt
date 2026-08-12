@@ -134,3 +134,25 @@ interface SeasonProgressDao {
     @Query("DELETE FROM season_progress WHERE titleId = :titleId AND seasonNumber = :seasonNumber")
     suspend fun deleteForSeason(titleId: String, seasonNumber: Int)
 }
+
+
+@Dao
+interface TitleMetaCacheDao {
+    @Query("SELECT * FROM title_meta_cache")
+    fun getAllFlow(): Flow<List<DbTitleMetaCache>>
+
+    @Query("SELECT * FROM title_meta_cache")
+    suspend fun getAllList(): List<DbTitleMetaCache>
+
+    @Query("SELECT * FROM title_meta_cache WHERE titleId = :titleId")
+    suspend fun getByTitleId(titleId: String): DbTitleMetaCache?
+
+    @Query("SELECT * FROM title_meta_cache WHERE titleId IN (:titleIds)")
+    suspend fun getByTitleIds(titleIds: List<String>): List<DbTitleMetaCache>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: DbTitleMetaCache)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(entries: List<DbTitleMetaCache>)
+}
