@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.components.EmptyState
@@ -480,7 +481,7 @@ fun SearchScreen(
                     ) {
                         items(
                             count = lazyPagingItems.itemCount,
-                            key = { index -> lazyPagingItems[index]?.id ?: index }
+                            key = lazyPagingItems.itemKey { it.id }
                         ) { index ->
                             val title = lazyPagingItems[index]
                             if (title != null) {
