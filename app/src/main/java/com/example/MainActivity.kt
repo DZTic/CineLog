@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
             seasonProgressDao = database.seasonProgressDao(),
             collectionCacheDao = database.collectionCacheDao(),
             sagaSizeDao = database.sagaSizeDao(),
+            titleMetaCacheDao = database.titleMetaCacheDao(),
             preferenceManager = preferenceManager,
             context = applicationContext
         )
