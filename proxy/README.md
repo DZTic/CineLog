@@ -11,6 +11,15 @@ cold start de plusieurs secondes après une période d'inactivité).
 Cloudflare Workers tourne sur des isolats V8, pas de conteneur qui se met
 en veille : pas de cold start, et 100 000 requêtes/jour gratuites.
 
+## Durées de Cache
+
+Le Worker applique des durées de cache HTTP (`Cache-Control`) et Edge Cache Cloudflare alignées sur la logique du client Android (`Repository.kt`) :
+- `search/*` : 300s (5 min)
+- `trending/*` : 3600s (1h)
+- `movie/{id}`, `tv/{id}`, `collection/{id}` : 86400s (24h)
+
+La durée mise en cache côté Cloudflare Edge (`cache.put()`) et celle renvoyée au client dans le header HTTP `Cache-Control` sont synchronisées via `getCacheMaxAge()`.
+
 ## Déploiement
 
 ```bash
