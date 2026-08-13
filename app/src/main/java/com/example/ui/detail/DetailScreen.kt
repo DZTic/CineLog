@@ -538,9 +538,13 @@ fun DetailScreen(
                                             ) {
                                                 Text(
                                                     text = season.name,
+                                                    modifier = Modifier.weight(1f),
                                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                    color = Color.White
+                                                    color = Color.White,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
+                                                Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
                                                     text = "${season.episodeCount} épisodes",
                                                     style = MaterialTheme.typography.bodySmall,
