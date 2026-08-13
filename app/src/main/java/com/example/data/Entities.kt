@@ -1,10 +1,14 @@
 package com.example.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
-@Entity(tableName = "log_entries")
+@Entity(
+    tableName = "log_entries",
+    indices = [Index(value = ["titleId"])]
+)
 data class DbLogEntry(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val titleId: String,       // e.g. "movie_123", "tv_456", "anime_789"

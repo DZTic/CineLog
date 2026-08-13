@@ -62,3 +62,11 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         )
     }
 }
+
+// v7 -> v8: ajoute un index sur titleId dans la table log_entries
+// pour accelerer les requetes getLogsForTitle (fiche detail).
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_log_entries_titleId` ON `log_entries` (`titleId`)")
+    }
+}
