@@ -1,0 +1,395 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 7,
+    "identityHash": "69608fb14aa8010360c2065570887e81",
+    "entities": [
+      {
+        "tableName": "log_entries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `titleId` TEXT NOT NULL, `titleType` TEXT NOT NULL, `titleName` TEXT NOT NULL, `titlePosterUrl` TEXT, `dateVue` INTEGER NOT NULL, `note` REAL NOT NULL, `critique` TEXT NOT NULL, `revisionnage` INTEGER NOT NULL, `spoiler` INTEGER NOT NULL, `collectionId` INTEGER, `collectionName` TEXT, `collectionPosterUrl` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleId",
+            "columnName": "titleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleType",
+            "columnName": "titleType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleName",
+            "columnName": "titleName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titlePosterUrl",
+            "columnName": "titlePosterUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "dateVue",
+            "columnName": "dateVue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "critique",
+            "columnName": "critique",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revisionnage",
+            "columnName": "revisionnage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "spoiler",
+            "columnName": "spoiler",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collectionId",
+            "columnName": "collectionId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "collectionName",
+            "columnName": "collectionName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "collectionPosterUrl",
+            "columnName": "collectionPosterUrl",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "watchlist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`titleId` TEXT NOT NULL, `titleType` TEXT NOT NULL, `titleName` TEXT NOT NULL, `titlePosterUrl` TEXT, `dateAdded` INTEGER NOT NULL, `titleYear` TEXT, `titleGenres` TEXT, `titleVoteAverage` REAL, `collectionId` INTEGER, `collectionName` TEXT, `collectionPosterUrl` TEXT, PRIMARY KEY(`titleId`))",
+        "fields": [
+          {
+            "fieldPath": "titleId",
+            "columnName": "titleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleType",
+            "columnName": "titleType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleName",
+            "columnName": "titleName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titlePosterUrl",
+            "columnName": "titlePosterUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "dateAdded",
+            "columnName": "dateAdded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleYear",
+            "columnName": "titleYear",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "titleGenres",
+            "columnName": "titleGenres",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "titleVoteAverage",
+            "columnName": "titleVoteAverage",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "collectionId",
+            "columnName": "collectionId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "collectionName",
+            "columnName": "collectionName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "collectionPosterUrl",
+            "columnName": "collectionPosterUrl",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "titleId"
+          ]
+        }
+      },
+      {
+        "tableName": "custom_lists",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `description` TEXT NOT NULL, `dateCreated` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateCreated",
+            "columnName": "dateCreated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "custom_list_titles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `listId` INTEGER NOT NULL, `titleId` TEXT NOT NULL, `titleType` TEXT NOT NULL, `titleName` TEXT NOT NULL, `titlePosterUrl` TEXT, `orderIndex` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "listId",
+            "columnName": "listId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleId",
+            "columnName": "titleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleType",
+            "columnName": "titleType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titleName",
+            "columnName": "titleName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titlePosterUrl",
+            "columnName": "titlePosterUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "season_progress",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`titleId` TEXT NOT NULL, `seasonNumber` INTEGER NOT NULL, `status` TEXT NOT NULL, `dateUpdated` INTEGER NOT NULL, PRIMARY KEY(`titleId`, `seasonNumber`))",
+        "fields": [
+          {
+            "fieldPath": "titleId",
+            "columnName": "titleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seasonNumber",
+            "columnName": "seasonNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateUpdated",
+            "columnName": "dateUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "titleId",
+            "seasonNumber"
+          ]
+        }
+      },
+      {
+        "tableName": "collection_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`titleId` TEXT NOT NULL, `collectionId` INTEGER NOT NULL, `collectionName` TEXT NOT NULL, `collectionPosterUrl` TEXT, PRIMARY KEY(`titleId`))",
+        "fields": [
+          {
+            "fieldPath": "titleId",
+            "columnName": "titleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collectionId",
+            "columnName": "collectionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collectionName",
+            "columnName": "collectionName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "collectionPosterUrl",
+            "columnName": "collectionPosterUrl",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "titleId"
+          ]
+        }
+      },
+      {
+        "tableName": "saga_size_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`collectionId` INTEGER NOT NULL, `totalFilms` INTEGER NOT NULL, PRIMARY KEY(`collectionId`))",
+        "fields": [
+          {
+            "fieldPath": "collectionId",
+            "columnName": "collectionId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalFilms",
+            "columnName": "totalFilms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "collectionId"
+          ]
+        }
+      },
+      {
+        "tableName": "title_meta_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`titleId` TEXT NOT NULL, `genres` TEXT NOT NULL, `studioOrDirector` TEXT, `voteAverage` REAL NOT NULL, `runtime` INTEGER, PRIMARY KEY(`titleId`))",
+        "fields": [
+          {
+            "fieldPath": "titleId",
+            "columnName": "titleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "studioOrDirector",
+            "columnName": "studioOrDirector",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "voteAverage",
+            "columnName": "voteAverage",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runtime",
+            "columnName": "runtime",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "titleId"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '69608fb14aa8010360c2065570887e81')"
+    ]
+  }
+}

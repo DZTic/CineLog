@@ -62,6 +62,17 @@ data class DbSagaSize(
     val totalFilms: Int
 )
 
+
+@Entity(tableName = "title_meta_cache")
+data class DbTitleMetaCache(
+    @PrimaryKey val titleId: String,
+    val genres: String = "",
+    val studioOrDirector: String? = null,
+    val voteAverage: Float = 0f,
+    val runtime: Int? = null
+)
+
+
 @Entity(tableName = "custom_lists")
 data class DbCustomList(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,

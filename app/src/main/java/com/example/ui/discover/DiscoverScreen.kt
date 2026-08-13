@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.example.data.CineTitle
 import com.example.data.TitleType
 import com.example.ui.components.EmptyState
@@ -231,7 +232,7 @@ fun DiscoverScreen(
                         ) {
                             items(
                                 count = searchPagingItems.itemCount,
-                                key = { index -> searchPagingItems[index]?.id ?: index }
+                                key = searchPagingItems.itemKey { it.id }
                             ) { index ->
                                 val title = searchPagingItems[index]
                                 if (title != null && title.id !in watchedTitleIds) {
@@ -338,7 +339,36 @@ fun DiscoverScreen(
                                 }
                             }
                        } else {
-                            if (discoverPagingItems.itemCount == 0) {
+                            val refreshState = discoverPagingItems.loadState.refresh
+                            if (refreshState is LoadState.Loading) {
+                                SkeletonDiscoverGrid()
+                            } else if (refreshState is LoadState.Error) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.padding(24.dp)
+                                    ) {
+                                        Text(
+                                            text = (refreshState as LoadState.Error).error.localizedMessage ?: "Erreur de connexion.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.error,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Button(
+                                            onClick = { discoverPagingItems.retry() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("R?essayer", color = Color.Black)
+                                        }
+                                    }
+                                }
+                            } else if (discoverPagingItems.itemCount == 0) {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
@@ -357,7 +387,7 @@ fun DiscoverScreen(
                                 ) {
                                     items(
                                         count = discoverPagingItems.itemCount,
-                                        key = { index -> discoverPagingItems[index]?.id ?: index }
+                                        key = discoverPagingItems.itemKey { it.id }
                                     ) { index ->
                                         val title = discoverPagingItems[index]
                                         if (title != null && title.id !in watchedTitleIds) {

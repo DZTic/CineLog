@@ -10,6 +10,9 @@ import androidx.paging.cachedIn
 import androidx.paging.map
 import com.example.data.*
 import com.example.ui.CachedSaga
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -95,9 +98,14 @@ class SearchViewModel(
     private fun loadPopularSuggestions() {
         viewModelScope.launch {
             try {
-                _trendingFilms.value = repository.getTrendingOrPopular(TitleType.FILM)
-                _trendingSeries.value = repository.getTrendingOrPopular(TitleType.SERIE)
-                _topAnime.value = repository.getTrendingOrPopular(TitleType.ANIME)
+                coroutineScope {
+                    val filmsDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.FILM) }
+                    val seriesDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.SERIE) }
+                    val animeDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.ANIME) }
+                    _trendingFilms.value = filmsDeferred.await()
+                    _trendingSeries.value = seriesDeferred.await()
+                    _topAnime.value = animeDeferred.await()
+                }
             } catch (e: Exception) {
                 Log.e(tag, "Error loading search suggestions: ${e.localizedMessage}")
             }

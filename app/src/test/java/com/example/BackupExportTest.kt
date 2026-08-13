@@ -87,6 +87,20 @@ class BackupExportTest {
         override suspend fun upsert(entry: DbCollectionCache) {}
     }
 
+    
+    private class FakeTitleMetaCacheDao : TitleMetaCacheDao {
+        val metaMap = mutableMapOf<String, DbTitleMetaCache>()
+        override fun getAllFlow(): Flow<List<DbTitleMetaCache>> = flowOf(metaMap.values.toList())
+        override suspend fun getAllList(): List<DbTitleMetaCache> = metaMap.values.toList()
+        override suspend fun getByTitleId(titleId: String): DbTitleMetaCache? = metaMap[titleId]
+        override suspend fun getByTitleIds(titleIds: List<String>): List<DbTitleMetaCache> =
+            titleIds.mapNotNull { metaMap[it] }
+        override suspend fun upsert(entry: DbTitleMetaCache) { metaMap[entry.titleId] = entry }
+        override suspend fun upsertAll(entries: List<DbTitleMetaCache>) {
+            entries.forEach { metaMap[it.titleId] = it }
+        }
+    }
+
     private class FakeSagaSizeDao : SagaSizeDao {
         override fun getAll(): Flow<List<DbSagaSize>> = flowOf(emptyList())
         override suspend fun exists(collectionId: Int) = false
@@ -209,4 +223,35 @@ class BackupExportTest {
         assertEquals(1, summary.logsCount)
         assertEquals("Interstellar", targetLogDao.logs[0].titleName)
     }
+
+    @Test
+    fun testTitleMetaCachePersistence() = runBlocking {
+        val metaDao = FakeTitleMetaCacheDao()
+        metaDao.upsert(DbTitleMetaCache(titleId = "movie_100", genres = "Action,Sci-Fi", studioOrDirector = "Christopher Nolan", voteAverage = 8.8f, runtime = 148))
+
+        val repo = Repository(
+            logDao = FakeLogDao(),
+            watchlistDao = FakeWatchlistDao(),
+            customListDao = FakeCustomListDao(),
+            seasonProgressDao = FakeSeasonProgressDao(),
+            collectionCacheDao = FakeCollectionCacheDao(),
+            sagaSizeDao = FakeSagaSizeDao(),
+            titleMetaCacheDao = metaDao,
+            preferenceManager = PreferenceManager(mockContext)
+        )
+
+        repo.loadTitleMetaCacheFromDb()
+
+        val logs = listOf(
+            DbLogEntry(id = 1, titleId = "movie_100", titleType = "FILM", titleName = "Inception", titlePosterUrl = null, dateVue = 1700000000000L, note = 5.0f, critique = "", revisionnage = false, spoiler = false)
+        )
+
+        val stats = repo.getProfileStats(logs, emptyList())
+        assertEquals(1, stats.totalLogs)
+        assertEquals(1, stats.topGenres.size)
+        assertEquals("Action", stats.topGenres[0].first)
+        assertEquals("Christopher Nolan", stats.topDirectorsOrStudios[0].first)
+        assertEquals(148, stats.totalRuntimeMinutes)
+    }
+
 }

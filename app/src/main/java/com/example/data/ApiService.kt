@@ -10,40 +10,40 @@ import retrofit2.http.Query
 // ==========================================
 
 data class JikanGenre(
-    @Json(name = "name") val name: String
+    @Json(name = "name") val name: String? = null
 )
 
 data class JikanStudio(
-    @Json(name = "name") val name: String
+    @Json(name = "name") val name: String? = null
 )
 
 data class JikanImageJpg(
-    @Json(name = "image_url") val imageUrl: String?,
-    @Json(name = "large_image_url") val largeImageUrl: String?
+    @Json(name = "image_url") val imageUrl: String? = null,
+    @Json(name = "large_image_url") val largeImageUrl: String? = null
 )
 
 data class JikanImages(
-    @Json(name = "jpg") val jpg: JikanImageJpg?
+    @Json(name = "jpg") val jpg: JikanImageJpg? = null
 )
 
 data class JikanAnimeData(
-    @Json(name = "mal_id") val malId: Int,
-    @Json(name = "title") val title: String,
-    @Json(name = "synopsis") val synopsis: String?,
-    @Json(name = "images") val images: JikanImages?,
-    @Json(name = "score") val score: Float?,
-    @Json(name = "year") val year: Int?,
-    @Json(name = "genres") val genres: List<JikanGenre>?,
-    @Json(name = "studios") val studios: List<JikanStudio>?,
-    @Json(name = "episodes") val episodes: Int?
+    @Json(name = "mal_id") val malId: Int = 0,
+    @Json(name = "title") val title: String? = null,
+    @Json(name = "synopsis") val synopsis: String? = null,
+    @Json(name = "images") val images: JikanImages? = null,
+    @Json(name = "score") val score: Float? = null,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "genres") val genres: List<JikanGenre?>? = null,
+    @Json(name = "studios") val studios: List<JikanStudio?>? = null,
+    @Json(name = "episodes") val episodes: Int? = null
 )
 
 data class JikanAnimeSearchResponse(
-    @Json(name = "data") val data: List<JikanAnimeData>
+    @Json(name = "data") val data: List<JikanAnimeData>? = null
 )
 
 data class JikanAnimeDetailResponse(
-    @Json(name = "data") val data: JikanAnimeData
+    @Json(name = "data") val data: JikanAnimeData? = null
 )
 
 interface JikanApiService {
