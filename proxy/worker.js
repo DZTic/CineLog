@@ -54,6 +54,24 @@ const ALLOWED_APPEND_TO_RESPONSE = new Set([
   "recommendations",
 ]);
 
+/**
+ * Determines Cache-Control max-age in seconds based on the request pathname.
+ * Durations match client-side Repository cache rules.
+ */
+function getCacheMaxAge(pathname) {
+  if (pathname.startsWith("/trending/")) {
+    return 3600;
+  }
+  if (
+    pathname.startsWith("/movie/") ||
+    pathname.startsWith("/tv/") ||
+    pathname.startsWith("/collection/")
+  ) {
+    return 86400;
+  }
+  return 300;
+}
+
 export default {
   async fetch(request, env) {
     // Read-only proxy: anything but GET has no business here.
@@ -118,6 +136,8 @@ export default {
     // URL, which is fine: cached responses are only served to callers who
     // already present this exact proxied URL, and the key never appears in
     // the response body or headers.
+    const maxAge = getCacheMaxAge(url.pathname);
+    const cacheControlHeader = `public, max-age=${maxAge}`;
     const cache = caches.default;
     const cacheKey = new Request(upstream.toString(), { method: "GET" });
     const cached = await cache.match(cacheKey);
@@ -135,8 +155,7 @@ export default {
           status: fetched.status,
           headers: {
             "Content-Type": "application/json",
-            // Match the client-facing cache duration below.
-            "Cache-Control": "public, max-age=300",
+            "Cache-Control": cacheControlHeader,
           },
         });
         cache.put(cacheKey, toCache);
@@ -150,8 +169,7 @@ export default {
     const headers = new Headers({
       "Content-Type":
         upstreamResponse.headers.get("Content-Type") ?? "application/json",
-      // Lets clients keep their own short local cache too.
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": cacheControlHeader,
     });
 
     return new Response(upstreamResponse.body, {
