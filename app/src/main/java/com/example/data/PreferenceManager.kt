@@ -19,6 +19,24 @@ class PreferenceManager(context: Context) {
         private const val KEY_HAS_DISMISSED_ONBOARDING = "has_dismissed_onboarding"
         private const val KEY_SEARCH_HISTORY = "search_history"
         private const val KEY_PINNED_SEARCHES = "pinned_searches"
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+    }
+
+    fun getThemeMode(): String {
+        return prefs.getString(KEY_THEME_MODE, "DARK") ?: "DARK"
+    }
+
+    fun setThemeMode(mode: String) {
+        prefs.edit().putString(KEY_THEME_MODE, mode).apply()
+    }
+
+    fun isDynamicColorEnabled(): Boolean {
+        return prefs.getBoolean(KEY_DYNAMIC_COLOR, false)
+    }
+
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
     }
 
     fun getTmdbApiKey(): String {

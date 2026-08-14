@@ -1,5 +1,6 @@
 package com.example.ui.settings
 
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import kotlinx.coroutines.launch
@@ -43,6 +46,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val savedKey by viewModel.tmdbApiKey.collectAsState()
+    val currentThemeMode by viewModel.themeMode.collectAsState()
+    val dynamicColorEnabled by viewModel.dynamicColor.collectAsState()
     val scope = rememberCoroutineScope()
 
     var inputKey by remember { mutableStateOf(savedKey) }
@@ -239,6 +244,83 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // Appearance & Theme Section
+            Text(
+                text = "Apparence et Thème",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("theme_section"),
+                colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Mode de thème",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        AppThemeMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = currentThemeMode == mode,
+                                onClick = { viewModel.setThemeMode(mode) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = AppThemeMode.entries.size)
+                            ) {
+                                Text(mode.displayName, fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                    }
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Couleurs dynamiques (Material You)",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Adapte l'interface aux teintes de votre fond d'écran",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = dynamicColorEnabled,
+                                onCheckedChange = { viewModel.setDynamicColor(it) },
+                                modifier = Modifier.testTag("dynamic_color_switch")
+                            )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
             // Explanatory Banner
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -328,7 +410,7 @@ fun SettingsScreen(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "✓ Une clé API est actuellement configurée et active.",
+                        text = "✓ Clé API TMDB personnelle active",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -339,13 +421,13 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "⚠️ Clé API absente. Recherche et carrousels de films/séries désactivés.",
+                        text = "✓ Proxy TMDB Cloudflare actif (mode standard)",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }

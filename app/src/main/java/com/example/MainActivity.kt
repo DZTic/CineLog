@@ -112,7 +112,11 @@ class MainActivity : ComponentActivity() {
         val viewModelFactory = CineViewModelFactory(application, repository, preferenceManager)
 
         setContent {
-            MyApplicationTheme {
+            val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
+            val themeMode by settingsViewModel.themeMode.collectAsState()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
+
+            MyApplicationTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
                 MainAppScaffold(viewModelFactory)
             }
         }
