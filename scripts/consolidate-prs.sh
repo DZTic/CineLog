@@ -274,12 +274,23 @@ if [ "$DO_CREATE_PR" = true ] && [ "$DRY_RUN" = false ] && [ "$MERGED_COUNT" -gt
     
     if [ -n "$EXISTING_PR" ]; then
         echo -e "Mise à jour de la PR existante #${EXISTING_PR}..."
-        gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body "$SUMMARY_MD"
-        echo -e "${GREEN}✅ PR #${EXISTING_PR} mise à jour : $(gh pr view "$EXISTING_PR" --json url --jq .url)${NC}"
+        if gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body "$SUMMARY_MD" 2>/dev/null; then
+            echo -e "${GREEN}✅ PR #${EXISTING_PR} mise à jour : $(gh pr view "$EXISTING_PR" --json url --jq .url 2>/dev/null)${NC}"
+        else
+            echo -e "${YELLOW}⚠️ Impossible de modifier la PR automatiquement (droits GITHUB_TOKEN restreints).${NC}"
+        fi
     else
         echo -e "Création d'une nouvelle Pull Request..."
-        NEW_PR_URL=$(gh pr create --base "$BASE_BRANCH" --head "$TARGET_BRANCH" --title "$PR_TITLE" --body "$SUMMARY_MD" --label "consolidated-pr" 2>/dev/null || gh pr create --base "$BASE_BRANCH" --head "$TARGET_BRANCH" --title "$PR_TITLE" --body "$SUMMARY_MD")
-        echo -e "${GREEN}✅ Pull Request créée avec succès : ${NEW_PR_URL}${NC}"
+        set +e
+        NEW_PR_URL=$(gh pr create --base "$BASE_BRANCH" --head "$TARGET_BRANCH" --title "$PR_TITLE" --body "$SUMMARY_MD" --label "consolidated-pr" 2>&1 || gh pr create --base "$BASE_BRANCH" --head "$TARGET_BRANCH" --title "$PR_TITLE" --body "$SUMMARY_MD" 2>&1)
+        PR_STATUS=$?
+        set -e
+        if [ $PR_STATUS -eq 0 ]; then
+            echo -e "${GREEN}✅ Pull Request créée avec succès : ${NEW_PR_URL}${NC}"
+        else
+            echo -e "${YELLOW}⚠️ La branche a été poussée, mais la PR n'a pas pu être créée automatiquement par GitHub Actions (permissions GITHUB_TOKEN restreintes).${NC}"
+            echo -e "${CYAN}👉 Pour créer la PR manuellement : gh pr create --base ${BASE_BRANCH} --head ${TARGET_BRANCH}${NC}"
+        fi
     fi
 fi
 
