@@ -216,7 +216,8 @@ fun TitleCard(
     title: CineTitle,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isInWatchlist: Boolean = false
+    isInWatchlist: Boolean = false,
+    isWatched: Boolean = false
 ) {
     val typeLabel = when (title.type) {
         TitleType.FILM -> "Film"
@@ -234,6 +235,9 @@ fun TitleCard(
         }
         if (isInWatchlist) {
             append(", déjà dans la watchlist")
+        }
+        if (isWatched) {
+            append(", déjà vu")
         }
     }
 
@@ -306,6 +310,25 @@ fun TitleCard(
                         Icon(
                             imageVector = Icons.Default.Bookmark,
                             contentDescription = "Dans la watchlist",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+
+                // Badge indiquant que le titre a déjà été vu
+                if (isWatched) {
+                    Box(
+                        modifier = Modifier
+                            .align(if (isInWatchlist) Alignment.BottomStart else Alignment.TopStart)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Déjà vu",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(12.dp)
                         )

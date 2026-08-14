@@ -116,7 +116,7 @@ class SearchPagingSource(
             LoadResult.Page(
                 data = items,
                 prevKey = if (page == 1) null else page - 1,
-                nextKey = if (items.isEmpty()) null else page + 1
+                nextKey = if (items.isEmpty() || page >= 500) null else page + 1
             )
         } catch (e: Exception) {
             LoadResult.Error(e)
@@ -142,7 +142,7 @@ class DiscoverPagingSource(
             LoadResult.Page(
                 data = items,
                 prevKey = if (page == 1) null else page - 1,
-                nextKey = if (items.isEmpty()) null else page + 1
+                nextKey = if (items.isEmpty() || page >= 500) null else page + 1
             )
         } catch (e: Exception) {
             LoadResult.Error(e)
