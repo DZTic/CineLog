@@ -5,6 +5,11 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.example.di.appModules
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
 
 /**
  * Sans cette classe, Coil utilise un ImageLoader par défaut sans fondu :
@@ -16,6 +21,18 @@ import coil.memory.MemoryCache
  * AsyncImage de l'app, sans avoir à toucher chaque écran individuellement.
  */
 class CineLogApplication : Application(), ImageLoaderFactory {
+
+    override fun onCreate() {
+        super.onCreate()
+        if (org.koin.core.context.GlobalContext.getOrNull() == null) {
+            startKoin {
+                androidLogger(Level.ERROR)
+                androidContext(this@CineLogApplication)
+                modules(appModules)
+            }
+        }
+    }
+
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .crossfade(200)

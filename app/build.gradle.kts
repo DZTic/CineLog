@@ -66,13 +66,13 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      all { it.enabled = false }
     }
   }
   sourceSets {
     // Room migration tests read the exported schema JSON files from here.
     getByName("androidTest").assets.srcDirs("$projectDir/schemas")
     getByName("test").assets.srcDirs("$projectDir/schemas")
+    getByName("debug").assets.srcDirs("$projectDir/schemas")
   }
 }
 
@@ -129,6 +129,8 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
+  implementation(libs.koin.android)
+  implementation(libs.koin.androidx.compose)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
@@ -146,6 +148,8 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  testImplementation(libs.koin.test)
+  testImplementation(libs.koin.test.junit4)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
