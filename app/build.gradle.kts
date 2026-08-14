@@ -66,13 +66,13 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      all { it.enabled = false }
     }
   }
   sourceSets {
     // Room migration tests read the exported schema JSON files from here.
     getByName("androidTest").assets.srcDirs("$projectDir/schemas")
     getByName("test").assets.srcDirs("$projectDir/schemas")
+    getByName("debug").assets.srcDirs("$projectDir/schemas")
   }
 }
 
@@ -149,6 +149,7 @@ dependencies {
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
+  testImplementation(libs.androidx.room.testing)
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)

@@ -103,6 +103,9 @@ interface CollectionCacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: DbCollectionCache)
+
+    @Query("DELETE FROM collection_cache WHERE cachedAt < :threshold")
+    suspend fun deleteExpired(threshold: Long)
 }
 
 @Dao
@@ -155,4 +158,8 @@ interface TitleMetaCacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entries: List<DbTitleMetaCache>)
+
+    @Query("DELETE FROM title_meta_cache WHERE cachedAt < :threshold")
+    suspend fun deleteExpired(threshold: Long)
 }
+
