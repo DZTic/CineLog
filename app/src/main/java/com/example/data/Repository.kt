@@ -136,13 +136,36 @@ class DiscoverPagingSource(
     }
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, CineTitle> {
-        val page = params.key ?: 1
+        val startPage = params.key ?: 1
         return try {
-            val items = repository.getTrendingOrPopularPaged(typeFilter, page)
+            val watchedIds = repository.getWatchedTitleIds()
+            val accumulated = mutableListOf<CineTitle>()
+            val seenIds = mutableSetOf<String>()
+            var currentPage = startPage
+            val maxPagesToFetch = 5
+            var pagesFetched = 0
+            val targetSize = params.loadSize.coerceAtLeast(15)
+
+            while (accumulated.size < targetSize && currentPage <= 500 && pagesFetched < maxPagesToFetch) {
+                val items = repository.getTrendingOrPopularPaged(typeFilter, currentPage)
+                pagesFetched++
+                if (items.isEmpty()) break
+
+                for (item in items) {
+                    if (item.id !in watchedIds && seenIds.add(item.id)) {
+                        accumulated.add(item)
+                    }
+                }
+                currentPage++
+                if (accumulated.size >= 10) {
+                    break
+                }
+            }
+
             LoadResult.Page(
-                data = items,
-                prevKey = if (page == 1) null else page - 1,
-                nextKey = if (items.isEmpty() || page >= 500) null else page + 1
+                data = accumulated,
+                prevKey = if (startPage == 1) null else startPage - 1,
+                nextKey = if (accumulated.isEmpty() || currentPage > 500) null else currentPage
             )
         } catch (e: Exception) {
             LoadResult.Error(e)
@@ -585,8 +608,37 @@ class Repository(
             info to titles
         }
 
+    suspend fun getWatchedTitleIds(): Set<String> = withContext(Dispatchers.IO) {
+        logDao.getWatchedTitleIds().toSet()
+    }
+
     suspend fun getTrendingOrPopular(type: TitleType): List<CineTitle> =
         getTrendingOrPopularPaged(type, page = 1)
+
+    suspend fun getUnwatchedTrendingOrPopular(
+        type: TitleType,
+        targetCount: Int = 20,
+        maxPagesToSearch: Int = 5
+    ): List<CineTitle> = withContext(Dispatchers.IO) {
+        val watchedIds = getWatchedTitleIds()
+        val accumulated = mutableListOf<CineTitle>()
+        val seenIds = mutableSetOf<String>()
+        var currentPage = 1
+
+        while (accumulated.size < targetCount && currentPage <= maxPagesToSearch) {
+            val pageItems = getTrendingOrPopularPaged(type, page = currentPage)
+            if (pageItems.isEmpty()) break
+
+            for (item in pageItems) {
+                if (item.id !in watchedIds && seenIds.add(item.id)) {
+                    accumulated.add(item)
+                    if (accumulated.size >= targetCount) break
+                }
+            }
+            currentPage++
+        }
+        accumulated
+    }
 
     suspend fun getTrendingOrPopularPaged(type: TitleType, page: Int = 1): List<CineTitle> = withContext(Dispatchers.IO) {
         val tmdbKey = getTmdbKey()

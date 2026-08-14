@@ -28,6 +28,7 @@ class BackupExportTest {
         val logs = mutableListOf<DbLogEntry>()
         override fun getAllLogs(): Flow<List<DbLogEntry>> = flowOf(logs)
         override suspend fun getAllLogsList(): List<DbLogEntry> = logs
+        override suspend fun getWatchedTitleIds(): List<String> = logs.map { it.titleId }.distinct()
         override fun getLogsForTitle(titleId: String): Flow<List<DbLogEntry>> = flowOf(emptyList())
         override suspend fun insertLog(entry: DbLogEntry) { logs.add(entry) }
         override suspend fun insertLogs(entries: List<DbLogEntry>) { logs.addAll(entries) }

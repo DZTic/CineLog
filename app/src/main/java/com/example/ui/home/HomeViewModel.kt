@@ -97,8 +97,8 @@ class HomeViewModel(
         viewModelScope.launch {
             try {
                 coroutineScope {
-                    val filmsDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.FILM) }
-                    val seriesDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.SERIE) }
+                    val filmsDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.FILM, 10) }
+                    val seriesDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.SERIE, 10) }
                     _trendingFilms.value = filmsDeferred.await()
                     _trendingSeries.value = seriesDeferred.await()
                 }

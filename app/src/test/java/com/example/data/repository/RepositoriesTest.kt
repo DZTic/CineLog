@@ -72,12 +72,16 @@ class RepositoriesTest {
         assertEquals(1, logs.size)
         assertEquals("Inception", logs[0].titleName)
 
+        val watchedIds = logRepository.getWatchedTitleIds()
+        assertTrue(watchedIds.contains("movie_1"))
+
         val logsForTitle = logRepository.getLogsForTitle("movie_1").first()
         assertEquals(1, logsForTitle.size)
 
         logRepository.deleteLogById(1)
         val logsAfterDelete = logRepository.getLogsStream().first()
         assertTrue(logsAfterDelete.isEmpty())
+        assertFalse(logRepository.getWatchedTitleIds().contains("movie_1"))
     }
 
     @Test

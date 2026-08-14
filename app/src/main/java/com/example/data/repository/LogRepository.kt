@@ -11,6 +11,8 @@ class LogRepository(
 
     suspend fun getAllLogsList(): List<DbLogEntry> = logDao.getAllLogsList()
 
+    suspend fun getWatchedTitleIds(): Set<String> = logDao.getWatchedTitleIds().toSet()
+
     fun getLogsForTitle(titleId: String): Flow<List<DbLogEntry>> = logDao.getLogsForTitle(titleId)
 
     suspend fun saveLogEntry(entry: DbLogEntry) = logDao.insertLog(entry)

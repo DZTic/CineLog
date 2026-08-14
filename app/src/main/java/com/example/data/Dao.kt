@@ -15,6 +15,9 @@ interface LogDao {
     @Query("SELECT * FROM log_entries ORDER BY dateVue DESC")
     suspend fun getAllLogsList(): List<DbLogEntry>
 
+    @Query("SELECT DISTINCT titleId FROM log_entries")
+    suspend fun getWatchedTitleIds(): List<String>
+
     @Query("SELECT * FROM log_entries WHERE titleId = :titleId ORDER BY dateVue DESC")
     fun getLogsForTitle(titleId: String): Flow<List<DbLogEntry>>
 
