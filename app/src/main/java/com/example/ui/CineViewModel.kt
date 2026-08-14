@@ -1,4 +1,4 @@
-﻿package com.example.ui
+package com.example.ui
 
 import android.app.Application
 import android.util.Log
@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.example.util.NetworkMonitor
 
 data class CachedSaga(val collectionId: Int, val collectionName: String, val posterUrl: String?)
 
@@ -72,13 +73,14 @@ class CineViewModel(
 class CineViewModelFactory(
     private val application: Application? = null,
     private val repository: Repository,
-    private val preferenceManager: PreferenceManager
+    private val preferenceManager: PreferenceManager,
+    private val networkMonitor: NetworkMonitor? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
-            modelClass.isAssignableFrom(HomeViewModel::class.java) -> HomeViewModel(repository, preferenceManager) as T
-            modelClass.isAssignableFrom(DiscoverViewModel::class.java) -> DiscoverViewModel(repository) as T
+            modelClass.isAssignableFrom(HomeViewModel::class.java) -> HomeViewModel(repository, preferenceManager, networkMonitor) as T
+            modelClass.isAssignableFrom(DiscoverViewModel::class.java) -> DiscoverViewModel(repository, networkMonitor) as T
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> SearchViewModel(repository, preferenceManager) as T
             modelClass.isAssignableFrom(DetailViewModel::class.java) -> DetailViewModel(repository, preferenceManager) as T
             modelClass.isAssignableFrom(WatchlistViewModel::class.java) -> WatchlistViewModel(repository, preferenceManager) as T

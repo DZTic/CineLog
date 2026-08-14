@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import com.example.ui.CachedSaga
 import com.example.ui.CollectionViewMode
+import com.example.util.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -14,7 +15,8 @@ import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val repository: Repository,
-    private val preferenceManager: PreferenceManager
+    private val preferenceManager: PreferenceManager,
+    private val networkMonitor: NetworkMonitor? = null
 ) : ViewModel() {
     private val tag = "HomeViewModel"
 
@@ -74,6 +76,20 @@ class HomeViewModel(
     val trendingSeries: StateFlow<List<CineTitle>> = _trendingSeries.asStateFlow()
 
     init {
+        loadSuggestions()
+        if (networkMonitor != null) {
+            viewModelScope.launch {
+                networkMonitor.isOnline
+                    .drop(1)
+                    .filter { it }
+                    .collect {
+                        loadSuggestions()
+                    }
+            }
+        }
+    }
+
+    fun refreshSuggestions() {
         loadSuggestions()
     }
 

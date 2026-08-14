@@ -10,6 +10,7 @@ import androidx.paging.cachedIn
 import androidx.paging.map
 import com.example.data.*
 import com.example.ui.CachedSaga
+import com.example.util.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -20,7 +21,8 @@ import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class DiscoverViewModel(
-    private val repository: Repository
+    private val repository: Repository,
+    private val networkMonitor: NetworkMonitor? = null
 ) : ViewModel() {
     private val tag = "DiscoverViewModel"
 
@@ -100,6 +102,16 @@ class DiscoverViewModel(
 
     init {
         loadDiscoverContent()
+        if (networkMonitor != null) {
+            viewModelScope.launch {
+                networkMonitor.isOnline
+                    .drop(1)
+                    .filter { it }
+                    .collect {
+                        loadDiscoverContent()
+                    }
+            }
+        }
     }
 
     fun setSearchQuery(query: String) {

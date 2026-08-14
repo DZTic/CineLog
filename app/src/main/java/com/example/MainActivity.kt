@@ -88,14 +88,27 @@ import com.example.ui.settings.SettingsScreen
 import com.example.ui.watchlist.WatchlistScreen
 import com.example.ui.theme.MyApplicationTheme
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.ui.platform.testTag
+import com.example.util.ConnectivityNetworkMonitor
+import com.example.util.NetworkMonitor
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 1. Initialize Singletons / Databases
+        // 1. Initialize Singletons / Databases / Network Monitor
         val database = AppDatabase.getDatabase(this)
         val preferenceManager = PreferenceManager(this)
+        val networkMonitor = ConnectivityNetworkMonitor(applicationContext)
         val repository = Repository(
             logDao = database.logDao(),
             watchlistDao = database.watchlistDao(),
@@ -109,11 +122,11 @@ class MainActivity : ComponentActivity() {
         )
 
         // 2. Instantiate master view model
-        val viewModelFactory = CineViewModelFactory(application, repository, preferenceManager)
+        val viewModelFactory = CineViewModelFactory(application, repository, preferenceManager, networkMonitor)
 
         setContent {
             MyApplicationTheme {
-                MainAppScaffold(viewModelFactory)
+                MainAppScaffold(viewModelFactory, networkMonitor)
             }
         }
     }
@@ -170,7 +183,7 @@ fun CineBottomNavigationBar(
                     val label = when (screen) {
                         Screen.Home -> "Accueil"
                         Screen.Discover -> "Découvrir"
-                        Screen.Watchlist -> "? Voir"
+                        Screen.Watchlist -> "À voir"
                         Screen.Profile -> "Profil"
                         else -> screen.title
                     }
@@ -236,9 +249,12 @@ fun CineBottomNavigationBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
+fun MainAppScaffold(
+    viewModelFactory: CineViewModelFactory,
+    networkMonitor: NetworkMonitor? = null
+) {
     val navController = rememberNavController()
-
+    val isOnline by (networkMonitor?.isOnline ?: kotlinx.coroutines.flow.flowOf(true)).collectAsState(initial = true)
 
     // Logging sheet dialog trigger state
     var loggingTitle by remember { mutableStateOf<CineTitle?>(null) }
@@ -261,23 +277,28 @@ fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
             )
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route,
-            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding()),
-            enterTransition = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            },
-            popExitTransition = {
-                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Home.route,
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = {
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                },
+                popExitTransition = {
+                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                }
+            ) {
             // Home View
             composable(Screen.Home.route) {
                 val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -445,6 +466,43 @@ fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
                     }
                 )
             }
+        }
+
+        AnimatedVisibility(
+            visible = !isOnline,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("offline_banner")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Mode hors-ligne - Données locales",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
         }
 
         // Overlay Log dialog when active
