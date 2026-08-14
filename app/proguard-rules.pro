@@ -1,45 +1,84 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ==============================================================================
+# ProGuard / R8 Rules for CinéLog
+# ==============================================================================
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ------------------------------------------------------------------------------
+# General / Kotlin Coroutines & Reflection
+# ------------------------------------------------------------------------------
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+-dontwarn java.lang.management.**
+-dontwarn io.ktor.util.debug.IntellijIdeaDebugDetector
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**
+-dontwarn java.lang.ClassValue
 
-# Keep Room compiler generated classes and SQLite
+# Kotlin Coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-dontwarn kotlinx.coroutines.**
+
+# ------------------------------------------------------------------------------
+# AndroidX & Jetpack Compose
+# ------------------------------------------------------------------------------
+-keepclassmembers class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
+-keepclassmembers class * extends androidx.lifecycle.ViewModelProvider$Factory {
+    <init>(...);
+}
+
+# ProfileInstaller
+-keep class androidx.profileinstaller.** { *; }
+-dontwarn androidx.profileinstaller.**
+
+# ------------------------------------------------------------------------------
+# Room Database & SQLite
+# ------------------------------------------------------------------------------
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**
+-keep class * extends androidx.room.migration.Migration { *; }
+-keepclassmembers class * {
+    @androidx.room.Dao *;
+    @androidx.room.Entity *;
+}
 
-# Keep Retrofit and its annotations
--keepattributes Signature, InnerClasses, EnclosingMethod, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+# ------------------------------------------------------------------------------
+# Retrofit 2 & OkHttp 3
+# ------------------------------------------------------------------------------
 -keep class retrofit2.** { *; }
 -dontwarn retrofit2.**
 -keepclassmembers class * {
     @retrofit2.http.** <methods>;
 }
 
-# Keep Moshi and its generated adapters
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn okhttp3.internal.platform.**
+
+# ------------------------------------------------------------------------------
+# Moshi (JSON Serialization)
+# ------------------------------------------------------------------------------
 -keep class com.squareup.moshi.** { *; }
 -dontwarn com.squareup.moshi.**
 -keep class * {
     @com.squareup.moshi.Json <fields>;
-}
--keep class * {
     @com.squareup.moshi.JsonClass <fields>;
 }
+-keepclassmembers class * {
+    @com.squareup.moshi.FromJson <methods>;
+    @com.squareup.moshi.ToJson <methods>;
+}
 
-# Keep our custom data entities, networks models, and repositories
+# ------------------------------------------------------------------------------
+# Coil (Image Loading)
+# ------------------------------------------------------------------------------
+-keep class coil.** { *; }
+-dontwarn coil.**
+-dontwarn coil.compose.**
+
+# ------------------------------------------------------------------------------
+# CineLog Data Layer Models
+# ------------------------------------------------------------------------------
 -keep class com.example.data.** { *; }
+-keep class com.example.model.** { *; }
 -keep class * implements java.io.Serializable { *; }
-
-# Ignore JDK classes not present on Android (used by libraries like Ktor or Kotlin coroutines)
--dontwarn java.lang.management.**
--dontwarn io.ktor.util.debug.IntellijIdeaDebugDetector
-
-

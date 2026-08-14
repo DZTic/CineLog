@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "CinéLog"
 
 include(":app")
+include(":baselineprofile")
