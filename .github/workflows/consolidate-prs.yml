@@ -1,0 +1,68 @@
+name: Consolidate Open PRs
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: "Branche de base cible (ex: main)"
+        required: true
+        default: "main"
+      target_branch:
+        description: "Nom de la branche consolidée unifiée"
+        required: true
+        default: "consolidate/all-prs"
+      create_pr:
+        description: "Créer ou mettre à jour la Pull Request consolidée sur GitHub"
+        required: true
+        type: boolean
+        default: true
+      dry_run:
+        description: "Mode simulation sans modification distante"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consolidate:
+    name: Batch Merge Open PRs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git User
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Make Scripts Executable
+        run: chmod +x scripts/*.sh
+
+      - name: Run PR Consolidation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARGS="--base ${{ inputs.base_branch }} --target ${{ inputs.target_branch }}"
+          
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          else
+            ARGS="$ARGS --push"
+            if [ "${{ inputs.create_pr }}" = "true" ]; then
+              ARGS="$ARGS --create-pr"
+            fi
+          fi
+
+          echo "Exécution : ./scripts/consolidate-prs.sh $ARGS"
+          ./scripts/consolidate-prs.sh $ARGS

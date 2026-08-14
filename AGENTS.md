@@ -46,6 +46,10 @@ Ce document définit les règles, conventions et directives architecturales que 
 - **Vérification des Conflits de PR** :
   - Bash : `./scripts/check-pr-conflicts.sh origin/main`
   - PowerShell : `.\scripts\check-pr-conflicts.ps1 -TargetBranch "origin/main"`
+- **Consolidation Automatique de Toutes les PRs** :
+  - CI : Workflow GitHub Actions `Consolidate Open PRs`
+  - Bash : `./scripts/consolidate-prs.sh --dry-run` ou `./scripts/consolidate-prs.sh --push --create-pr`
+  - PowerShell : `.\scripts\consolidate-prs.ps1 -DryRun` ou `.\scripts\consolidate-prs.ps1 -Push -CreatePr`
 - **Compiler l'APK Debug** : `./gradlew assembleDebug`
 - **Exécuter les Tests Unitaires & Migrations** : `./gradlew testDebugUnitTest`
 - **Vérifier le Linter Android** : `./gradlew lintDebug`
