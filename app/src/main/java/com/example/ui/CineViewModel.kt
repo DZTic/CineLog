@@ -1,4 +1,4 @@
-﻿package com.example.ui
+package com.example.ui
 
 import android.app.Application
 import android.util.Log
@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@androidx.compose.runtime.Immutable
 data class CachedSaga(val collectionId: Int, val collectionName: String, val posterUrl: String?)
 
 enum class CollectionViewMode { LIST, GRID }

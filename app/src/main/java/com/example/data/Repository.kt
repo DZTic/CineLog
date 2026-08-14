@@ -40,6 +40,7 @@ enum class TitleType {
         }
 }
 
+@androidx.compose.runtime.Immutable
 data class CineSeason(
     val seasonNumber: Int,
     val name: String,
@@ -57,6 +58,7 @@ enum class SeasonStatus {
         }
 }
 
+@androidx.compose.runtime.Immutable
 data class ProfileStats(
     val totalLogs: Int = 0,
     val averageScore: Float = 0f,
@@ -80,6 +82,7 @@ private data class TitleMeta(
     val runtime: Int?
 )
 
+@androidx.compose.runtime.Immutable
 data class CineTitle(
     val id: String,          // e.g., "movie_123", "tv_456", "anime_789"
     val type: TitleType,     // FILM, SERIE, ANIME
