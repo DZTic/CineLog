@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
+import com.example.util.LocaleHelper
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +50,7 @@ fun SettingsScreen(
     val savedKey by viewModel.tmdbApiKey.collectAsState()
     val currentThemeMode by viewModel.themeMode.collectAsState()
     val dynamicColorEnabled by viewModel.dynamicColor.collectAsState()
+    val currentLanguage by viewModel.appLanguage.collectAsState()
     val scope = rememberCoroutineScope()
 
     var inputKey by remember { mutableStateOf(savedKey) }
@@ -314,6 +317,64 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setDynamicColor(it) },
                                 modifier = Modifier.testTag("dynamic_color_switch")
                             )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // Language Section
+            Text(
+                text = "Langue de l'application",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("language_section"),
+                colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Choix de la langue",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    val languages = listOf(
+                        LocaleHelper.LANG_SYSTEM to "Système",
+                        LocaleHelper.LANG_FR to "Français",
+                        LocaleHelper.LANG_EN to "English"
+                    )
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        languages.forEachIndexed { index, (code, label) ->
+                            SegmentedButton(
+                                selected = currentLanguage == code,
+                                onClick = {
+                                    viewModel.setAppLanguage(code)
+                                    LocaleHelper.applyLanguage(context, code)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size)
+                            ) {
+                                Text(label, fontSize = 12.sp, maxLines = 1)
+                            }
                         }
                     }
                 }

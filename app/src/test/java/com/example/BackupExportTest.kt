@@ -1,35 +1,27 @@
 package com.example
 
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.SharedPreferences
+import androidx.test.core.app.ApplicationProvider
 import com.example.data.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
 class BackupExportTest {
 
-    private val mockSharedPreferences = object : SharedPreferences {
-        override fun getAll(): Map<String, *> = emptyMap<String, Any>()
-        override fun getString(key: String?, defValue: String?): String? = defValue
-        override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? = defValues
-        override fun getInt(key: String?, defValue: Int): Int = defValue
-        override fun getLong(key: String?, defValue: Long): Long = defValue
-        override fun getFloat(key: String?, defValue: Float): Float = defValue
-        override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
-        override fun contains(key: String?): Boolean = false
-        override fun edit(): SharedPreferences.Editor = error("Not needed")
-        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
-        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
-    }
+    private lateinit var testContext: Context
 
-    private val mockContext = object : ContextWrapper(null) {
-        override fun getSharedPreferences(name: String?, mode: Int): SharedPreferences {
-            return mockSharedPreferences
-        }
+    @Before
+    fun setup() {
+        testContext = ApplicationProvider.getApplicationContext<Context>()
     }
 
     private class FakeLogDao : LogDao {
@@ -58,37 +50,62 @@ class BackupExportTest {
         val titles = mutableListOf<DbCustomListTitle>()
         override fun getAllCustomLists(): Flow<List<DbCustomList>> = flowOf(lists)
         override suspend fun getAllCustomListsList(): List<DbCustomList> = lists
-        override fun getCustomListById(listId: Int): Flow<DbCustomList?> = flowOf(null)
-        override suspend fun insertCustomList(list: DbCustomList): Long { lists.add(list); return list.id.toLong() }
-        override suspend fun insertCustomLists(lists: List<DbCustomList>) { this.lists.addAll(lists) }
-        override suspend fun deleteCustomListById(listId: Int) { lists.removeAll { it.id == listId } }
-        override fun getCustomListTitles(listId: Int): Flow<List<DbCustomListTitle>> = flowOf(emptyList())
+        override fun getCustomListById(listId: Int): Flow<DbCustomList?> = flowOf(lists.find { it.id == listId })
+        override suspend fun insertCustomList(list: DbCustomList): Long {
+            val id = if (list.id == 0) lists.size + 1 else list.id
+            val toAdd = list.copy(id = id)
+            lists.add(toAdd)
+            return id.toLong()
+        }
+        override suspend fun insertCustomLists(lists: List<DbCustomList>) {
+            this.lists.addAll(lists)
+        }
+        override suspend fun deleteCustomListById(listId: Int) {
+            lists.removeAll { it.id == listId }
+            titles.removeAll { it.listId == listId }
+        }
+        override fun getCustomListTitles(listId: Int): Flow<List<DbCustomListTitle>> =
+            flowOf(titles.filter { it.listId == listId })
         override suspend fun getAllCustomListTitlesList(): List<DbCustomListTitle> = titles
         override suspend fun insertCustomListTitle(title: DbCustomListTitle) { titles.add(title) }
         override suspend fun insertCustomListTitles(titles: List<DbCustomListTitle>) { this.titles.addAll(titles) }
         override suspend fun deleteCustomListTitleById(id: Int) { titles.removeAll { it.id == id } }
         override suspend fun deleteCustomListTitlesForList(listId: Int) { titles.removeAll { it.listId == listId } }
-        override suspend fun updateCustomListTitleOrder(id: Int, newOrderIndex: Int) {}
+        override suspend fun updateCustomListTitleOrder(id: Int, newOrderIndex: Int) {
+            val idx = titles.indexOfFirst { it.id == id }
+            if (idx >= 0) titles[idx] = titles[idx].copy(orderIndex = newOrderIndex)
+        }
     }
 
     private class FakeSeasonProgressDao : SeasonProgressDao {
-        val progressList = mutableListOf<DbSeasonProgress>()
-        override fun getForTitle(titleId: String): Flow<List<DbSeasonProgress>> = flowOf(emptyList())
-        override suspend fun getAllSeasonProgressList(): List<DbSeasonProgress> = progressList
-        override suspend fun upsert(progress: DbSeasonProgress) { progressList.add(progress) }
-        override suspend fun upsertAll(progresses: List<DbSeasonProgress>) { progressList.addAll(progresses) }
+        val progress = mutableListOf<DbSeasonProgress>()
+        override fun getForTitle(titleId: String): Flow<List<DbSeasonProgress>> =
+            flowOf(progress.filter { it.titleId == titleId })
+        override suspend fun getAllSeasonProgressList(): List<DbSeasonProgress> = progress
+        override suspend fun upsert(progress: DbSeasonProgress) {
+            this.progress.removeAll { it.titleId == progress.titleId && it.seasonNumber == progress.seasonNumber }
+            this.progress.add(progress)
+        }
+        override suspend fun upsertAll(progresses: List<DbSeasonProgress>) {
+            progresses.forEach { upsert(it) }
+        }
         override suspend fun deleteForSeason(titleId: String, seasonNumber: Int) {
-            progressList.removeAll { it.titleId == titleId && it.seasonNumber == seasonNumber }
+            progress.removeAll { it.titleId == titleId && it.seasonNumber == seasonNumber }
         }
     }
 
     private class FakeCollectionCacheDao : CollectionCacheDao {
-        override fun getAll(): Flow<List<DbCollectionCache>> = flowOf(emptyList())
-        override suspend fun upsert(entry: DbCollectionCache) {}
-        override suspend fun deleteExpired(threshold: Long) {}
+        val list = mutableListOf<DbCollectionCache>()
+        override fun getAll(): Flow<List<DbCollectionCache>> = flowOf(list)
+        override suspend fun upsert(entry: DbCollectionCache) {
+            list.removeAll { it.titleId == entry.titleId }
+            list.add(entry)
+        }
+        override suspend fun deleteExpired(threshold: Long) {
+            list.removeAll { it.cachedAt < threshold }
+        }
     }
 
-    
     private class FakeTitleMetaCacheDao : TitleMetaCacheDao {
         val metaMap = mutableMapOf<String, DbTitleMetaCache>()
         override fun getAllFlow(): Flow<List<DbTitleMetaCache>> = flowOf(metaMap.values.toList())
@@ -150,7 +167,7 @@ class BackupExportTest {
             seasonProgressDao = seasonProgressDao,
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(testContext)
         )
 
         val json = repo.exportBackupJson()
@@ -166,7 +183,7 @@ class BackupExportTest {
             seasonProgressDao = FakeSeasonProgressDao(),
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(testContext)
         )
 
         val summary = targetRepo.importBackup(json)
@@ -204,7 +221,7 @@ class BackupExportTest {
             seasonProgressDao = FakeSeasonProgressDao(),
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(testContext)
         )
 
         val csv = repo.exportBackupCsv()
@@ -220,7 +237,7 @@ class BackupExportTest {
             seasonProgressDao = FakeSeasonProgressDao(),
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(testContext)
         )
 
         val summary = targetRepo.importBackup(csv)
@@ -241,7 +258,7 @@ class BackupExportTest {
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
             titleMetaCacheDao = metaDao,
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(testContext)
         )
 
         repo.loadTitleMetaCacheFromDb()

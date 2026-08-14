@@ -1,0 +1,44 @@
+<resources>
+    <string name="app_name">CinéLog</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_discover">Discover</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_watchlist">Watchlist</string>
+    <string name="nav_lists">My Lists</string>
+    <string name="nav_profile">Profile</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Appearance & Theme -->
+    <string name="section_appearance">Appearance &amp; Theme</string>
+    <string name="theme_mode">Theme Mode</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_system">System</string>
+    <string name="dynamic_colors_title">Dynamic Colors (Material You)</string>
+    <string name="dynamic_colors_desc">Adapts UI to your wallpaper tones</string>
+
+    <!-- Language -->
+    <string name="section_language">App Language</string>
+    <string name="lang_system">System</string>
+    <string name="lang_fr">Français</string>
+    <string name="lang_en">English</string>
+
+    <!-- TMDB & Proxy -->
+    <string name="tmdb_config_title">TMDB Source Configuration</string>
+    <string name="tmdb_config_desc">The application works without configuration: movies and TV series go through a built-in proxy providing the TMDB key. You can optionally enter your own API key below.\n\n💡 Anime (Jikan/MyAnimeList) works freely without any key.</string>
+    <string name="tmdb_api_key_label">TMDB API Key (v3)</string>
+    <string name="tmdb_api_key_placeholder">Paste your TMDB API key here...</string>
+    <string name="tmdb_proxy_active">✓ Cloudflare TMDB Proxy active (standard mode)</string>
+    <string name="tmdb_custom_key_active">✓ Personal TMDB API key active</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="key_saved_toast">API key saved successfully!</string>
+
+    <!-- Data & Backup -->
+    <string name="section_data_backup">Data &amp; Backup</string>
+    <string name="export_backup_json">Full Backup (JSON)</string>
+    <string name="export_backup_csv">Export to Spreadsheet (CSV)</string>
+    <string name="restore_backup">Restore Backup</string>
+
+    <!-- Connectivity -->
+    <string name="offline_banner_text">Offline mode - Local data</string>
+</resources>

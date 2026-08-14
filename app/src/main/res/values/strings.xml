@@ -3,8 +3,42 @@
     <string name="nav_home">Accueil</string>
     <string name="nav_discover">Découvrir</string>
     <string name="nav_search">Recherche</string>
-    <string name="nav_watchlist">Watchlist</string>
+    <string name="nav_watchlist">À voir</string>
     <string name="nav_lists">Mes listes</string>
     <string name="nav_profile">Profil</string>
     <string name="nav_settings">Paramètres</string>
+
+    <!-- Apparence & Thème -->
+    <string name="section_appearance">Apparence et Thème</string>
+    <string name="theme_mode">Mode de thème</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_system">Système</string>
+    <string name="dynamic_colors_title">Couleurs dynamiques (Material You)</string>
+    <string name="dynamic_colors_desc">Adapte l\'interface aux teintes de votre fond d\'écran</string>
+
+    <!-- Langue -->
+    <string name="section_language">Langue de l\'application</string>
+    <string name="lang_system">Système</string>
+    <string name="lang_fr">Français</string>
+    <string name="lang_en">English</string>
+
+    <!-- TMDB & Proxy -->
+    <string name="tmdb_config_title">Configuration de la source TMDB</string>
+    <string name="tmdb_config_desc">L\'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre clé API ci-dessous.\n\n💡 Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.</string>
+    <string name="tmdb_api_key_label">Clé API TMDB (v3)</string>
+    <string name="tmdb_api_key_placeholder">Collez votre clé API TMDB ici...</string>
+    <string name="tmdb_proxy_active">✓ Proxy TMDB Cloudflare actif (mode standard)</string>
+    <string name="tmdb_custom_key_active">✓ Clé API TMDB personnelle active</string>
+    <string name="save_changes">Enregistrer les modifications</string>
+    <string name="key_saved_toast">Clé API enregistrée avec succès !</string>
+
+    <!-- Données & Sauvegarde -->
+    <string name="section_data_backup">Données et Sauvegarde</string>
+    <string name="export_backup_json">Sauvegarde complète (JSON)</string>
+    <string name="export_backup_csv">Exporter en tableur (CSV)</string>
+    <string name="restore_backup">Restaurer une sauvegarde</string>
+
+    <!-- Connectivité -->
+    <string name="offline_banner_text">Mode hors-ligne - Données locales</string>
 </resources>

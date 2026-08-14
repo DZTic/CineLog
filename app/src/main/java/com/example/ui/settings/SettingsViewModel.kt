@@ -28,6 +28,9 @@ class SettingsViewModel(
     private val _dynamicColor = MutableStateFlow(preferenceManager.isDynamicColorEnabled())
     val dynamicColor: StateFlow<Boolean> = _dynamicColor.asStateFlow()
 
+    private val _appLanguage = MutableStateFlow(preferenceManager.getAppLanguage())
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
+
     fun setTmdbApiKey(key: String) {
         preferenceManager.setTmdbApiKey(key)
         _tmdbApiKey.value = key
@@ -41,6 +44,11 @@ class SettingsViewModel(
     fun setDynamicColor(enabled: Boolean) {
         preferenceManager.setDynamicColorEnabled(enabled)
         _dynamicColor.value = enabled
+    }
+
+    fun setAppLanguage(languageCode: String) {
+        preferenceManager.setAppLanguage(languageCode)
+        _appLanguage.value = languageCode
     }
 
     suspend fun generateJsonBackup(): String? {

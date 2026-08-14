@@ -1,11 +1,13 @@
 package com.example.data
 
+import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
+@Immutable
 @Entity(
     tableName = "log_entries",
     indices = [Index(value = ["titleId"])]
@@ -26,6 +28,7 @@ data class DbLogEntry(
     val collectionPosterUrl: String? = null
 )
 
+@Immutable
 @Entity(
     tableName = "watchlist",
     indices = [Index(value = ["collectionId"])]
@@ -83,6 +86,7 @@ data class DbTitleMetaCache(
 )
 
 
+@Immutable
 @Entity(tableName = "custom_lists")
 data class DbCustomList(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -91,6 +95,7 @@ data class DbCustomList(
     val dateCreated: Long = System.currentTimeMillis()
 )
 
+@Immutable
 @Entity(
     tableName = "custom_list_titles",
     indices = [
@@ -110,6 +115,7 @@ data class DbCustomListTitle(
 
 // Tracks per-season watch progress for series/anime (movies have no seasons).
 // status is one of SeasonStatus's enum names: NOT_WATCHED, WATCHING, WATCHED.
+@Immutable
 @Entity(tableName = "season_progress", primaryKeys = ["titleId", "seasonNumber"])
 data class DbSeasonProgress(
     val titleId: String,
@@ -129,6 +135,7 @@ data class CineLogBackup(
     val seasonProgress: List<DbSeasonProgress> = emptyList()
 )
 
+@Immutable
 data class ImportSummary(
     val logsCount: Int,
     val watchlistCount: Int,

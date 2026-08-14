@@ -1,170 +1,243 @@
 package com.example.data
 
 import android.content.Context
-import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
+import java.io.IOException
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "cinelog_preferences")
 
 class PreferenceManager(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("cinelog_prefs", Context.MODE_PRIVATE)
+
+    private val dataStore: DataStore<Preferences> = context.dataStore
 
     companion object {
-        private const val KEY_TMDB_API_KEY = "tmdb_api_key"
-        private const val KEY_HOME_VIEW_MODE = "home_view_mode"
-        private const val KEY_HOME_COLLAPSED_CATEGORIES = "home_collapsed_categories"
-        private const val KEY_WATCHLIST_VIEW_MODE = "watchlist_view_mode"
-        private const val KEY_WATCHLIST_COLLAPSED_CATEGORIES = "watchlist_collapsed_categories"
-        private const val KEY_WATCHLIST_SORT = "watchlist_sort"
-        private const val KEY_WATCHLIST_TYPE_FILTER = "watchlist_type_filter"
-        private const val KEY_WATCHLIST_GENRE_FILTER = "watchlist_genre_filter"
-        private const val KEY_WATCHLIST_YEAR_FILTER = "watchlist_year_filter"
-        private const val KEY_HAS_DISMISSED_ONBOARDING = "has_dismissed_onboarding"
-        private const val KEY_SEARCH_HISTORY = "search_history"
-        private const val KEY_PINNED_SEARCHES = "pinned_searches"
-        private const val KEY_THEME_MODE = "theme_mode"
-        private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+        val KEY_TMDB_API_KEY = stringPreferencesKey("tmdb_api_key")
+        val KEY_HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
+        val KEY_HOME_COLLAPSED_CATEGORIES = stringSetPreferencesKey("home_collapsed_categories")
+        val KEY_WATCHLIST_VIEW_MODE = stringPreferencesKey("watchlist_view_mode")
+        val KEY_WATCHLIST_COLLAPSED_CATEGORIES = stringSetPreferencesKey("watchlist_collapsed_categories")
+        val KEY_WATCHLIST_SORT = stringPreferencesKey("watchlist_sort")
+        val KEY_WATCHLIST_TYPE_FILTER = stringPreferencesKey("watchlist_type_filter")
+        val KEY_WATCHLIST_GENRE_FILTER = stringPreferencesKey("watchlist_genre_filter")
+        val KEY_WATCHLIST_YEAR_FILTER = stringPreferencesKey("watchlist_year_filter")
+        val KEY_HAS_DISMISSED_ONBOARDING = booleanPreferencesKey("has_dismissed_onboarding")
+        val KEY_SEARCH_HISTORY = stringPreferencesKey("search_history")
+        val KEY_PINNED_SEARCHES = stringPreferencesKey("pinned_searches")
+        val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
     }
 
-    fun getThemeMode(): String {
-        return prefs.getString(KEY_THEME_MODE, "DARK") ?: "DARK"
-    }
+    private val preferencesFlow: Flow<Preferences> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
 
-    fun setThemeMode(mode: String) {
-        prefs.edit().putString(KEY_THEME_MODE, mode).apply()
-    }
+    val tmdbApiKeyFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_TMDB_API_KEY] ?: ""
+    }.distinctUntilChanged()
 
-    fun isDynamicColorEnabled(): Boolean {
-        return prefs.getBoolean(KEY_DYNAMIC_COLOR, false)
-    }
+    val hasDismissedOnboardingFlow: Flow<Boolean> = preferencesFlow.map { prefs ->
+        prefs[KEY_HAS_DISMISSED_ONBOARDING] ?: false
+    }.distinctUntilChanged()
 
-    fun setDynamicColorEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
-    }
+    val themeModeFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_THEME_MODE] ?: "DARK"
+    }.distinctUntilChanged()
 
-    fun getTmdbApiKey(): String {
-        return prefs.getString(KEY_TMDB_API_KEY, "") ?: ""
-    }
+    val dynamicColorFlow: Flow<Boolean> = preferencesFlow.map { prefs ->
+        prefs[KEY_DYNAMIC_COLOR] ?: false
+    }.distinctUntilChanged()
 
-    fun setTmdbApiKey(key: String) {
-        prefs.edit().putString(KEY_TMDB_API_KEY, key.trim()).apply()
-    }
+    val appLanguageFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_APP_LANGUAGE] ?: "system"
+    }.distinctUntilChanged()
 
-    fun hasDismissedOnboarding(): Boolean {
-        return prefs.getBoolean(KEY_HAS_DISMISSED_ONBOARDING, false)
-    }
+    val homeViewModeFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_HOME_VIEW_MODE] ?: "LIST"
+    }.distinctUntilChanged()
 
-    fun setHasDismissedOnboarding(dismissed: Boolean) {
-        prefs.edit().putBoolean(KEY_HAS_DISMISSED_ONBOARDING, dismissed).apply()
-    }
+    val homeCollapsedCategoriesFlow: Flow<Set<String>> = preferencesFlow.map { prefs ->
+        prefs[KEY_HOME_COLLAPSED_CATEGORIES] ?: emptySet()
+    }.distinctUntilChanged()
 
-    // "LIST" (une carte par ligne, pleine largeur) ou "GRID" (grille
-    // d'affiches à 3 colonnes). Stocké en String plutôt qu'en enum pour
-    // rester tolérant si de nouveaux modes s'ajoutent plus tard.
-    fun getHomeViewMode(): String {
-        return prefs.getString(KEY_HOME_VIEW_MODE, "LIST") ?: "LIST"
-    }
+    val watchlistViewModeFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_WATCHLIST_VIEW_MODE] ?: "GRID"
+    }.distinctUntilChanged()
 
-    fun setHomeViewMode(mode: String) {
-        prefs.edit().putString(KEY_HOME_VIEW_MODE, mode).apply()
-    }
+    val watchlistCollapsedCategoriesFlow: Flow<Set<String>> = preferencesFlow.map { prefs ->
+        prefs[KEY_WATCHLIST_COLLAPSED_CATEGORIES] ?: emptySet()
+    }.distinctUntilChanged()
 
-    // Noms des catégories (FILM / SERIE / ANIME) actuellement réduites sur
-    // l'écran d'accueil, pour laisser de la place aux autres.
-    fun getHomeCollapsedCategories(): Set<String> {
-        return prefs.getStringSet(KEY_HOME_COLLAPSED_CATEGORIES, emptySet()) ?: emptySet()
-    }
+    val watchlistSortFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_WATCHLIST_SORT] ?: "DATE_ADDED"
+    }.distinctUntilChanged()
 
-    fun setHomeCollapsedCategories(categories: Set<String>) {
-        // SharedPreferences ne permet pas de muter un Set retourné en
-        // direct : on passe toujours une copie fraîche à putStringSet.
-        prefs.edit().putStringSet(KEY_HOME_COLLAPSED_CATEGORIES, HashSet(categories)).apply()
-    }
+    val watchlistTypeFilterFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_WATCHLIST_TYPE_FILTER] ?: ""
+    }.distinctUntilChanged()
 
-    // Même principe que pour l'accueil, mais stocké sous une clé séparée :
-    // Watchlist n'a pas forcément le même mode d'affichage préféré.
-    fun getWatchlistViewMode(): String {
-        return prefs.getString(KEY_WATCHLIST_VIEW_MODE, "GRID") ?: "GRID"
-    }
+    val watchlistGenreFilterFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_WATCHLIST_GENRE_FILTER] ?: ""
+    }.distinctUntilChanged()
 
-    fun setWatchlistViewMode(mode: String) {
-        prefs.edit().putString(KEY_WATCHLIST_VIEW_MODE, mode).apply()
-    }
+    val watchlistYearFilterFlow: Flow<String> = preferencesFlow.map { prefs ->
+        prefs[KEY_WATCHLIST_YEAR_FILTER] ?: ""
+    }.distinctUntilChanged()
 
-    fun getWatchlistCollapsedCategories(): Set<String> {
-        return prefs.getStringSet(KEY_WATCHLIST_COLLAPSED_CATEGORIES, emptySet()) ?: emptySet()
-    }
-
-    fun setWatchlistCollapsedCategories(categories: Set<String>) {
-        prefs.edit().putStringSet(KEY_WATCHLIST_COLLAPSED_CATEGORIES, HashSet(categories)).apply()
-    }
-
-    // Tri et filtres de la Watchlist (issue #33). Tous stockes en String
-    // (noms d'enum ou "" pour "aucun filtre"), ce qui reste tolerant aux
-    // valeurs ajoutees ou retirees plus tard : cote lecture on fait un
-    // runCatching valueOf.
-    fun getWatchlistSort(): String {
-        return prefs.getString(KEY_WATCHLIST_SORT, "DATE_ADDED") ?: "DATE_ADDED"
-    }
-
-    fun setWatchlistSort(sort: String) {
-        prefs.edit().putString(KEY_WATCHLIST_SORT, sort).apply()
-    }
-
-    fun getWatchlistTypeFilter(): String {
-        return prefs.getString(KEY_WATCHLIST_TYPE_FILTER, "") ?: ""
-    }
-
-    fun setWatchlistTypeFilter(type: String) {
-        prefs.edit().putString(KEY_WATCHLIST_TYPE_FILTER, type).apply()
-    }
-
-    fun getWatchlistGenreFilter(): String {
-        return prefs.getString(KEY_WATCHLIST_GENRE_FILTER, "") ?: ""
-    }
-
-    fun setWatchlistGenreFilter(genre: String) {
-        prefs.edit().putString(KEY_WATCHLIST_GENRE_FILTER, genre).apply()
-    }
-
-    fun getWatchlistYearFilter(): String {
-        return prefs.getString(KEY_WATCHLIST_YEAR_FILTER, "") ?: ""
-    }
-
-   fun setWatchlistYearFilter(year: String) {
-       prefs.edit().putString(KEY_WATCHLIST_YEAR_FILTER, year).apply()
-   }
-
-    // Historique de recherche (Issue #32) - stocke sous forme de JSON array
-    fun getSearchHistory(): List<String> {
-        val raw = prefs.getString(KEY_SEARCH_HISTORY, "") ?: ""
-        if (raw.isBlank()) return emptyList()
-        return try {
-            val array = org.json.JSONArray(raw)
+    val searchHistoryFlow: Flow<List<String>> = preferencesFlow.map { prefs ->
+        val raw = prefs[KEY_SEARCH_HISTORY] ?: ""
+        if (raw.isBlank()) emptyList()
+        else runCatching {
+            val array = JSONArray(raw)
             List(array.length()) { array.getString(it) }
-        } catch (e: Exception) {
-            emptyList()
+        }.getOrDefault(emptyList())
+    }.distinctUntilChanged()
+
+    val pinnedSearchesFlow: Flow<List<String>> = preferencesFlow.map { prefs ->
+        val raw = prefs[KEY_PINNED_SEARCHES] ?: ""
+        if (raw.isBlank()) emptyList()
+        else runCatching {
+            val array = JSONArray(raw)
+            List(array.length()) { array.getString(it) }
+        }.getOrDefault(emptyList())
+    }.distinctUntilChanged()
+
+    // Synchronous compatibility getters
+    fun getTmdbApiKey(): String = runBlocking { tmdbApiKeyFlow.first() }
+    fun hasDismissedOnboarding(): Boolean = runBlocking { hasDismissedOnboardingFlow.first() }
+    fun getThemeMode(): String = runBlocking { themeModeFlow.first() }
+    fun isDynamicColorEnabled(): Boolean = runBlocking { dynamicColorFlow.first() }
+    fun getAppLanguage(): String = runBlocking { appLanguageFlow.first() }
+    fun getHomeViewMode(): String = runBlocking { homeViewModeFlow.first() }
+    fun getHomeCollapsedCategories(): Set<String> = runBlocking { homeCollapsedCategoriesFlow.first() }
+    fun getWatchlistViewMode(): String = runBlocking { watchlistViewModeFlow.first() }
+    fun getWatchlistCollapsedCategories(): Set<String> = runBlocking { watchlistCollapsedCategoriesFlow.first() }
+    fun getWatchlistSort(): String = runBlocking { watchlistSortFlow.first() }
+    fun getWatchlistTypeFilter(): String = runBlocking { watchlistTypeFilterFlow.first() }
+    fun getWatchlistGenreFilter(): String = runBlocking { watchlistGenreFilterFlow.first() }
+    fun getWatchlistYearFilter(): String = runBlocking { watchlistYearFilterFlow.first() }
+    fun getSearchHistory(): List<String> = runBlocking { searchHistoryFlow.first() }
+    fun getPinnedSearches(): List<String> = runBlocking { pinnedSearchesFlow.first() }
+
+    // Suspend setters
+    suspend fun updateTmdbApiKey(key: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_TMDB_API_KEY] = key.trim()
         }
     }
 
-    fun setSearchHistory(history: List<String>) {
-        val array = org.json.JSONArray()
+    suspend fun updateHasDismissedOnboarding(dismissed: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_HAS_DISMISSED_ONBOARDING] = dismissed
+        }
+    }
+
+    suspend fun updateThemeMode(mode: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_THEME_MODE] = mode
+        }
+    }
+
+    suspend fun updateDynamicColorEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_DYNAMIC_COLOR] = enabled
+        }
+    }
+
+    suspend fun updateAppLanguage(languageCode: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_APP_LANGUAGE] = languageCode
+        }
+    }
+
+    suspend fun updateHomeViewMode(mode: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_HOME_VIEW_MODE] = mode
+        }
+    }
+
+    suspend fun updateHomeCollapsedCategories(categories: Set<String>) {
+        dataStore.edit { prefs ->
+            prefs[KEY_HOME_COLLAPSED_CATEGORIES] = categories
+        }
+    }
+
+    suspend fun updateWatchlistViewMode(mode: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATCHLIST_VIEW_MODE] = mode
+        }
+    }
+
+    suspend fun updateWatchlistCollapsedCategories(categories: Set<String>) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATCHLIST_COLLAPSED_CATEGORIES] = categories
+        }
+    }
+
+    suspend fun updateWatchlistSort(sort: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATCHLIST_SORT] = sort
+        }
+    }
+
+    suspend fun updateWatchlistTypeFilter(type: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATCHLIST_TYPE_FILTER] = type
+        }
+    }
+
+    suspend fun updateWatchlistGenreFilter(genre: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATCHLIST_GENRE_FILTER] = genre
+        }
+    }
+
+    suspend fun updateWatchlistYearFilter(year: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATCHLIST_YEAR_FILTER] = year
+        }
+    }
+
+    suspend fun updateSearchHistory(history: List<String>) {
+        val array = JSONArray()
         history.take(10).forEach { array.put(it) }
-        prefs.edit().putString(KEY_SEARCH_HISTORY, array.toString()).apply()
-    }
-
-    // Recherches sauvegardees / epinglees (Issue #32)
-    fun getPinnedSearches(): List<String> {
-        val raw = prefs.getString(KEY_PINNED_SEARCHES, "") ?: ""
-        if (raw.isBlank()) return emptyList()
-        return try {
-            val array = org.json.JSONArray(raw)
-            List(array.length()) { array.getString(it) }
-        } catch (e: Exception) {
-            emptyList()
+        dataStore.edit { prefs ->
+            prefs[KEY_SEARCH_HISTORY] = array.toString()
         }
     }
 
-    fun setPinnedSearches(pinned: List<String>) {
-        val array = org.json.JSONArray()
+    suspend fun updatePinnedSearches(pinned: List<String>) {
+        val array = JSONArray()
         pinned.forEach { array.put(it) }
-        prefs.edit().putString(KEY_PINNED_SEARCHES, array.toString()).apply()
+        dataStore.edit { prefs ->
+            prefs[KEY_PINNED_SEARCHES] = array.toString()
+        }
     }
+
+    // Synchronous compatibility setters
+    fun setTmdbApiKey(key: String) = runBlocking { updateTmdbApiKey(key) }
+    fun setHasDismissedOnboarding(dismissed: Boolean) = runBlocking { updateHasDismissedOnboarding(dismissed) }
+    fun setThemeMode(mode: String) = runBlocking { updateThemeMode(mode) }
+    fun setDynamicColorEnabled(enabled: Boolean) = runBlocking { updateDynamicColorEnabled(enabled) }
+    fun setAppLanguage(languageCode: String) = runBlocking { updateAppLanguage(languageCode) }
+    fun setHomeViewMode(mode: String) = runBlocking { updateHomeViewMode(mode) }
+    fun setHomeCollapsedCategories(categories: Set<String>) = runBlocking { updateHomeCollapsedCategories(categories) }
+    fun setWatchlistViewMode(mode: String) = runBlocking { updateWatchlistViewMode(mode) }
+    fun setWatchlistCollapsedCategories(categories: Set<String>) = runBlocking { updateWatchlistCollapsedCategories(categories) }
+    fun setWatchlistSort(sort: String) = runBlocking { updateWatchlistSort(sort) }
+    fun setWatchlistTypeFilter(type: String) = runBlocking { updateWatchlistTypeFilter(type) }
+    fun setWatchlistGenreFilter(genre: String) = runBlocking { updateWatchlistGenreFilter(genre) }
+    fun setWatchlistYearFilter(year: String) = runBlocking { updateWatchlistYearFilter(year) }
+    fun setSearchHistory(history: List<String>) = runBlocking { updateSearchHistory(history) }
+    fun setPinnedSearches(pinned: List<String>) = runBlocking { updatePinnedSearches(pinned) }
 }
