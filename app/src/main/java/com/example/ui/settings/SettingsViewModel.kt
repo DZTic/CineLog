@@ -1,23 +1,26 @@
 package com.example.ui.settings
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.data.ImportSummary
 import com.example.data.PreferenceManager
 import com.example.data.Repository
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val preferenceManager: PreferenceManager,
     private val repository: Repository? = null
 ) : ViewModel() {
-    private val _tmdbApiKey = MutableStateFlow(preferenceManager.getTmdbApiKey())
-    val tmdbApiKey: StateFlow<String> = _tmdbApiKey.asStateFlow()
+    val tmdbApiKey: StateFlow<String> = preferenceManager.tmdbApiKeyFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), preferenceManager.getTmdbApiKey())
 
     fun setTmdbApiKey(key: String) {
-        preferenceManager.setTmdbApiKey(key)
-        _tmdbApiKey.value = key
+        viewModelScope.launch {
+            preferenceManager.updateTmdbApiKey(key)
+        }
     }
 
     suspend fun generateJsonBackup(): String? {

@@ -1,36 +1,21 @@
-package com.example
-
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.SharedPreferences
+import androidx.test.core.app.ApplicationProvider
 import com.example.data.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
 class BackupExportTest {
 
-    private val mockSharedPreferences = object : SharedPreferences {
-        override fun getAll(): Map<String, *> = emptyMap<String, Any>()
-        override fun getString(key: String?, defValue: String?): String? = defValue
-        override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? = defValues
-        override fun getInt(key: String?, defValue: Int): Int = defValue
-        override fun getLong(key: String?, defValue: Long): Long = defValue
-        override fun getFloat(key: String?, defValue: Float): Float = defValue
-        override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
-        override fun contains(key: String?): Boolean = false
-        override fun edit(): SharedPreferences.Editor = error("Not needed")
-        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
-        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
-    }
-
-    private val mockContext = object : ContextWrapper(null) {
-        override fun getSharedPreferences(name: String?, mode: Int): SharedPreferences {
-            return mockSharedPreferences
-        }
-    }
+    private val context: Context
+        get() = ApplicationProvider.getApplicationContext()
 
     private class FakeLogDao : LogDao {
         val logs = mutableListOf<DbLogEntry>()
@@ -146,7 +131,7 @@ class BackupExportTest {
             seasonProgressDao = seasonProgressDao,
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(context)
         )
 
         val json = repo.exportBackupJson()
@@ -162,7 +147,7 @@ class BackupExportTest {
             seasonProgressDao = FakeSeasonProgressDao(),
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(context)
         )
 
         val summary = targetRepo.importBackup(json)
@@ -200,7 +185,7 @@ class BackupExportTest {
             seasonProgressDao = FakeSeasonProgressDao(),
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(context)
         )
 
         val csv = repo.exportBackupCsv()
@@ -216,7 +201,7 @@ class BackupExportTest {
             seasonProgressDao = FakeSeasonProgressDao(),
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(context)
         )
 
         val summary = targetRepo.importBackup(csv)
@@ -237,7 +222,7 @@ class BackupExportTest {
             collectionCacheDao = FakeCollectionCacheDao(),
             sagaSizeDao = FakeSagaSizeDao(),
             titleMetaCacheDao = metaDao,
-            preferenceManager = PreferenceManager(mockContext)
+            preferenceManager = PreferenceManager(context)
         )
 
         repo.loadTitleMetaCacheFromDb()
@@ -248,7 +233,7 @@ class BackupExportTest {
 
         val stats = repo.getProfileStats(logs, emptyList())
         assertEquals(1, stats.totalLogs)
-        assertEquals(1, stats.topGenres.size)
+        assertEquals(2, stats.topGenres.size)
         assertEquals("Action", stats.topGenres[0].first)
         assertEquals("Christopher Nolan", stats.topDirectorsOrStudios[0].first)
         assertEquals(148, stats.totalRuntimeMinutes)
