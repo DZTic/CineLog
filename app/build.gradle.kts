@@ -66,7 +66,6 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      all { it.enabled = false }
     }
   }
   sourceSets {
