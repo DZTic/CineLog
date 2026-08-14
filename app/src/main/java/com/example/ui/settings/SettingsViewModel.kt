@@ -15,9 +15,17 @@ class SettingsViewModel(
     private val _tmdbApiKey = MutableStateFlow(preferenceManager.getTmdbApiKey())
     val tmdbApiKey: StateFlow<String> = _tmdbApiKey.asStateFlow()
 
+    private val _appLanguage = MutableStateFlow(preferenceManager.getAppLanguage())
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
+
     fun setTmdbApiKey(key: String) {
         preferenceManager.setTmdbApiKey(key)
         _tmdbApiKey.value = key
+    }
+
+    fun setAppLanguage(lang: String) {
+        preferenceManager.setAppLanguage(lang)
+        _appLanguage.value = lang
     }
 
     suspend fun generateJsonBackup(): String? {

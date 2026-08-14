@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -24,14 +25,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
+import com.example.util.LocaleHelper
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +47,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val savedKey by viewModel.tmdbApiKey.collectAsState()
+    val currentLanguage by viewModel.appLanguage.collectAsState()
     val scope = rememberCoroutineScope()
 
     var inputKey by remember { mutableStateOf(savedKey) }
@@ -233,6 +238,64 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Restaurer une sauvegarde", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // Language Section
+            Text(
+                text = stringResource(R.string.section_language),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("language_section"),
+                colors = CardDefaults.cardColors(containerColor = CinemaSurfaceVariant),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.section_language),
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    val languages = listOf(
+                        LocaleHelper.LANG_SYSTEM to stringResource(R.string.lang_system),
+                        LocaleHelper.LANG_FR to stringResource(R.string.lang_fr),
+                        LocaleHelper.LANG_EN to stringResource(R.string.lang_en)
+                    )
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        languages.forEachIndexed { index, (code, label) ->
+                            SegmentedButton(
+                                selected = currentLanguage == code,
+                                onClick = {
+                                    viewModel.setAppLanguage(code)
+                                    LocaleHelper.applyLanguage(context, code)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = languages.size)
+                            ) {
+                                Text(label, fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
                     }
                 }
             }

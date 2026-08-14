@@ -19,6 +19,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_HAS_DISMISSED_ONBOARDING = "has_dismissed_onboarding"
         private const val KEY_SEARCH_HISTORY = "search_history"
         private const val KEY_PINNED_SEARCHES = "pinned_searches"
+        private const val KEY_APP_LANGUAGE = "app_language"
     }
 
     fun getTmdbApiKey(): String {
@@ -148,5 +149,13 @@ class PreferenceManager(context: Context) {
         val array = org.json.JSONArray()
         pinned.forEach { array.put(it) }
         prefs.edit().putString(KEY_PINNED_SEARCHES, array.toString()).apply()
+    }
+
+    fun getAppLanguage(): String {
+        return prefs.getString(KEY_APP_LANGUAGE, "system") ?: "system"
+    }
+
+    fun setAppLanguage(language: String) {
+        prefs.edit().putString(KEY_APP_LANGUAGE, language).apply()
     }
 }
