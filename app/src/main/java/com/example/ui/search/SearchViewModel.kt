@@ -99,9 +99,9 @@ class SearchViewModel(
         viewModelScope.launch {
             try {
                 coroutineScope {
-                    val filmsDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.FILM) }
-                    val seriesDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.SERIE) }
-                    val animeDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.ANIME) }
+                    val filmsDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.FILM, 5) }
+                    val seriesDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.SERIE, 5) }
+                    val animeDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.ANIME, 5) }
                     _trendingFilms.value = filmsDeferred.await()
                     _trendingSeries.value = seriesDeferred.await()
                     _topAnime.value = animeDeferred.await()

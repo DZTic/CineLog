@@ -128,9 +128,9 @@ class DiscoverViewModel(
             _discoverError.value = null
             try {
                 coroutineScope {
-                    val filmsDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.FILM) }
-                    val seriesDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.SERIE) }
-                    val animeDeferred = async(Dispatchers.IO) { repository.getTrendingOrPopular(TitleType.ANIME) }
+                    val filmsDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.FILM, 20) }
+                    val seriesDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.SERIE, 20) }
+                    val animeDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.ANIME, 20) }
                     _trendingFilms.value = filmsDeferred.await()
                     _trendingSeries.value = seriesDeferred.await()
                     _topAnime.value = animeDeferred.await()
