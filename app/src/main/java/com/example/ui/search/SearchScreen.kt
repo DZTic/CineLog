@@ -481,7 +481,10 @@ fun SearchScreen(
                     ) {
                         items(
                             count = lazyPagingItems.itemCount,
-                            key = lazyPagingItems.itemKey { it.id }
+                            key = { index ->
+                                val title = lazyPagingItems.peek(index)
+                                title?.let { "${it.id}_$index" } ?: "search_item_$index"
+                            }
                         ) { index ->
                             val title = lazyPagingItems[index]
                             if (title != null) {

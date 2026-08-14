@@ -232,14 +232,18 @@ fun DiscoverScreen(
                         ) {
                             items(
                                 count = searchPagingItems.itemCount,
-                                key = searchPagingItems.itemKey { it.id }
+                                key = { index ->
+                                    val title = searchPagingItems.peek(index)
+                                    title?.let { "${it.id}_$index" } ?: "search_item_$index"
+                                }
                             ) { index ->
                                 val title = searchPagingItems[index]
-                                if (title != null && title.id !in watchedTitleIds) {
+                                if (title != null) {
                                     TitleCard(
                                         title = title,
                                         onClick = { onTitleClick(title.id) },
-                                        isInWatchlist = title.id in watchlistTitleIds
+                                        isInWatchlist = title.id in watchlistTitleIds,
+                                        isWatched = title.id in watchedTitleIds
                                     )
                                 }
                             }
@@ -387,14 +391,18 @@ fun DiscoverScreen(
                                 ) {
                                     items(
                                         count = discoverPagingItems.itemCount,
-                                        key = discoverPagingItems.itemKey { it.id }
+                                        key = { index ->
+                                            val title = discoverPagingItems.peek(index)
+                                            title?.let { "${it.id}_$index" } ?: "discover_item_$index"
+                                        }
                                     ) { index ->
                                         val title = discoverPagingItems[index]
-                                        if (title != null && title.id !in watchedTitleIds) {
+                                        if (title != null) {
                                             TitleCard(
                                                 title = title,
                                                 onClick = { onTitleClick(title.id) },
-                                                isInWatchlist = title.id in watchlistTitleIds
+                                                isInWatchlist = title.id in watchlistTitleIds,
+                                                isWatched = title.id in watchedTitleIds
                                             )
                                         }
                                     }
