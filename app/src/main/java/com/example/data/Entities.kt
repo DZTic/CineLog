@@ -1,5 +1,6 @@
 package com.example.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -25,7 +26,10 @@ data class DbLogEntry(
     val collectionPosterUrl: String? = null
 )
 
-@Entity(tableName = "watchlist")
+@Entity(
+    tableName = "watchlist",
+    indices = [Index(value = ["collectionId"])]
+)
 data class DbWatchlist(
     @PrimaryKey val titleId: String, // e.g. "movie_123"
     val titleType: String,
@@ -53,7 +57,8 @@ data class DbCollectionCache(
     @PrimaryKey val titleId: String,
     val collectionId: Int,
     val collectionName: String,
-    val collectionPosterUrl: String? = null
+    val collectionPosterUrl: String? = null,
+    @ColumnInfo(defaultValue = "0") val cachedAt: Long = System.currentTimeMillis()
 )
 
 // Caches the total number of films belonging to a TMDB saga (collection),
@@ -73,7 +78,8 @@ data class DbTitleMetaCache(
     val genres: String = "",
     val studioOrDirector: String? = null,
     val voteAverage: Float = 0f,
-    val runtime: Int? = null
+    val runtime: Int? = null,
+    @ColumnInfo(defaultValue = "0") val cachedAt: Long = System.currentTimeMillis()
 )
 
 
@@ -85,7 +91,13 @@ data class DbCustomList(
     val dateCreated: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "custom_list_titles")
+@Entity(
+    tableName = "custom_list_titles",
+    indices = [
+        Index(value = ["listId", "orderIndex"]),
+        Index(value = ["titleId"])
+    ]
+)
 data class DbCustomListTitle(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val listId: Int,

@@ -85,6 +85,7 @@ class BackupExportTest {
     private class FakeCollectionCacheDao : CollectionCacheDao {
         override fun getAll(): Flow<List<DbCollectionCache>> = flowOf(emptyList())
         override suspend fun upsert(entry: DbCollectionCache) {}
+        override suspend fun deleteExpired(threshold: Long) {}
     }
 
     
@@ -98,6 +99,9 @@ class BackupExportTest {
         override suspend fun upsert(entry: DbTitleMetaCache) { metaMap[entry.titleId] = entry }
         override suspend fun upsertAll(entries: List<DbTitleMetaCache>) {
             entries.forEach { metaMap[it.titleId] = it }
+        }
+        override suspend fun deleteExpired(threshold: Long) {
+            metaMap.values.removeAll { it.cachedAt < threshold }
         }
     }
 
