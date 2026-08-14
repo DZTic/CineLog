@@ -8,10 +8,13 @@ import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.Cache
@@ -158,6 +161,33 @@ class Repository(
     private val preferenceManager: PreferenceManager,
     private val context: Context? = null
 ) {
+    companion object {
+        const val FAILED_RETRY_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
+        private const val JIKAN_MIN_REQUEST_INTERVAL_MS = 350L
+    }
+
+    private val failedFetchCache = ConcurrentHashMap<String, Long>()
+    private val jikanMutex = Mutex()
+    private var lastJikanRequestTimestamp = 0L
+
+    private suspend fun <T> withJikanRateLimit(
+        minIntervalMs: Long = JIKAN_MIN_REQUEST_INTERVAL_MS,
+        block: suspend () -> T
+    ): T {
+        return jikanMutex.withLock {
+            val now = System.currentTimeMillis()
+            val elapsed = now - lastJikanRequestTimestamp
+            if (elapsed < minIntervalMs) {
+                delay(minIntervalMs - elapsed)
+            }
+            try {
+                block()
+            } finally {
+                lastJikanRequestTimestamp = System.currentTimeMillis()
+            }
+        }
+    }
+
     private val tag = "Repository"
 
     private val moshi: com.squareup.moshi.Moshi by lazy {
@@ -207,10 +237,16 @@ class Repository(
         builder.build()
     }
 
+    private val jikanOkHttpClient: OkHttpClient by lazy {
+        okHttpClient.newBuilder()
+            .addInterceptor(JikanRateLimitInterceptor())
+            .build()
+    }
+
     private val jikanApi: JikanApiService by lazy {
         Retrofit.Builder()
             .baseUrl("https://api.jikan.moe/v4/")
-            .client(okHttpClient)
+            .client(jikanOkHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(JikanApiService::class.java)
@@ -418,7 +454,7 @@ class Repository(
         val animeDeferred = if (typeFilter == null || typeFilter == TitleType.ANIME) {
             async(Dispatchers.IO) {
                 try {
-                    val response = jikanApi.searchAnime(query, page = page)
+                    val response = withJikanRateLimit { jikanApi.searchAnime(query, page = page) }
                     response.data?.map { it.toCineTitle() } ?: emptyList()
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching Jikan Anime: ${e.localizedMessage}")
@@ -465,7 +501,7 @@ class Repository(
                 tv.toCineTitle()
             }
             "anime" -> {
-                val animeResponse = jikanApi.getAnimeDetail(rawId)
+                val animeResponse = withJikanRateLimit { jikanApi.getAnimeDetail(rawId) }
                 animeResponse.data?.toCineTitle() ?: throw IllegalArgumentException("Anime introuvable")
             }
             else -> throw IllegalArgumentException("Type inconnu pour l'ID: $id")
@@ -567,7 +603,7 @@ class Repository(
             }
             TitleType.ANIME -> {
                 try {
-                    val jikanAnime = jikanApi.getTopAnime(page = page).data?.map { it.toCineTitle() } ?: emptyList()
+                    val jikanAnime = withJikanRateLimit { jikanApi.getTopAnime(page = page) }.data?.map { it.toCineTitle() } ?: emptyList()
                     if (jikanAnime.isNotEmpty()) {
                         jikanAnime
                     } else {
@@ -800,7 +836,7 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
     }
 
     // Récupère les métadonnées détaillées pour tous les titres journalisés.
-    // Limité à 3 appels réseau simultanés pour ne pas saturer la connexion.
+    // Limité à 3 appels réseau simultanés pour TMDB et espacé avec contrôle de rate-limit pour Jikan.
     suspend fun enrichLogMetadata(logs: List<DbLogEntry>) = coroutineScope {
         val uniqueTitles = logs.map { it.titleId }.distinct()
 
@@ -811,14 +847,18 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
             }
         }
 
-        val missing = uniqueTitles.filter { !titleMetaCache.containsKey(it) }
+        val now = System.currentTimeMillis()
+        val missing = uniqueTitles.filter { titleId ->
+            !titleMetaCache.containsKey(titleId) && (now - (failedFetchCache[titleId] ?: 0L)) > FAILED_RETRY_COOLDOWN_MS
+        }
         if (missing.isEmpty()) return@coroutineScope
 
+        val (animeTitles, nonAnimeTitles) = missing.partition { it.startsWith("anime_") }
         val newEntries = ConcurrentHashMap<String, DbTitleMetaCache>()
-        val semaphore = Semaphore(3)
-        val jobs = missing.map { titleId ->
+        val nonAnimeSemaphore = Semaphore(3)
+        val nonAnimeJobs = nonAnimeTitles.map { titleId ->
             async(Dispatchers.IO) {
-                semaphore.withPermit {
+                nonAnimeSemaphore.withPermit {
                     try {
                         val detail = getTitleDetail(titleId)
                         val meta = TitleMeta(
@@ -829,13 +869,37 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
                         )
                         titleMetaCache[titleId] = meta
                         newEntries[titleId] = meta.toDbTitleMetaCache(titleId)
+                        failedFetchCache.remove(titleId)
                     } catch (e: Exception) {
+                        failedFetchCache[titleId] = System.currentTimeMillis()
                         Log.w(tag, "enrichLogMetadata: impossible de charger $titleId: ${e.localizedMessage}")
                     }
                 }
             }
         }
-        jobs.forEach { it.await() }
+
+        val animeJobs = async(Dispatchers.IO) {
+            animeTitles.forEach { titleId ->
+                try {
+                    val detail = getTitleDetail(titleId)
+                    val meta = TitleMeta(
+                        genres = detail.genres,
+                        studioOrDirector = detail.studioOrDirector,
+                        voteAverage = detail.voteAverage,
+                        runtime = detail.runtime
+                    )
+                    titleMetaCache[titleId] = meta
+                    newEntries[titleId] = meta.toDbTitleMetaCache(titleId)
+                    failedFetchCache.remove(titleId)
+                } catch (e: Exception) {
+                    failedFetchCache[titleId] = System.currentTimeMillis()
+                    Log.w(tag, "enrichLogMetadata: impossible de charger $titleId: ${e.localizedMessage}")
+                }
+            }
+        }
+
+        nonAnimeJobs.forEach { it.await() }
+        animeJobs.await()
 
         if (newEntries.isNotEmpty() && titleMetaCacheDao != null) {
             withContext(Dispatchers.IO) {
