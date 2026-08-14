@@ -1,0 +1,67 @@
+name: PR Conflict Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-conflicts:
+    name: Check PR Merge Conflicts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch Target Base Branch
+        run: |
+          git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+
+      - name: Make Scripts Executable
+        run: chmod +x scripts/check-pr-conflicts.sh
+
+      - name: Run Conflict Check
+        id: conflict_check
+        run: |
+          set +e
+          OUTPUT=$(./scripts/check-pr-conflicts.sh origin/${{ github.base_ref }} 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          
+          # Enregistrer le statut pour le Step Summary
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "STATUS=success" >> $GITHUB_ENV
+          else
+            echo "STATUS=conflict" >> $GITHUB_ENV
+          fi
+          
+          # Préparer le rapport Markdown
+          echo "### 🛡️ PR Conflict Guard Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "🟢 **Statut : Fusionnable sans conflit**" >> $GITHUB_STEP_SUMMARY
+            echo "La branche \`${{ github.head_ref }}\` s'intègre proprement avec \`${{ github.base_ref }}\`." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔴 **Statut : Conflit de fusion détecté !**" >> $GITHUB_STEP_SUMMARY
+            echo "La branche \`${{ github.head_ref }}\` contient des modifications en conflit avec \`${{ github.base_ref }}\`." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### 🛠️ Comment résoudre ce conflit :" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo 'git fetch origin ${{ github.base_ref }}' >> $GITHUB_STEP_SUMMARY
+            echo 'git rebase origin/${{ github.base_ref }}' >> $GITHUB_STEP_SUMMARY
+            echo '# Résoudre les conflits dans votre IDE ou avec l agent pr-conflict-guardian' >> $GITHUB_STEP_SUMMARY
+            echo 'git add <fichiers-resolus>' >> $GITHUB_STEP_SUMMARY
+            echo 'git rebase --continue' >> $GITHUB_STEP_SUMMARY
+            echo 'git push --force-with-lease origin ${{ github.head_ref }}' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          exit $EXIT_CODE
