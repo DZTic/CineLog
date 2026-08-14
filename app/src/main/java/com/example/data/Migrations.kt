@@ -70,3 +70,16 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_log_entries_titleId` ON `log_entries` (`titleId`)")
     }
 }
+
+// v8 -> v9: ajoute les index sur custom_list_titles (listId, orderIndex / titleId) et watchlist (collectionId),
+// et ajoute la colonne cachedAt sur title_meta_cache et collection_cache pour la strategie TTL.
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_list_titles_listId_orderIndex` ON `custom_list_titles` (`listId`, `orderIndex`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_custom_list_titles_titleId` ON `custom_list_titles` (`titleId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_watchlist_collectionId` ON `watchlist` (`collectionId`)")
+        db.execSQL("ALTER TABLE `title_meta_cache` ADD COLUMN `cachedAt` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `collection_cache` ADD COLUMN `cachedAt` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+

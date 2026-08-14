@@ -3,6 +3,7 @@ import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesS
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
+  alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
@@ -66,13 +67,13 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      all { it.enabled = false }
     }
   }
   sourceSets {
     // Room migration tests read the exported schema JSON files from here.
     getByName("androidTest").assets.srcDirs("$projectDir/schemas")
     getByName("test").assets.srcDirs("$projectDir/schemas")
+    getByName("debug").assets.srcDirs("$projectDir/schemas")
   }
 }
 
@@ -118,7 +119,10 @@ dependencies {
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
-  // implementation(libs.androidx.datastore.preferences)
+  implementation(libs.kotlinx.serialization.json)
+  implementation(libs.androidx.datastore.preferences)
+  implementation(libs.koin.android)
+  implementation(libs.koin.androidx.compose)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -146,9 +150,12 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  testImplementation(libs.koin.test)
+  testImplementation(libs.koin.test.junit4)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
+  testImplementation(libs.androidx.room.testing)
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)

@@ -4,147 +4,97 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import com.example.data.*
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.navigation.ScreenDestination
 import com.example.ui.CineViewModelFactory
-import com.example.ui.home.HomeViewModel
-import com.example.ui.discover.DiscoverViewModel
-import com.example.ui.search.SearchViewModel
-import com.example.ui.watchlist.WatchlistViewModel
-import com.example.ui.lists.ListsViewModel
-import com.example.ui.profile.ProfileViewModel
-import com.example.ui.settings.SettingsViewModel
-import com.example.ui.detail.DetailViewModel
-import com.example.ui.saga.SagaDetailViewModel
-import com.example.ui.log.LogViewModel
 import com.example.ui.detail.DetailScreen
+import com.example.ui.detail.DetailViewModel
 import com.example.ui.discover.DiscoverScreen
+import com.example.ui.discover.DiscoverViewModel
 import com.example.ui.home.HomeScreen
+import com.example.ui.home.HomeViewModel
 import com.example.ui.lists.ListsScreen
+import com.example.ui.lists.ListsViewModel
 import com.example.ui.log.LogBottomSheet
+import com.example.ui.log.LogViewModel
 import com.example.ui.profile.ProfileScreen
+import com.example.ui.profile.ProfileViewModel
 import com.example.ui.saga.SagaDetailScreen
+import com.example.ui.saga.SagaDetailViewModel
 import com.example.ui.search.SearchScreen
+import com.example.ui.search.SearchViewModel
 import com.example.ui.settings.SettingsScreen
-import com.example.ui.watchlist.WatchlistScreen
+import com.example.ui.settings.SettingsViewModel
 import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.watchlist.WatchlistScreen
+import com.example.ui.watchlist.WatchlistViewModel
+import com.example.util.ConnectivityNetworkMonitor
+import com.example.util.NetworkMonitor
+import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 1. Initialize Singletons / Databases
-        val database = AppDatabase.getDatabase(this)
-        val preferenceManager = PreferenceManager(this)
-        val repository = Repository(
-            logDao = database.logDao(),
-            watchlistDao = database.watchlistDao(),
-            customListDao = database.customListDao(),
-            seasonProgressDao = database.seasonProgressDao(),
-            collectionCacheDao = database.collectionCacheDao(),
-            sagaSizeDao = database.sagaSizeDao(),
-            titleMetaCacheDao = database.titleMetaCacheDao(),
-            preferenceManager = preferenceManager,
-            context = applicationContext
-        )
-
-        // 2. Instantiate master view model
-        val viewModelFactory = CineViewModelFactory(application, repository, preferenceManager)
+        val networkMonitor: NetworkMonitor = ConnectivityNetworkMonitor(applicationContext)
 
         setContent {
-            MyApplicationTheme {
-                MainAppScaffold(viewModelFactory)
+            val settingsViewModel: SettingsViewModel = koinViewModel()
+            val themeMode by settingsViewModel.themeMode.collectAsState()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
+
+            MyApplicationTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+                MainAppScaffold(networkMonitor = networkMonitor)
             }
         }
-    }
-}
-
-// Navigation Routes
-sealed class Screen(val route: String, val title: String) {
-    object Home : Screen("home", "Accueil")
-    object Discover : Screen("discover", "Découvrir")
-    object Search : Screen("search", "Recherche")
-    object Watchlist : Screen("watchlist", "Watchlist")
-    object Lists : Screen("lists", "Mes Listes")
-    object Profile : Screen("profile", "Profil")
-    object Settings : Screen("settings", "Paramètres")
-    object Detail : Screen("detail/{titleId}", "Détails") {
-        fun createRoute(titleId: String) = "detail/$titleId"
-    }
-    object SagaDetail : Screen("saga/{collectionId}", "Saga") {
-        fun createRoute(collectionId: Int) = "saga/$collectionId"
     }
 }
 
 @Composable
 fun CineBottomNavigationBar(
     navController: NavHostController,
-    bottomNavItems: List<Screen>
+    bottomNavItems: List<ScreenDestination>
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val destination = navBackStackEntry?.destination
 
-    val isPrimaryTab = bottomNavItems.any { it.route == currentRoute }
+    val isPrimaryTab = bottomNavItems.any { screen -> destination?.hasRoute(screen::class) == true }
     if (isPrimaryTab) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -158,21 +108,21 @@ fun CineBottomNavigationBar(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 bottomNavItems.forEach { screen ->
-                    val selected = currentRoute == screen.route
+                    val selected = destination?.hasRoute(screen::class) == true
                     val icon = when (screen) {
-                        Screen.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
-                        Screen.Discover -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
-                        Screen.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
-                        Screen.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
+                        ScreenDestination.Home -> if (selected) Icons.Filled.Home else Icons.Outlined.Home
+                        ScreenDestination.Discover -> if (selected) Icons.Filled.Explore else Icons.Outlined.Explore
+                        ScreenDestination.Watchlist -> if (selected) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
+                        ScreenDestination.Profile -> if (selected) Icons.Filled.Person else Icons.Outlined.Person
                         else -> Icons.Filled.Home
                     }
 
                     val label = when (screen) {
-                        Screen.Home -> "Accueil"
-                        Screen.Discover -> "Découvrir"
-                        Screen.Watchlist -> "? Voir"
-                        Screen.Profile -> "Profil"
-                        else -> screen.title
+                        ScreenDestination.Home -> stringResource(R.string.nav_home)
+                        ScreenDestination.Discover -> stringResource(R.string.nav_discover)
+                        ScreenDestination.Watchlist -> stringResource(R.string.nav_watchlist)
+                        ScreenDestination.Profile -> stringResource(R.string.nav_profile)
+                        else -> ""
                     }
 
                     Column(
@@ -183,8 +133,8 @@ fun CineBottomNavigationBar(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
+                                if (!selected) {
+                                    navController.navigate(screen) {
                                         popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
                                         }
@@ -236,9 +186,14 @@ fun CineBottomNavigationBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
+fun MainAppScaffold(
+    viewModelFactory: CineViewModelFactory? = null,
+    networkMonitor: NetworkMonitor? = null
+) {
     val navController = rememberNavController()
 
+    val isOnline by (networkMonitor?.isOnline ?: remember { mutableStateOf(true) })
+        .let { if (it is kotlinx.coroutines.flow.Flow<*>) (it as kotlinx.coroutines.flow.Flow<Boolean>).collectAsState(initial = true) else it as State<Boolean> }
 
     // Logging sheet dialog trigger state
     var loggingTitle by remember { mutableStateOf<CineTitle?>(null) }
@@ -247,10 +202,10 @@ fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
 
     // Core 4 Tab Routes for Bottom Navigation (Material Design 3-5 tabs guideline)
     val bottomNavItems = listOf(
-        Screen.Home,
-        Screen.Discover,
-        Screen.Watchlist,
-        Screen.Profile
+        ScreenDestination.Home,
+        ScreenDestination.Discover,
+        ScreenDestination.Watchlist,
+        ScreenDestination.Profile
     )
 
     Scaffold(
@@ -261,196 +216,231 @@ fun MainAppScaffold(viewModelFactory: CineViewModelFactory) {
             )
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Home.route,
-            modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding()),
-            enterTransition = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            },
-            popExitTransition = {
-                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
-            // Home View
-            composable(Screen.Home.route) {
-                val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
-                HomeScreen(
-                    viewModel = homeViewModel,
-                    onTitleClick = { titleId ->
-                        navController.navigate(Screen.Detail.createRoute(titleId))
-                    },
-                    onSagaClick = { collectionId ->
-                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
-                    },
-                    onNavigateToDiscover = {
-                        navController.navigate(Screen.Discover.route)
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
-                    }
-                )
-            }
+            NavHost(
+                navController = navController,
+                startDestination = ScreenDestination.Home,
+                enterTransition = {
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                },
+                popExitTransition = {
+                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing))
+                }
+            ) {
+                // Home View
+                composable<ScreenDestination.Home> {
+                    val homeViewModel: HomeViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    HomeScreen(
+                        viewModel = homeViewModel,
+                        onTitleClick = { titleId ->
+                            navController.navigate(ScreenDestination.Detail(titleId))
+                        },
+                        onSagaClick = { collectionId ->
+                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                        },
+                        onNavigateToDiscover = {
+                            navController.navigate(ScreenDestination.Discover)
+                        },
+                        onNavigateToSettings = {
+                            navController.navigate(ScreenDestination.Settings)
+                        }
+                    )
+                }
 
-            // Discover Carousel / Grids & Embedded Search View
-            composable(Screen.Discover.route) {
-                val discoverViewModel: DiscoverViewModel = viewModel(factory = viewModelFactory)
-                DiscoverScreen(
-                    viewModel = discoverViewModel,
-                    onTitleClick = { titleId ->
-                        navController.navigate(Screen.Detail.createRoute(titleId))
-                    },
-                    onSagaClick = { collectionId ->
-                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
-                    }
-                )
-            }
+                // Discover Carousel / Grids & Embedded Search View
+                composable<ScreenDestination.Discover> {
+                    val discoverViewModel: DiscoverViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    DiscoverScreen(
+                        viewModel = discoverViewModel,
+                        onTitleClick = { titleId ->
+                            navController.navigate(ScreenDestination.Detail(titleId))
+                        },
+                        onSagaClick = { collectionId ->
+                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                        }
+                    )
+                }
 
-            // Global Search View (Direct route)
-            composable(Screen.Search.route) {
-                val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
-                val logViewModel: LogViewModel = viewModel(factory = viewModelFactory)
-                SearchScreen(
-                    viewModel = searchViewModel,
-                    logViewModel = logViewModel,
-                    onTitleClick = { titleId ->
-                        navController.navigate(Screen.Detail.createRoute(titleId))
-                    },
-                    onSagaClick = { collectionId ->
-                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
-                    }
-                )
-            }
+                // Global Search View (Direct route)
+                composable<ScreenDestination.Search> {
+                    val searchViewModel: SearchViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    val logViewModel: LogViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    SearchScreen(
+                        viewModel = searchViewModel,
+                        logViewModel = logViewModel,
+                        onTitleClick = { titleId ->
+                            navController.navigate(ScreenDestination.Detail(titleId))
+                        },
+                        onSagaClick = { collectionId ->
+                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                        },
+                        onNavigateToSettings = {
+                            navController.navigate(ScreenDestination.Settings)
+                        }
+                    )
+                }
 
-            // Watchlist View
-            composable(Screen.Watchlist.route) {
-                val watchlistViewModel: WatchlistViewModel = viewModel(factory = viewModelFactory)
-                WatchlistScreen(
-                    viewModel = watchlistViewModel,
-                    onTitleClick = { titleId ->
-                        navController.navigate(Screen.Detail.createRoute(titleId))
-                    },
-                    onSagaClick = { collectionId ->
-                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
-                    }
-                )
-            }
+                // Watchlist View
+                composable<ScreenDestination.Watchlist> {
+                    val watchlistViewModel: WatchlistViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    WatchlistScreen(
+                        viewModel = watchlistViewModel,
+                        onTitleClick = { titleId ->
+                            navController.navigate(ScreenDestination.Detail(titleId))
+                        },
+                        onSagaClick = { collectionId ->
+                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                        }
+                    )
+                }
 
-            // Custom user Lists View
-            composable(Screen.Lists.route) {
-                val listsViewModel: ListsViewModel = viewModel(factory = viewModelFactory)
-                ListsScreen(
-                    viewModel = listsViewModel,
-                    onTitleClick = { titleId ->
-                        navController.navigate(Screen.Detail.createRoute(titleId))
-                    },
-                    onBackClick = {
-                        navController.popBackStack()
-                    }
-                )
-            }
+                // Custom user Lists View
+                composable<ScreenDestination.Lists> {
+                    val listsViewModel: ListsViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    ListsScreen(
+                        viewModel = listsViewModel,
+                        onTitleClick = { titleId ->
+                            navController.navigate(ScreenDestination.Detail(titleId))
+                        },
+                        onBackClick = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
 
-            // Profile Screen with Settings trigger & List shortcut
-            composable(Screen.Profile.route) {
-                Scaffold(
-                    contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
-                    topBar = {
-                        TopAppBar(
-                            title = { Text("Mon Profil CinéLog") },
-                            actions = {
-                                IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Settings,
-                                        contentDescription = "Paramètres de la clé API",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.background
+                // Profile Screen with Settings trigger & List shortcut
+                composable<ScreenDestination.Profile> {
+                    Scaffold(
+                        contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+                        topBar = {
+                            TopAppBar(
+                                title = { Text("Mon Profil CinéLog") },
+                                actions = {
+                                    IconButton(onClick = { navController.navigate(ScreenDestination.Settings) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Settings,
+                                            contentDescription = "Paramètres de la clé API",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.background
+                                )
                             )
+                        }
+                    ) { padding ->
+                        val profileViewModel: ProfileViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                        ProfileScreen(
+                            viewModel = profileViewModel,
+                            onNavigateToLists = {
+                                navController.navigate(ScreenDestination.Lists)
+                            },
+                            modifier = Modifier.padding(padding)
                         )
                     }
-                ) { padding ->
-                    val profileViewModel: ProfileViewModel = viewModel(factory = viewModelFactory)
-                    ProfileScreen(
-                        viewModel = profileViewModel,
-                        onNavigateToLists = {
-                            navController.navigate(Screen.Lists.route)
+                }
+
+                // Settings View (API configuration)
+                composable<ScreenDestination.Settings> {
+                    val settingsViewModel: SettingsViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    SettingsScreen(
+                        viewModel = settingsViewModel,
+                        onCloseClick = { navController.popBackStack() }
+                    )
+                }
+
+                // Detail View
+                composable<ScreenDestination.Detail> { backStackEntry ->
+                    val detail: ScreenDestination.Detail = backStackEntry.toRoute()
+                    val detailViewModel: DetailViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    DetailScreen(
+                        titleId = detail.titleId,
+                        viewModel = detailViewModel,
+                        onBackClick = { navController.popBackStack() },
+                        onLogClick = { title ->
+                            editingLog = null
+                            loggingTitle = title
                         },
-                        modifier = Modifier.padding(padding)
+                        onTitleClick = { otherTitleId ->
+                            navController.navigate(ScreenDestination.Detail(otherTitleId))
+                        },
+                        onSagaClick = { collectionId ->
+                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                        },
+                        onEditLogClick = { title, log ->
+                            loggingTitle = title
+                            editingLog = log
+                        }
+                    )
+                }
+
+                // Saga (TMDB collection) Detail View
+                composable<ScreenDestination.SagaDetail> { backStackEntry ->
+                    val saga: ScreenDestination.SagaDetail = backStackEntry.toRoute()
+                    val sagaDetailViewModel: SagaDetailViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
+                    SagaDetailScreen(
+                        collectionId = saga.collectionId,
+                        viewModel = sagaDetailViewModel,
+                        onBackClick = { navController.popBackStack() },
+                        onTitleClick = { titleId ->
+                            navController.navigate(ScreenDestination.Detail(titleId))
+                        }
                     )
                 }
             }
 
-            // Settings View (API configuration)
-            composable(Screen.Settings.route) {
-                val settingsViewModel: SettingsViewModel = viewModel(factory = viewModelFactory)
-                SettingsScreen(
-                    viewModel = settingsViewModel,
-                    onCloseClick = { navController.popBackStack() }
-                )
-            }
-
-            // Detail View
-            composable(
-                route = Screen.Detail.route,
-                arguments = listOf(navArgument("titleId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val titleId = backStackEntry.arguments?.getString("titleId") ?: ""
-                val detailViewModel: DetailViewModel = viewModel(factory = viewModelFactory)
-                DetailScreen(
-                    titleId = titleId,
-                    viewModel = detailViewModel,
-                    onBackClick = { navController.popBackStack() },
-                    onLogClick = { title ->
-                        editingLog = null
-                        loggingTitle = title
-                    },
-                    onTitleClick = { otherTitleId ->
-                        navController.navigate(Screen.Detail.createRoute(otherTitleId))
-                    },
-                    onSagaClick = { collectionId ->
-                        navController.navigate(Screen.SagaDetail.createRoute(collectionId))
-                    },
-                    onEditLogClick = { title, log ->
-                        loggingTitle = title
-                        editingLog = log
+            AnimatedVisibility(
+                visible = !isOnline,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("offline_banner")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudOff,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.offline_banner_text),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
                     }
-                )
-            }
-
-            // Saga (TMDB collection) Detail View
-            composable(
-                route = Screen.SagaDetail.route,
-                arguments = listOf(navArgument("collectionId") { type = NavType.IntType })
-            ) { backStackEntry ->
-                val collectionId = backStackEntry.arguments?.getInt("collectionId") ?: 0
-                val sagaDetailViewModel: SagaDetailViewModel = viewModel(factory = viewModelFactory)
-                SagaDetailScreen(
-                    collectionId = collectionId,
-                    viewModel = sagaDetailViewModel,
-                    onBackClick = { navController.popBackStack() },
-                    onTitleClick = { titleId ->
-                        navController.navigate(Screen.Detail.createRoute(titleId))
-                    }
-                )
+                }
             }
         }
 
         // Overlay Log dialog when active
         val logTitle = loggingTitle
         if (logTitle != null) {
-            val logViewModel: LogViewModel = viewModel(factory = viewModelFactory)
+            val logViewModel: LogViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
             LogBottomSheet(
                 title = logTitle,
                 viewModel = logViewModel,

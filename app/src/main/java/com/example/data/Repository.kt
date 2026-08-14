@@ -161,7 +161,13 @@ class Repository(
     private val preferenceManager: PreferenceManager,
     private val context: Context? = null
 ) {
+    val logRepository = com.example.data.repository.LogRepository(logDao)
+    val watchlistRepository = com.example.data.repository.WatchlistRepository(watchlistDao)
+    val customListRepository = com.example.data.repository.CustomListRepository(customListDao)
+    val backupRepository = com.example.data.repository.BackupRepository(logDao, watchlistDao, customListDao, seasonProgressDao)
+
     companion object {
+        const val CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000L // 14 jours
         const val FAILED_RETRY_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
         private const val JIKAN_MIN_REQUEST_INTERVAL_MS = 350L
     }
@@ -829,6 +835,11 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
 
     suspend fun loadTitleMetaCacheFromDb() = withContext(Dispatchers.IO) {
         if (titleMetaCacheDao == null) return@withContext
+        val now = System.currentTimeMillis()
+        try {
+            titleMetaCacheDao.deleteExpired(now - CACHE_TTL_MS)
+            collectionCacheDao.deleteExpired(now - CACHE_TTL_MS)
+        } catch (_: Exception) {}
         val cached = titleMetaCacheDao.getAllList()
         cached.forEach { item ->
             titleMetaCache[item.titleId] = item.toTitleMeta()
@@ -839,15 +850,17 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
     // Limité à 3 appels réseau simultanés pour TMDB et espacé avec contrôle de rate-limit pour Jikan.
     suspend fun enrichLogMetadata(logs: List<DbLogEntry>) = coroutineScope {
         val uniqueTitles = logs.map { it.titleId }.distinct()
+        val now = System.currentTimeMillis()
 
         if (titleMetaCacheDao != null) {
             val dbCached = titleMetaCacheDao.getByTitleIds(uniqueTitles)
             dbCached.forEach { item ->
-                titleMetaCache[item.titleId] = item.toTitleMeta()
+                if (item.cachedAt == 0L || (now - item.cachedAt) <= CACHE_TTL_MS) {
+                    titleMetaCache[item.titleId] = item.toTitleMeta()
+                }
             }
         }
 
-        val now = System.currentTimeMillis()
         val missing = uniqueTitles.filter { titleId ->
             !titleMetaCache.containsKey(titleId) && (now - (failedFetchCache[titleId] ?: 0L)) > FAILED_RETRY_COOLDOWN_MS
         }

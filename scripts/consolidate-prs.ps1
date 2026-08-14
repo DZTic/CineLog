@@ -188,15 +188,16 @@ if ($CreatePr -and -not $DryRun -and $mergedPrs.Count -gt 0) {
     $existingPr = gh pr list --head $TargetBranch --base $BaseBranch --json number --jq '.[0].number' 2>$null
     if ($existingPr) {
         Write-Host "Mise a jour de la PR existante #$existingPr..."
-        gh pr edit $existingPr --title $prTitle --body $summary
+        gh pr edit $existingPr --title $prTitle --body $summary 2>$null
         Write-Host "PR #$existingPr mise a jour." -ForegroundColor Green
     } else {
         Write-Host "Creation d'une nouvelle Pull Request..."
-        $newPrUrl = gh pr create --base $BaseBranch --head $TargetBranch --title $prTitle --body $summary --label "consolidated-pr" 2>$null
-        if (-not $newPrUrl) {
-            $newPrUrl = gh pr create --base $BaseBranch --head $TargetBranch --title $prTitle --body $summary
+        $newPrUrl = gh pr create --base $BaseBranch --head $TargetBranch --title $prTitle --body $summary --label "consolidated-pr" 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Pull Request creee : $newPrUrl" -ForegroundColor Green
+        } else {
+            Write-Host "Note : La branche a ete poussee. Pour ouvrir la PR manuellement : gh pr create --base $BaseBranch --head $TargetBranch" -ForegroundColor Yellow
         }
-        Write-Host "Pull Request creee : $newPrUrl" -ForegroundColor Green
     }
 }
 

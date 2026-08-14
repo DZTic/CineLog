@@ -1,5 +1,6 @@
 package com.example
 
+import com.example.navigation.ScreenDestination
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,32 +9,28 @@ import org.junit.Test
 class NavigationTest {
 
   @Test
-  fun testScreenRoutes() {
-    assertEquals("home", Screen.Home.route)
-    assertEquals("discover", Screen.Discover.route)
-    assertEquals("search", Screen.Search.route)
-    assertEquals("watchlist", Screen.Watchlist.route)
-    assertEquals("lists", Screen.Lists.route)
-    assertEquals("profile", Screen.Profile.route)
-    assertEquals("settings", Screen.Settings.route)
-    assertEquals("detail/movie_123", Screen.Detail.createRoute("movie_123"))
-    assertEquals("saga/456", Screen.SagaDetail.createRoute(456))
+  fun testScreenDestinations() {
+    val detail = ScreenDestination.Detail("movie_123")
+    assertEquals("movie_123", detail.titleId)
+
+    val saga = ScreenDestination.SagaDetail(456)
+    assertEquals(456, saga.collectionId)
   }
 
   @Test
   fun testPrimaryBottomNavItemsCount() {
-    val bottomNavItems = listOf(
-      Screen.Home,
-      Screen.Discover,
-      Screen.Watchlist,
-      Screen.Profile
+    val bottomNavItems: List<ScreenDestination> = listOf(
+      ScreenDestination.Home,
+      ScreenDestination.Discover,
+      ScreenDestination.Watchlist,
+      ScreenDestination.Profile
     )
     assertEquals(4, bottomNavItems.size)
-    assertFalse(bottomNavItems.contains(Screen.Search))
-    assertFalse(bottomNavItems.contains(Screen.Lists))
-    assertTrue(bottomNavItems.contains(Screen.Home))
-    assertTrue(bottomNavItems.contains(Screen.Discover))
-    assertTrue(bottomNavItems.contains(Screen.Watchlist))
-    assertTrue(bottomNavItems.contains(Screen.Profile))
+    assertFalse(bottomNavItems.contains(ScreenDestination.Search))
+    assertFalse(bottomNavItems.contains(ScreenDestination.Lists))
+    assertTrue(bottomNavItems.contains(ScreenDestination.Home))
+    assertTrue(bottomNavItems.contains(ScreenDestination.Discover))
+    assertTrue(bottomNavItems.contains(ScreenDestination.Watchlist))
+    assertTrue(bottomNavItems.contains(ScreenDestination.Profile))
   }
 }
