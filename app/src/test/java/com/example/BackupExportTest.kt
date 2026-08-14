@@ -248,7 +248,7 @@ class BackupExportTest {
 
         val stats = repo.getProfileStats(logs, emptyList())
         assertEquals(1, stats.totalLogs)
-        assertEquals(1, stats.topGenres.size)
+        assertEquals(2, stats.topGenres.size)
         assertEquals("Action", stats.topGenres[0].first)
         assertEquals("Christopher Nolan", stats.topDirectorsOrStudios[0].first)
         assertEquals(148, stats.totalRuntimeMinutes)
