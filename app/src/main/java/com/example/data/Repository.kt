@@ -161,6 +161,11 @@ class Repository(
     private val preferenceManager: PreferenceManager,
     private val context: Context? = null
 ) {
+    val logRepository = com.example.data.repository.LogRepository(logDao)
+    val watchlistRepository = com.example.data.repository.WatchlistRepository(watchlistDao)
+    val customListRepository = com.example.data.repository.CustomListRepository(customListDao)
+    val backupRepository = com.example.data.repository.BackupRepository(logDao, watchlistDao, customListDao, seasonProgressDao)
+
     companion object {
         const val CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000L // 14 jours
         const val FAILED_RETRY_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
