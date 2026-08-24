@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.example.R
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -32,6 +33,13 @@ import java.util.concurrent.ConcurrentHashMap
 enum class TitleType {
     FILM, SERIE, ANIME;
 
+    val displayNameRes: Int
+        get() = when (this) {
+            FILM -> R.string.title_type_film
+            SERIE -> R.string.title_type_serie
+            ANIME -> R.string.title_type_anime
+        }
+
     val displayName: String
         get() = when (this) {
             FILM -> "Film"
@@ -48,6 +56,13 @@ data class CineSeason(
 
 enum class SeasonStatus {
     NOT_WATCHED, WATCHING, WATCHED;
+
+    val displayNameRes: Int
+        get() = when (this) {
+            NOT_WATCHED -> R.string.season_status_not_watched
+            WATCHING -> R.string.season_status_watching
+            WATCHED -> R.string.season_status_watched
+        }
 
     val displayName: String
         get() = when (this) {

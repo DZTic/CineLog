@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -367,7 +368,7 @@ fun HomeScreen(
                             span = { GridItemSpan(maxLineSpan) }
                         ) {
                             CollapsibleCategoryHeader(
-                                label = "${type.displayName}s (${logsForType.size})",
+                                label = stringResource(type.displayNameRes) + "s (${logsForType.size})",
                                 collapsed = isCollapsed,
                                 onToggle = { viewModel.toggleHomeCategoryCollapsed(type.name) }
                             )

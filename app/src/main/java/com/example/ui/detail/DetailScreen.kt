@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -582,7 +583,7 @@ fun DetailScreen(
                                                             .padding(horizontal = 10.dp, vertical = 5.dp)
                                                     ) {
                                                         Text(
-                                                            text = option.displayName,
+                                                            text = stringResource(option.displayNameRes),
                                                             style = MaterialTheme.typography.bodySmall.copy(
                                                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                                                             ),
