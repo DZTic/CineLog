@@ -41,4 +41,16 @@
 
     <!-- Connectivité -->
     <string name="offline_banner_text">Mode hors-ligne - Données locales</string>
+
+    <!-- Types de titre & statuts de saison -->
+    <string name="title_type_film">Film</string>
+    <string name="title_type_serie">Série</string>
+    <string name="title_type_anime">Anime</string>
+    <string name="season_status_not_watched">Non vue</string>
+    <string name="season_status_watching">En cours</string>
+    <string name="season_status_watched">Vue</string>
+    <string name="watchlist_sort_date_added">Date d\'ajout</string>
+    <string name="watchlist_sort_title_az">Nom (A-Z)</string>
+    <string name="watchlist_sort_release_year">Année de sortie</string>
+    <string name="watchlist_sort_community_rating">Note communauté</string>
 </resources>

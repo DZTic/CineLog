@@ -174,4 +174,3 @@ dependencies {
   implementation(libs.androidx.profileinstaller)
   "baselineProfile"(project(":baselineprofile"))
 }
-

@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.R
 import com.example.data.*
 import com.example.ui.detail.DetailViewModel
 import com.example.ui.discover.DiscoverViewModel
@@ -31,12 +32,12 @@ enum class CollectionViewMode { LIST, GRID }
 enum class WatchlistSortOrder {
     DATE_ADDED, TITLE_AZ, RELEASE_YEAR, COMMUNITY_RATING;
 
-    val displayName: String
+    val displayNameRes: Int
         get() = when (this) {
-            DATE_ADDED -> "Date d'ajout"
-            TITLE_AZ -> "Nom (A-Z)"
-            RELEASE_YEAR -> "Annee de sortie"
-            COMMUNITY_RATING -> "Note communaute"
+            DATE_ADDED -> R.string.watchlist_sort_date_added
+            TITLE_AZ -> R.string.watchlist_sort_title_az
+            RELEASE_YEAR -> R.string.watchlist_sort_release_year
+            COMMUNITY_RATING -> R.string.watchlist_sort_community_rating
         }
 }
 

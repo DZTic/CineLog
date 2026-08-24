@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -304,7 +305,7 @@ fun WatchlistScreen(
                         // coup d'oeil ce qui est applique et peut retirer
                         // chaque filtre d'un tap, sans re-ouvrir le menu.
                         val activeChips = buildList {
-                            typeFilter?.let { add("Type: ${it.displayName}" to { viewModel.setWatchlistTypeFilter(null) }) }
+                            typeFilter?.let { add("Type: " + stringResource(it.displayNameRes) to { viewModel.setWatchlistTypeFilter(null) }) }
                             genreFilter?.let { add("Genre: $it" to { viewModel.setWatchlistGenreFilter(null) }) }
                             yearFilter?.let { add("Ann\u00e9e: $it" to { viewModel.setWatchlistYearFilter(null) }) }
                         }
@@ -340,7 +341,7 @@ fun WatchlistScreen(
                             span = { GridItemSpan(maxLineSpan) }
                         ) {
                             CollapsibleCategoryHeader(
-                                label = "${type.displayName}s (${itemsForType.size})",
+                                label = stringResource(type.displayNameRes) + "s (${itemsForType.size})",
                                 collapsed = isCollapsed,
                                 onToggle = { viewModel.toggleWatchlistCategoryCollapsed(type.name) }
                             )
@@ -653,7 +654,7 @@ private fun SortMenuButton(
                 DropdownMenuItem(
                     text = {
                         Text(
-                            text = order.displayName + if (order == current) "  \u2713" else "",
+                            text = stringResource(order.displayNameRes) + if (order == current) "  \u2713" else "",
                             color = if (order == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     },
@@ -715,7 +716,7 @@ private fun FilterMenuButton(
             listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME).forEach { type ->
                 DropdownMenuItem(
                     text = {
-                        Text("${type.displayName}s" + if (typeFilter == type) "  \u2713" else "")
+                        Text(stringResource(type.displayNameRes) + "s" + if (typeFilter == type) "  \u2713" else "")
                     },
                     onClick = { onTypeChange(type) }
                 )
