@@ -41,4 +41,18 @@
 
     <!-- Connectivity -->
     <string name="offline_banner_text">Offline mode - Local data</string>
+
+    <!-- Title types & season statuses -->
+    <string name="title_type_film">Movie</string>
+    <string name="title_type_serie">Series</string>
+    <string name="title_type_anime">Anime</string>
+    <string name="season_status_not_watched">Not watched</string>
+    <string name="season_status_watching">Watching</string>
+    <string name="season_status_watched">Watched</string>
+
+    <!-- Watchlist sort orders -->
+    <string name="watchlist_sort_date_added">Date added</string>
+    <string name="watchlist_sort_title_az">Name (A-Z)</string>
+    <string name="watchlist_sort_release_year">Release year</string>
+    <string name="watchlist_sort_community_rating">Community rating</string>
 </resources>
