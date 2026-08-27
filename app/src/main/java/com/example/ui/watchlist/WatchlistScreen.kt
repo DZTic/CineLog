@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -51,6 +52,7 @@ import com.example.ui.CollectionViewMode
 import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.LocalSearchBar
 import com.example.ui.components.SwipeToDismissContainer
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
@@ -79,6 +81,7 @@ fun WatchlistScreen(
     val typeFilter by viewModel.watchlistTypeFilter.collectAsState()
     val genreFilter by viewModel.watchlistGenreFilter.collectAsState()
     val yearFilter by viewModel.watchlistYearFilter.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val isRefreshing by viewModel.watchlistRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -116,14 +119,17 @@ fun WatchlistScreen(
     // Filtres de la Watchlist (issue #33). Appliques avant le regroupement
     // par type/saga pour que le nombre affiche dans chaque en-tete reflete
     // bien ce qui reste apres filtrage.
-    val watchlist = remember(watchedFiltered, typeFilter, genreFilter, yearFilter) {
+    val watchlist = remember(watchedFiltered, typeFilter, genreFilter, yearFilter, searchQuery) {
         watchedFiltered.filter { entry ->
             val matchesType = typeFilter == null ||
                 runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == typeFilter
             val entryGenres = entry.titleGenres?.split(",")?.map { it.trim() } ?: emptyList()
             val matchesGenre = genreFilter == null || entryGenres.contains(genreFilter)
             val matchesYear = yearFilter == null || entry.titleYear == yearFilter
-            matchesType && matchesGenre && matchesYear
+            val matchesQuery = searchQuery.isBlank() ||
+                entry.titleName.contains(searchQuery.trim(), ignoreCase = true) ||
+                entry.collectionName?.contains(searchQuery.trim(), ignoreCase = true) == true
+            matchesType && matchesGenre && matchesYear && matchesQuery
         }
     }
 
@@ -180,7 +186,7 @@ fun WatchlistScreen(
             state = pullToRefreshState,
             modifier = Modifier.fillMaxSize().padding(innerPadding)
         ) {
-        if (watchlist.isEmpty()) {
+        if (watchedFiltered.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize(),
@@ -266,6 +272,16 @@ fun WatchlistScreen(
                 // Barre du haut : compteur + tri + filtres + vue Liste/Grille.
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(modifier = Modifier.fillMaxWidth()) {
+                        LocalSearchBar(
+                            query = searchQuery,
+                            onQueryChange = { viewModel.setSearchQuery(it) },
+                            placeholder = "Rechercher dans votre watchlist...",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            testTag = "watchlist_search_bar"
+                        )
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -331,6 +347,27 @@ fun WatchlistScreen(
                     }
                 }
 
+                if (watchlist.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyState(
+                            title = "Aucun résultat",
+                            message = if (searchQuery.isNotBlank()) {
+                                "Aucun titre dans la watchlist ne correspond à « $searchQuery »."
+                            } else {
+                                "Aucun titre ne correspond aux filtres sélectionnés."
+                            },
+                            icon = Icons.Default.Search,
+                            action = {
+                                Button(
+                                    onClick = { viewModel.clearWatchlistFilters() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Réinitialiser les filtres", color = MaterialTheme.colorScheme.onPrimary)
+                                }
+                            }
+                        )
+                    }
+                } else {
                 categoryOrder.forEach { type ->
                     val itemsForType = groupedWatchlist[type]
                     val displayItems = displayItemsByType[type]
@@ -400,6 +437,7 @@ fun WatchlistScreen(
                             }
                         }
                     }
+                }
                 }
             }
         } // end PullToRefreshBox

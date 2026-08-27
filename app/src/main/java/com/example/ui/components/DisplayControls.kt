@@ -9,13 +9,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -23,8 +30,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.CollectionViewMode
 import com.example.ui.theme.GrayText
 
@@ -129,4 +140,72 @@ fun CollapsibleCategoryHeader(
                 .rotate(rotation)
         )
     }
+}
+
+/**
+ * Barre de recherche locale stylisée pour filtrer les éléments d'un onglet
+ * (Accueil, Watchlist, etc.) avec icône de recherche et bouton d'effacement.
+ */
+@Composable
+fun LocalSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String = "Rechercher...",
+    modifier: Modifier = Modifier,
+    testTag: String = "local_search_bar",
+    onSearch: (() -> Unit)? = null
+) {
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(testTag),
+        placeholder = {
+            Text(
+                text = placeholder,
+                style = MaterialTheme.typography.bodyMedium,
+                color = GrayText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Recherche",
+                tint = GrayText,
+                modifier = Modifier.size(20.dp)
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = { onQueryChange("") },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Effacer la recherche",
+                        tint = GrayText,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(10.dp),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = CinemaSurfaceVariant,
+            unfocusedContainerColor = CinemaSurfaceVariant,
+            disabledContainerColor = CinemaSurfaceVariant,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+        )
+    )
 }

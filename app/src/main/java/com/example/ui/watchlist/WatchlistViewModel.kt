@@ -39,6 +39,13 @@ class WatchlistViewModel(
         preferenceManager.setWatchlistViewMode(mode.name)
     }
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
     private val _watchlistCollapsedCategories = MutableStateFlow(
         preferenceManager.getWatchlistCollapsedCategories()
     )
@@ -96,12 +103,13 @@ class WatchlistViewModel(
     }
 
     val watchlistHasActiveFilters: Flow<Boolean> = combine(
-        _watchlistTypeFilter, _watchlistGenreFilter, _watchlistYearFilter
-    ) { type, genre, year ->
-        type != null || genre != null || year != null
+        _watchlistTypeFilter, _watchlistGenreFilter, _watchlistYearFilter, _searchQuery
+    ) { type, genre, year, search ->
+        type != null || genre != null || year != null || search.isNotBlank()
     }
 
     fun clearWatchlistFilters() {
+        setSearchQuery("")
         setWatchlistTypeFilter(null)
         setWatchlistGenreFilter(null)
         setWatchlistYearFilter(null)

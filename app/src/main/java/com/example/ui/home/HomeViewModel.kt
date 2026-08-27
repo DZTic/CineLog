@@ -45,6 +45,13 @@ class HomeViewModel(
         preferenceManager.setHomeViewMode(mode.name)
     }
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
     private val _homeCollapsedCategories = MutableStateFlow(
         preferenceManager.getHomeCollapsedCategories()
     )

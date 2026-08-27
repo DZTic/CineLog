@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -44,6 +45,7 @@ import com.example.ui.components.CollapsibleCategoryHeader
 import com.example.ui.components.EmptyState
 import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.HalfStarRatingBar
+import com.example.ui.components.LocalSearchBar
 import com.example.ui.components.SagaCard
 import com.example.ui.components.TitleCard
 import com.example.ui.components.TypeBadge
@@ -74,6 +76,7 @@ fun HomeScreen(
     val collapsedCategories by viewModel.homeCollapsedCategories.collectAsState()
     val apiKey by viewModel.tmdbApiKey.collectAsState()
     val hasDismissedOnboarding by viewModel.hasDismissedOnboarding.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
@@ -102,13 +105,29 @@ fun HomeScreen(
     }
     val watchlistCount = watchlist.size
 
+    // Filtrage des visionnages par recherche textuelle (titre, saga, critique)
+    val filteredLogs by remember(logs, searchQuery) {
+        derivedStateOf {
+            if (searchQuery.isBlank()) {
+                logs
+            } else {
+                val q = searchQuery.trim().lowercase()
+                logs.filter { entry ->
+                    entry.titleName.lowercase().contains(q) ||
+                        entry.collectionName?.lowercase()?.contains(q) == true ||
+                        entry.critique.lowercase().contains(q)
+                }
+            }
+        }
+    }
+
     // Group by category (Films / Séries / Animes) for readability, most
     // recently watched first within each group. Computed here (not inside
     // LazyColumn's content lambda, which isn't a @Composable context) so
     // remember() is valid.
-    val groupedLogs by remember(logs) {
+    val groupedLogs by remember(filteredLogs) {
         derivedStateOf {
-        logs
+        filteredLogs
             .sortedByDescending { it.dateVue }
             .groupBy { TitleType.valueOf(it.titleType) }
         }
@@ -262,6 +281,21 @@ fun HomeScreen(
                 }
             }
 
+            // Search bar within home tab
+            if (logs.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    LocalSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.setSearchQuery(it) },
+                        placeholder = "Rechercher dans votre journal...",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        testTag = "home_search_bar"
+                    )
+                }
+            }
+
             // Recent activity header, with the list/grid display switch
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(
@@ -272,7 +306,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Activité Récente",
+                        text = if (searchQuery.isBlank()) "Activité Récente" else "Résultats (${filteredLogs.size})",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
@@ -352,6 +386,29 @@ fun HomeScreen(
                                             }
                                         }
                                     }
+                                }
+                            }
+                        )
+                    }
+                }
+            } else if (filteredLogs.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        EmptyState(
+                            title = "Aucun résultat",
+                            message = "Aucun titre dans votre journal ne correspond à « $searchQuery ».",
+                            icon = Icons.Default.Search,
+                            action = {
+                                Button(
+                                    onClick = { viewModel.setSearchQuery("") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Effacer la recherche", color = MaterialTheme.colorScheme.onPrimary)
                                 }
                             }
                         )
