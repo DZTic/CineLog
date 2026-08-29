@@ -2,6 +2,7 @@ package com.example.data
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.example.R
@@ -25,7 +26,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import java.io.File
 import java.util.concurrent.TimeUnit
-
 import com.example.util.DateFormatter
 import java.util.Calendar
 import java.util.concurrent.ConcurrentHashMap
@@ -48,6 +48,7 @@ enum class TitleType {
         }
 }
 
+@Immutable
 data class CineSeason(
     val seasonNumber: Int,
     val name: String,
@@ -72,6 +73,7 @@ enum class SeasonStatus {
         }
 }
 
+@Immutable
 data class ProfileStats(
     val totalLogs: Int = 0,
     val averageScore: Float = 0f,
@@ -95,6 +97,7 @@ private data class TitleMeta(
     val runtime: Int?
 )
 
+@Immutable
 data class CineTitle(
     val id: String,          // e.g., "movie_123", "tv_456", "anime_789"
     val type: TitleType,     // FILM, SERIE, ANIME
@@ -1014,8 +1017,8 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
             .toList().sortedByDescending { it.second }.take(5)
 
         // Streak de visionnage (jours consécutifs avec au moins un log)
+        val cal = Calendar.getInstance()
         val days = logs.map { log ->
-            val cal = Calendar.getInstance()
             cal.timeInMillis = log.dateVue
             cal.set(Calendar.HOUR_OF_DAY, 0)
             cal.set(Calendar.MINUTE, 0)
@@ -1029,7 +1032,6 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
         // Année la plus productive (nombre de visionnages par année civile)
         val mostProductiveYear = logs
             .groupingBy { log ->
-                val cal = Calendar.getInstance()
                 cal.timeInMillis = log.dateVue
                 cal.get(Calendar.YEAR).toString()
             }
@@ -1088,21 +1090,24 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
     // Construit la série des notes moyennes mensuelles sur les 12 derniers mois
     // (ordre chronologique, mois sans log rapportés avec une note de 0).
     private fun buildMonthlyScoreSeries(logs: List<DbLogEntry>): List<Pair<String, Float>> {
-        val cal = Calendar.getInstance()
         val now = System.currentTimeMillis()
-        val result = mutableListOf<Pair<String, Float>>()
+        val cal = Calendar.getInstance()
+
+        // Pré-calcul du mois et de l'année pour chaque log (1 seule passe)
+        val logsByYearMonth = logs.groupBy { log ->
+            cal.timeInMillis = log.dateVue
+            cal.get(Calendar.YEAR) to cal.get(Calendar.MONTH)
+        }
+
+        val result = ArrayList<Pair<String, Float>>(12)
         for (i in 11 downTo 0) {
             cal.timeInMillis = now
             cal.add(Calendar.MONTH, -i)
             val year = cal.get(Calendar.YEAR)
             val month = cal.get(Calendar.MONTH)
-            val label = "${String.format("%02d", month + 1)}/${year % 100}"
-            val monthLogs = logs.filter { log ->
-                val logCal = Calendar.getInstance()
-                logCal.timeInMillis = log.dateVue
-                logCal.get(Calendar.YEAR) == year && logCal.get(Calendar.MONTH) == month
-            }
-            val avg = if (monthLogs.isNotEmpty()) monthLogs.map { it.note }.average().toFloat() else 0f
+            val label = String.format("%02d/%02d", month + 1, year % 100)
+            val monthLogs = logsByYearMonth[year to month]
+            val avg = if (!monthLogs.isNullOrEmpty()) monthLogs.map { it.note }.average().toFloat() else 0f
             result.add(label to avg)
         }
         return result

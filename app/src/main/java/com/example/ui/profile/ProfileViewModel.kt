@@ -3,9 +3,11 @@ package com.example.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ProfileViewModel(
     private val repository: Repository
@@ -25,7 +27,9 @@ class ProfileViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val profileStats: StateFlow<ProfileStats> = combine(allLogs, allWatchlist, repository.titleMetaCacheFlow) { logs, watchlist, _ ->
-        repository.getProfileStats(logs, watchlist)
+        withContext(Dispatchers.Default) {
+            repository.getProfileStats(logs, watchlist)
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileStats())
 
     private val _profileRefreshing = MutableStateFlow(false)

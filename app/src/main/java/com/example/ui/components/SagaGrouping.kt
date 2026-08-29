@@ -1,9 +1,12 @@
 package com.example.ui.components
 
+import androidx.compose.runtime.Immutable
+
 /**
  * A saga (TMDB "collection") made of several underlying items (log entries,
  * watchlist entries, or search results) that all share the same collectionId.
  */
+@Immutable
 data class SagaGroup<T>(
     val collectionId: Int,
     val collectionName: String,
@@ -16,6 +19,7 @@ data class SagaGroup<T>(
  * together. Used so the Watchlist, "Activité Récente" (Home) and Search
  * screens can all show one entry per franchise instead of one per movie.
  */
+@Immutable
 sealed class GroupedDisplay<T> {
     data class Single<T>(val item: T) : GroupedDisplay<T>()
     data class Grouped<T>(val group: SagaGroup<T>) : GroupedDisplay<T>()
