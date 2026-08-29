@@ -30,7 +30,9 @@ class CineLogApplication : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
-            .crossfade(200)
+            .crossfade(150)
+            .allowHardware(true)
+            .allowRgb565(true)
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)

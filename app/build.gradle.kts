@@ -101,6 +101,10 @@ baselineProfile {
   }
 }
 
+composeCompiler {
+  stabilityConfigurationFiles.add(layout.projectDirectory.file("../compose_compiler_config.conf"))
+}
+
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {

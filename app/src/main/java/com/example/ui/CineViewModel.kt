@@ -18,13 +18,14 @@ import com.example.ui.search.SearchViewModel
 import com.example.ui.settings.SettingsViewModel
 import com.example.ui.watchlist.WatchlistViewModel
 import com.example.util.NetworkMonitor
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@androidx.compose.runtime.Immutable
+@Immutable
 data class CachedSaga(val collectionId: Int, val collectionName: String, val posterUrl: String?)
 
 enum class CollectionViewMode { LIST, GRID }

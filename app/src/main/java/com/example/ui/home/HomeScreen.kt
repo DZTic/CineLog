@@ -80,8 +80,7 @@ fun HomeScreen(
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
-    val logs by remember(logsRaw, collectionCache) {
-        derivedStateOf {
+    val logs = remember(logsRaw, collectionCache) {
         logsRaw.map { entry ->
             if (entry.collectionId == null) {
                 collectionCache[entry.titleId]?.let { cached ->
@@ -96,46 +95,38 @@ fun HomeScreen(
             }
         }
     }
-    }
 
     // Calculated Statistics
     val totalWatched = logs.size
-    val averageScore by remember(logs) {
-        derivedStateOf { if (logs.isEmpty()) 0f else logs.map { it.note }.average().toFloat() }
+    val averageScore = remember(logs) {
+        if (logs.isEmpty()) 0f else logs.map { it.note }.average().toFloat()
     }
     val watchlistCount = watchlist.size
 
     // Filtrage des visionnages par recherche textuelle (titre, saga, critique)
-    val filteredLogs by remember(logs, searchQuery) {
-        derivedStateOf {
-            if (searchQuery.isBlank()) {
-                logs
-            } else {
-                val q = searchQuery.trim().lowercase()
-                logs.filter { entry ->
-                    entry.titleName.lowercase().contains(q) ||
-                        entry.collectionName?.lowercase()?.contains(q) == true ||
-                        entry.critique.lowercase().contains(q)
-                }
+    val filteredLogs = remember(logs, searchQuery) {
+        if (searchQuery.isBlank()) {
+            logs
+        } else {
+            val q = searchQuery.trim().lowercase()
+            logs.filter { entry ->
+                entry.titleName.lowercase().contains(q) ||
+                    entry.collectionName?.lowercase()?.contains(q) == true ||
+                    entry.critique.lowercase().contains(q)
             }
         }
     }
 
     // Group by category (Films / Séries / Animes) for readability, most
-    // recently watched first within each group. Computed here (not inside
-    // LazyColumn's content lambda, which isn't a @Composable context) so
-    // remember() is valid.
-    val groupedLogs by remember(filteredLogs) {
-        derivedStateOf {
+    // recently watched first within each group.
+    val groupedLogs = remember(filteredLogs) {
         filteredLogs
             .sortedByDescending { it.dateVue }
             .groupBy { TitleType.valueOf(it.titleType) }
-        }
     }
     // Within each category, movies from the same TMDB saga are collapsed
     // into a single "Activité Récente" row instead of one row per film.
-    val displayItemsByType by remember(groupedLogs) {
-        derivedStateOf {
+    val displayItemsByType = remember(groupedLogs) {
         groupedLogs.mapValues { (_, logsForType) ->
             logsForType.groupBySaga(
                 collectionId = { it.collectionId },
@@ -148,7 +139,6 @@ fun HomeScreen(
                 }
             }
         }
-    }
     }
     val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
 

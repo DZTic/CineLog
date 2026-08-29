@@ -224,20 +224,22 @@ fun TitleCard(
         TitleType.SERIE -> "Série"
         TitleType.ANIME -> "Anime"
     }
-    val compositeDescription = buildString {
-        append(title.title)
-        append(", ").append(typeLabel)
-        if (title.year.isNotBlank()) {
-            append(", ").append(title.year)
-        }
-        if (title.voteAverage > 0f) {
-            append(", note ").append(String.format(Locale.FRENCH, "%.1f", title.voteAverage))
-        }
-        if (isInWatchlist) {
-            append(", déjà dans la watchlist")
-        }
-        if (isWatched) {
-            append(", déjà vu")
+    val compositeDescription = remember(title.id, title.title, title.year, title.voteAverage, isInWatchlist, isWatched) {
+        buildString {
+            append(title.title)
+            append(", ").append(typeLabel)
+            if (title.year.isNotBlank()) {
+                append(", ").append(title.year)
+            }
+            if (title.voteAverage > 0f) {
+                append(", note ").append(String.format(Locale.FRENCH, "%.1f", title.voteAverage))
+            }
+            if (isInWatchlist) {
+                append(", déjà dans la watchlist")
+            }
+            if (isWatched) {
+                append(", déjà vu")
+            }
         }
     }
 
@@ -391,11 +393,13 @@ fun SagaCard(
     isComplete: Boolean = false
 ) {
     val filmCountText = if (filmCount > 1) "$filmCount films" else "$filmCount film"
-    val compositeDescription = buildString {
-        append("Saga ").append(name)
-        append(", ").append(filmCountText)
-        if (isComplete) {
-            append(", vue en entier")
+    val compositeDescription = remember(name, filmCount, isComplete) {
+        buildString {
+            append("Saga ").append(name)
+            append(", ").append(filmCountText)
+            if (isComplete) {
+                append(", vue en entier")
+            }
         }
     }
 
