@@ -19,6 +19,8 @@ import com.example.ui.settings.SettingsViewModel
 import com.example.ui.watchlist.WatchlistViewModel
 import com.example.util.ConnectivityNetworkMonitor
 import com.example.util.NetworkMonitor
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -36,6 +38,14 @@ val databaseModule = module {
     single<NetworkMonitor> { ConnectivityNetworkMonitor(androidContext()) }
 }
 
+val networkModule = module {
+    single<Moshi> {
+        Moshi.Builder()
+            .addLast(KotlinJsonAdapterFactory())
+            .build()
+    }
+}
+
 val repositoryModule = module {
     single { LogRepository(logDao = get()) }
     single { WatchlistRepository(watchlistDao = get()) }
@@ -45,7 +55,8 @@ val repositoryModule = module {
             logDao = get(),
             watchlistDao = get(),
             customListDao = get(),
-            seasonProgressDao = get()
+            seasonProgressDao = get(),
+            moshi = get()
         )
     }
     single {
@@ -58,7 +69,8 @@ val repositoryModule = module {
             sagaSizeDao = get(),
             titleMetaCacheDao = get(),
             preferenceManager = get(),
-            context = androidContext()
+            context = androidContext(),
+            moshi = get()
         )
     }
 }
@@ -78,4 +90,4 @@ val viewModelModule = module {
     viewModel { CineViewModel(application = null, repository = get(), preferenceManager = get()) }
 }
 
-val appModules = listOf(databaseModule, repositoryModule, viewModelModule)
+val appModules = listOf(databaseModule, networkModule, repositoryModule, viewModelModule)
