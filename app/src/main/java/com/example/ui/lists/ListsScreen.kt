@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -145,7 +146,7 @@ fun ListsScreen(
     var activeListId by rememberSaveable { mutableStateOf<Int?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
 
-    val customLists by viewModel.allCustomLists.collectAsState()
+    val customLists by viewModel.allCustomLists.collectAsStateWithLifecycle()
     var listToDelete by remember { mutableStateOf<DbCustomList?>(null) }
 
     if (activeListId == null) {
@@ -336,8 +337,8 @@ fun ListsScreen(
         val listId = activeListId!!
         val listDetailFlow = remember(listId) { viewModel.getCustomListDetail(listId) }
         val listTitlesFlow = remember(listId) { viewModel.getCustomListTitlesFlow(listId) }
-        val listDetail by listDetailFlow.collectAsState(null)
-        val listTitles by listTitlesFlow.collectAsState(emptyList())
+        val listDetail by listDetailFlow.collectAsStateWithLifecycle(null)
+        val listTitles by listTitlesFlow.collectAsStateWithLifecycle(emptyList())
         var showDeleteListDialog by remember { mutableStateOf(false) }
         val context = LocalContext.current
 
