@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.PreferenceManager
 import com.example.ui.settings.SettingsViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -28,15 +30,17 @@ class LocaleHelperTest {
     }
 
     @Test
-    fun testLanguageSelectionAndPersistence() {
+    fun testLanguageSelectionAndPersistence() = runBlocking {
         assertEquals("system", viewModel.appLanguage.value)
 
         viewModel.setAppLanguage("en")
         assertEquals("en", viewModel.appLanguage.value)
+        preferenceManager.appLanguageFlow.first { it == "en" }
         assertEquals("en", preferenceManager.getAppLanguage())
 
         viewModel.setAppLanguage("fr")
         assertEquals("fr", viewModel.appLanguage.value)
+        preferenceManager.appLanguageFlow.first { it == "fr" }
         assertEquals("fr", preferenceManager.getAppLanguage())
     }
 

@@ -1,13 +1,16 @@
 package com.example.ui.settings
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.data.ImportSummary
 import com.example.data.PreferenceManager
 import com.example.data.Repository
 import com.example.ui.theme.AppThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val preferenceManager: PreferenceManager,
@@ -32,23 +35,23 @@ class SettingsViewModel(
     val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
 
     fun setTmdbApiKey(key: String) {
-        preferenceManager.setTmdbApiKey(key)
         _tmdbApiKey.value = key
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateTmdbApiKey(key) }
     }
 
     fun setThemeMode(mode: AppThemeMode) {
-        preferenceManager.setThemeMode(mode.name)
         _themeMode.value = mode
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateThemeMode(mode.name) }
     }
 
     fun setDynamicColor(enabled: Boolean) {
-        preferenceManager.setDynamicColorEnabled(enabled)
         _dynamicColor.value = enabled
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateDynamicColorEnabled(enabled) }
     }
 
     fun setAppLanguage(languageCode: String) {
-        preferenceManager.setAppLanguage(languageCode)
         _appLanguage.value = languageCode
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateAppLanguage(languageCode) }
     }
 
     suspend fun generateJsonBackup(): String? {

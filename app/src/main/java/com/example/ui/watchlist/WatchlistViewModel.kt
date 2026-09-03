@@ -7,6 +7,7 @@ import com.example.data.*
 import com.example.ui.CachedSaga
 import com.example.ui.CollectionViewMode
 import com.example.ui.WatchlistSortOrder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -36,7 +37,7 @@ class WatchlistViewModel(
 
     fun setWatchlistViewMode(mode: CollectionViewMode) {
         _watchlistViewMode.value = mode
-        preferenceManager.setWatchlistViewMode(mode.name)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateWatchlistViewMode(mode.name) }
     }
 
     private val _searchQuery = MutableStateFlow("")
@@ -56,7 +57,7 @@ class WatchlistViewModel(
             if (!add(categoryKey)) remove(categoryKey)
         }
         _watchlistCollapsedCategories.value = updated
-        preferenceManager.setWatchlistCollapsedCategories(updated)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateWatchlistCollapsedCategories(updated) }
     }
 
     private val _watchlistSort = MutableStateFlow(
@@ -67,7 +68,7 @@ class WatchlistViewModel(
 
     fun setWatchlistSort(sort: WatchlistSortOrder) {
         _watchlistSort.value = sort
-        preferenceManager.setWatchlistSort(sort.name)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateWatchlistSort(sort.name) }
     }
 
     private val _watchlistTypeFilter = MutableStateFlow(
@@ -79,7 +80,7 @@ class WatchlistViewModel(
 
     fun setWatchlistTypeFilter(type: TitleType?) {
         _watchlistTypeFilter.value = type
-        preferenceManager.setWatchlistTypeFilter(type?.name ?: "")
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateWatchlistTypeFilter(type?.name ?: "") }
     }
 
     private val _watchlistGenreFilter = MutableStateFlow(
@@ -89,7 +90,7 @@ class WatchlistViewModel(
 
     fun setWatchlistGenreFilter(genre: String?) {
         _watchlistGenreFilter.value = genre
-        preferenceManager.setWatchlistGenreFilter(genre ?: "")
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateWatchlistGenreFilter(genre ?: "") }
     }
 
     private val _watchlistYearFilter = MutableStateFlow(
@@ -99,7 +100,7 @@ class WatchlistViewModel(
 
     fun setWatchlistYearFilter(year: String?) {
         _watchlistYearFilter.value = year
-        preferenceManager.setWatchlistYearFilter(year ?: "")
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateWatchlistYearFilter(year ?: "") }
     }
 
     val watchlistHasActiveFilters: Flow<Boolean> = combine(
