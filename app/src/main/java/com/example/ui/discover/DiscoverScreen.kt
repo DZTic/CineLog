@@ -22,6 +22,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.derivedStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,19 +51,19 @@ fun DiscoverScreen(
     onSagaClick: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val query by viewModel.searchQuery.collectAsState()
-    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val query by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
-    val trendingFilms by viewModel.trendingFilms.collectAsState()
-    val trendingSeries by viewModel.trendingSeries.collectAsState()
-    val topAnime by viewModel.topAnime.collectAsState()
-    val discoverLoading by viewModel.discoverLoading.collectAsState()
-    val discoverError by viewModel.discoverError.collectAsState()
-    val watchlist by viewModel.allWatchlist.collectAsState()
+    val trendingFilms by viewModel.trendingFilms.collectAsStateWithLifecycle()
+    val trendingSeries by viewModel.trendingSeries.collectAsStateWithLifecycle()
+    val topAnime by viewModel.topAnime.collectAsStateWithLifecycle()
+    val discoverLoading by viewModel.discoverLoading.collectAsStateWithLifecycle()
+    val discoverError by viewModel.discoverError.collectAsStateWithLifecycle()
+    val watchlist by viewModel.allWatchlist.collectAsStateWithLifecycle()
     val watchlistTitleIds = remember(watchlist) { watchlist.map { it.titleId }.toSet() }
 
-    val allLogs by viewModel.allLogs.collectAsState()
+    val allLogs by viewModel.allLogs.collectAsStateWithLifecycle()
     val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
 
     val filteredFilms = remember(trendingFilms, watchedTitleIds) {
