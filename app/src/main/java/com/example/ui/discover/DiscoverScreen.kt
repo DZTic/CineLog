@@ -232,10 +232,8 @@ fun DiscoverScreen(
                         ) {
                             items(
                                 count = searchPagingItems.itemCount,
-                                key = { index ->
-                                    val title = searchPagingItems.peek(index)
-                                    title?.let { "${it.id}_$index" } ?: "search_item_$index"
-                                }
+                                key = { index -> searchPagingItems.peek(index)?.id ?: index },
+                                contentType = { "search_title_card" }
                             ) { index ->
                                 val title = searchPagingItems[index]
                                 if (title != null) {
@@ -391,10 +389,8 @@ fun DiscoverScreen(
                                 ) {
                                     items(
                                         count = discoverPagingItems.itemCount,
-                                        key = { index ->
-                                            val title = discoverPagingItems.peek(index)
-                                            title?.let { "${it.id}_$index" } ?: "discover_item_$index"
-                                        }
+                                        key = { index -> discoverPagingItems.peek(index)?.id ?: index },
+                                        contentType = { "discover_title_card" }
                                     ) { index ->
                                         val title = discoverPagingItems[index]
                                         if (title != null) {
@@ -464,7 +460,11 @@ fun CarouselSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(items, key = { "carousel_${it.id}" }) { title ->
+            items(
+                items,
+                key = { "carousel_${it.id}" },
+                contentType = { "carousel_title" }
+            ) { title ->
                 TitleCard(
                     title = title,
                     onClick = { onTitleClick(title.id) },

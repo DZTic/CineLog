@@ -461,7 +461,11 @@ fun SearchScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(popularSuggestions, key = { "popular_${it.id}" }) { suggestion ->
+                                items(
+                                    popularSuggestions,
+                                    key = { "popular_${it.id}" },
+                                    contentType = { "popular_suggestion" }
+                                ) { suggestion ->
                                     TitleCard(
                                         title = suggestion,
                                         onClick = { onTitleClick(suggestion.id) },
@@ -481,10 +485,8 @@ fun SearchScreen(
                     ) {
                         items(
                             count = lazyPagingItems.itemCount,
-                            key = { index ->
-                                val title = lazyPagingItems.peek(index)
-                                title?.let { "${it.id}_$index" } ?: "search_item_$index"
-                            }
+                            key = { index -> lazyPagingItems.peek(index)?.id ?: index },
+                            contentType = { "search_title_card" }
                         ) { index ->
                             val title = lazyPagingItems[index]
                             if (title != null) {
