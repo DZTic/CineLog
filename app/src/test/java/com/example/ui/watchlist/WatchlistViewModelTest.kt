@@ -11,7 +11,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -30,7 +30,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36])
 class WatchlistViewModelTest {
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var database: AppDatabase
     private lateinit var preferenceManager: PreferenceManager
     private lateinit var repository: Repository
@@ -44,6 +44,10 @@ class WatchlistViewModelTest {
             .allowMainThreadQueries()
             .build()
         preferenceManager = PreferenceManager(context)
+        preferenceManager.setWatchlistTypeFilter("")
+        preferenceManager.setWatchlistGenreFilter("")
+        preferenceManager.setWatchlistYearFilter("")
+        preferenceManager.setWatchlistSort("DATE_ADDED")
         repository = Repository(
             logDao = database.logDao(),
             watchlistDao = database.watchlistDao(),
@@ -60,6 +64,10 @@ class WatchlistViewModelTest {
 
     @After
     fun tearDown() {
+        preferenceManager.setWatchlistTypeFilter("")
+        preferenceManager.setWatchlistGenreFilter("")
+        preferenceManager.setWatchlistYearFilter("")
+        preferenceManager.setWatchlistSort("DATE_ADDED")
         database.close()
         Dispatchers.resetMain()
     }
@@ -101,7 +109,7 @@ class WatchlistViewModelTest {
         database.watchlistDao().insertWatchlist(movie2)
         database.watchlistDao().insertWatchlist(serie1)
 
-        val state = viewModel.uiState.filter { !it.isLoading }.first()
+        val state = viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
         assertEquals(3, state.totalUnwatchedCount)
         assertEquals(3, state.filteredCount)
         assertFalse(state.isWatchlistEmpty)
