@@ -19,6 +19,14 @@ Le Worker applique des durées de cache HTTP (`Cache-Control`) et Edge Cache Clo
 - `movie/{id}`, `tv/{id}`, `collection/{id}` : 86400s (24h)
 
 La durée mise en cache côté Cloudflare Edge (`cache.put()`) et celle renvoyée au client dans le header HTTP `Cache-Control` sont synchronisées via `getCacheMaxAge()`.
+L'écriture en cache (`cache.put()`) est protégée par `ctx.waitUntil(...)` pour garantir la complétion de la promesse en arrière-plan sans bloquer ni retarder la réponse renvoyée au client HTTP.
+
+## Tests Unitaires
+
+Une suite de tests automatisée est disponible sans dépendance externe via le test runner natif Node.js :
+```bash
+node --test proxy/worker.test.mjs
+```
 
 ## Déploiement
 
