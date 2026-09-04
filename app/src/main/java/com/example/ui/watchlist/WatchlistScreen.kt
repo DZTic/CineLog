@@ -72,9 +72,7 @@ fun WatchlistScreen(
     onSagaClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val watchlistRaw by viewModel.allWatchlist.collectAsState()
-    val collectionCache by viewModel.collectionCache.collectAsState()
-    val allLogs by viewModel.allLogs.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val viewMode by viewModel.watchlistViewMode.collectAsState()
     val collapsedCategories by viewModel.watchlistCollapsedCategories.collectAsState()
     val sortOrder by viewModel.watchlistSort.collectAsState()
@@ -85,82 +83,11 @@ fun WatchlistScreen(
     val isRefreshing by viewModel.watchlistRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
 
-    // Entries added before the saga cache existed (or via the "Tout
-    // ajouter" bug) may have no collectionId stored yet. Backfill it from
-    // the local cache at read time so they regroup as soon as their saga is
-    // known, without needing to be re-added.
-    val backfilledWatchlist = remember(watchlistRaw, collectionCache) {
-        watchlistRaw.map { entry ->
-            if (entry.collectionId == null) {
-                collectionCache[entry.titleId]?.let { cached ->
-                    entry.copy(
-                        collectionId = cached.collectionId,
-                        collectionName = cached.collectionName,
-                        collectionPosterUrl = cached.posterUrl
-                    )
-                } ?: entry
-            } else {
-                entry
-            }
-        }
-    }
-
-    // Un titre peut rester présent dans la table watchlist tout en étant
-    // déjà marqué comme vu (log_entries) — par exemple ré-ajouté manuellement
-    // depuis sa fiche détail après visionnage. On le masque ici pour que la
-    // Watchlist ne montre jamais de films déjà vus et que, par effet de bord,
-    // une saga entièrement vue disparaisse d'elle-même du regroupement par
-    // saga puisqu'il ne lui reste alors plus aucune entrée non vue.
-    val watchedTitleIds = remember(allLogs) { allLogs.map { it.titleId }.toSet() }
-    val watchedFiltered = remember(backfilledWatchlist, watchedTitleIds) {
-        backfilledWatchlist.filter { it.titleId !in watchedTitleIds }
-    }
-
-    // Filtres de la Watchlist (issue #33). Appliques avant le regroupement
-    // par type/saga pour que le nombre affiche dans chaque en-tete reflete
-    // bien ce qui reste apres filtrage.
-    val watchlist = remember(watchedFiltered, typeFilter, genreFilter, yearFilter, searchQuery) {
-        watchedFiltered.filter { entry ->
-            val matchesType = typeFilter == null ||
-                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == typeFilter
-            val entryGenres = entry.titleGenres?.split(",")?.map { it.trim() } ?: emptyList()
-            val matchesGenre = genreFilter == null || entryGenres.contains(genreFilter)
-            val matchesYear = yearFilter == null || entry.titleYear == yearFilter
-            val matchesQuery = searchQuery.isBlank() ||
-                entry.titleName.contains(searchQuery.trim(), ignoreCase = true) ||
-                entry.collectionName?.contains(searchQuery.trim(), ignoreCase = true) == true
-            matchesType && matchesGenre && matchesYear && matchesQuery
-        }
-    }
-
-    // Genres et annees disponibles : calcules sur la watchlist filtree par
-    // type uniquement, pour que les menus ne montrent que des options qui
-    // ont encore au moins un resultat.
-    val typeScopedEntries = remember(watchedFiltered, typeFilter) {
-        watchedFiltered.filter { entry ->
-            typeFilter == null ||
-                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == typeFilter
-        }
-    }
-    val availableGenres = remember(typeScopedEntries) {
-        typeScopedEntries
-            .flatMap { it.titleGenres?.split(",")?.map { g -> g.trim() } ?: emptyList() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-    }
-    val availableYears = remember(typeScopedEntries) {
-        typeScopedEntries
-            .mapNotNull { it.titleYear }
-            .distinct()
-            .sortedDescending()
-    }
-
-    // Backfill en arriere-plan : les entrees sans metadonnees (creees avant
-    // la v6) sont enrichies depuis l'API au premier affichage de l'ecran.
-    val watchedTitleIdsKey = remember(watchedFiltered) { watchedFiltered.map { it.titleId } }
-    androidx.compose.runtime.LaunchedEffect(watchedTitleIdsKey) {
-        viewModel.backfillWatchlistMetadata(watchedFiltered)
+    // Backfill en arrière-plan : les entrées sans métadonnées sont enrichies
+    // depuis l'API au premier affichage de l'écran.
+    val unwatchedTitleIdsKey = remember(uiState.unwatchedEntries) { uiState.unwatchedEntries.map { it.titleId } }
+    androidx.compose.runtime.LaunchedEffect(unwatchedTitleIdsKey) {
+        viewModel.backfillWatchlistMetadata(uiState.unwatchedEntries)
     }
 
     Scaffold(
@@ -186,7 +113,7 @@ fun WatchlistScreen(
             state = pullToRefreshState,
             modifier = Modifier.fillMaxSize().padding(innerPadding)
         ) {
-        if (watchedFiltered.isEmpty()) {
+        if (uiState.isWatchlistEmpty) {
             Box(
                 modifier = Modifier
                     .fillMaxSize(),
@@ -197,63 +124,6 @@ fun WatchlistScreen(
                 )
             }
         } else {
-            // Group by category (Films / Séries / Animes) for readability,
-            // same approach as the "Activité Récente" grouping on Home. Within
-            // each category, movies that belong to the same TMDB saga are
-            // further collapsed into a single entry.
-            val groupedWatchlist = remember(watchlist) {
-                watchlist.groupBy {
-                    try {
-                        TitleType.valueOf(it.titleType)
-                    } catch (e: Exception) {
-                        TitleType.FILM
-                    }
-                }
-            }
-            val displayItemsByType = remember(groupedWatchlist, sortOrder) {
-                groupedWatchlist.mapValues { (_, items) ->
-                    val grouped = items.groupBySaga(
-                        collectionId = { it.collectionId },
-                        collectionName = { it.collectionName },
-                        posterUrl = { it.collectionPosterUrl }
-                    )
-                    // Une saga est un element composite : pour le tri, on
-                    // utilise ses items (ex. annee/note min ou max du groupe),
-                    // avec les entrees sans metadonnee triees en dernier.
-                    when (sortOrder) {
-                        WatchlistSortOrder.DATE_ADDED ->
-                            grouped.sortedByDescending { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> display.item.dateAdded
-                                    is GroupedDisplay.Grouped -> display.group.items.maxOf { it.dateAdded }
-                                }
-                            }
-                        WatchlistSortOrder.TITLE_AZ ->
-                            grouped.sortedBy { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> display.item.titleName.lowercase()
-                                    is GroupedDisplay.Grouped -> display.group.collectionName.lowercase()
-                                }
-                            }
-                        WatchlistSortOrder.RELEASE_YEAR ->
-                            grouped.sortedByDescending { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> display.item.titleYear?.toIntOrNull() ?: Int.MIN_VALUE
-                                    is GroupedDisplay.Grouped ->
-                                        display.group.items.mapNotNull { it.titleYear?.toIntOrNull() }.maxOrNull() ?: Int.MIN_VALUE
-                                }
-                            }
-                        WatchlistSortOrder.COMMUNITY_RATING ->
-                            grouped.sortedByDescending { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> display.item.titleVoteAverage ?: Float.MIN_VALUE
-                                    is GroupedDisplay.Grouped ->
-                                        display.group.items.mapNotNull { it.titleVoteAverage }.maxOrNull() ?: Float.MIN_VALUE
-                                }
-                            }
-                    }
-                }
-            }
             val categoryOrder = listOf(TitleType.FILM, TitleType.SERIE, TitleType.ANIME)
 
             // Même logique que sur l'Accueil : le nombre de colonnes pilote
@@ -290,7 +160,7 @@ fun WatchlistScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${watchlist.size} titre${if (watchlist.size > 1) "s" else ""}",
+                                text = "${uiState.filteredCount} titre${if (uiState.filteredCount > 1) "s" else ""}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = GrayText
                             )
@@ -303,8 +173,8 @@ fun WatchlistScreen(
                                     typeFilter = typeFilter,
                                     genreFilter = genreFilter,
                                     yearFilter = yearFilter,
-                                    availableGenres = availableGenres,
-                                    availableYears = availableYears,
+                                    availableGenres = uiState.availableGenres,
+                                    availableYears = uiState.availableYears,
                                     onTypeChange = { viewModel.setWatchlistTypeFilter(it) },
                                     onGenreChange = { viewModel.setWatchlistGenreFilter(it) },
                                     onYearChange = { viewModel.setWatchlistYearFilter(it) },
@@ -347,7 +217,7 @@ fun WatchlistScreen(
                     }
                 }
 
-                if (watchlist.isEmpty()) {
+                if (uiState.isFilteredEmpty) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         EmptyState(
                             title = "Aucun résultat",
@@ -368,69 +238,70 @@ fun WatchlistScreen(
                         )
                     }
                 } else {
-                categoryOrder.forEach { type ->
-                    val itemsForType = groupedWatchlist[type]
-                    val displayItems = displayItemsByType[type]
-                    if (!itemsForType.isNullOrEmpty() && !displayItems.isNullOrEmpty()) {
-                        val isCollapsed = collapsedCategories.contains(type.name)
-                        item(
-                            key = "header_${type.name}",
-                            span = { GridItemSpan(maxLineSpan) }
-                        ) {
-                            CollapsibleCategoryHeader(
-                                label = stringResource(type.displayNameRes) + "s (${itemsForType.size})",
-                                collapsed = isCollapsed,
-                                onToggle = { viewModel.toggleWatchlistCategoryCollapsed(type.name) }
-                            )
-                        }
-                        // Catégorie réduite : aucun item émis, ce qui laisse
-                        // immédiatement de la place aux catégories suivantes.
-                        if (!isCollapsed) {
-                            items(
-                                displayItems,
-                                key = { display ->
-                                    when (display) {
-                                        is GroupedDisplay.Single -> "watchlist_single_${display.item.titleId}"
-                                        is GroupedDisplay.Grouped -> "watchlist_saga_${display.group.collectionId}"
-                                    }
-                                }
-                            ) { display ->
-                                when (display) {
-                                    is GroupedDisplay.Single -> {
-                                        if (viewMode == CollectionViewMode.GRID) {
-                                            val title = display.item.toCineTitle()
-                                            TitleCard(
-                                                title = title,
-                                                onClick = { onTitleClick(title.id) }
-                                            )
-                                        } else {
-                                            SwipeToDismissContainer(
-                                                onDelete = { viewModel.removeFromWatchlist(display.item.titleId) },
-                                                cornerRadius = 8.dp
-                                            ) {
-                                                WatchlistRow(
-                                                    entry = display.item,
-                                                    onClick = { onTitleClick(display.item.titleId) }
-                                                )
-                                            }
+                    categoryOrder.forEach { type ->
+                        val itemsCount = uiState.categoryCounts[type] ?: 0
+                        val displayItems = uiState.displayItemsByType[type]
+                        if (itemsCount > 0 && !displayItems.isNullOrEmpty()) {
+                            val isCollapsed = collapsedCategories.contains(type.name)
+                            item(
+                                key = "header_${type.name}",
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
+                                CollapsibleCategoryHeader(
+                                    label = stringResource(type.displayNameRes) + "s ($itemsCount)",
+                                    collapsed = isCollapsed,
+                                    onToggle = { viewModel.toggleWatchlistCategoryCollapsed(type.name) }
+                                )
+                            }
+                            // Catégorie réduite : aucun item émis, ce qui laisse
+                            // immédiatement de la place aux catégories suivantes.
+                            if (!isCollapsed) {
+                                items(
+                                    displayItems,
+                                    key = { display ->
+                                        when (display) {
+                                            is GroupedDisplay.Single -> "watchlist_single_${display.item.titleId}"
+                                            is GroupedDisplay.Grouped -> "watchlist_saga_${display.group.collectionId}"
                                         }
                                     }
-                                    is GroupedDisplay.Grouped -> {
-                                        val group = display.group
-                                        if (viewMode == CollectionViewMode.GRID) {
-                                            SagaCard(
-                                                name = group.collectionName,
-                                                posterUrl = group.posterUrl,
-                                                filmCount = group.items.size,
-                                                onClick = { onSagaClick(group.collectionId) }
-                                            )
-                                        } else {
-                                            SagaWatchlistRow(
-                                                collectionName = group.collectionName,
-                                                posterUrl = group.posterUrl,
-                                                count = group.items.size,
-                                                onClick = { onSagaClick(group.collectionId) }
-                                            )
+                                ) { display ->
+                                    when (display) {
+                                        is GroupedDisplay.Single -> {
+                                            if (viewMode == CollectionViewMode.GRID) {
+                                                val title = display.item.toCineTitle()
+                                                TitleCard(
+                                                    title = title,
+                                                    onClick = { onTitleClick(title.id) }
+                                                )
+                                            } else {
+                                                SwipeToDismissContainer(
+                                                    onDelete = { viewModel.removeFromWatchlist(display.item.titleId) },
+                                                    cornerRadius = 8.dp
+                                                ) {
+                                                    WatchlistRow(
+                                                        entry = display.item,
+                                                        onClick = { onTitleClick(display.item.titleId) }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        is GroupedDisplay.Grouped -> {
+                                            val group = display.group
+                                            if (viewMode == CollectionViewMode.GRID) {
+                                                SagaCard(
+                                                    name = group.collectionName,
+                                                    posterUrl = group.posterUrl,
+                                                    filmCount = group.items.size,
+                                                    onClick = { onSagaClick(group.collectionId) }
+                                                )
+                                            } else {
+                                                SagaWatchlistRow(
+                                                    collectionName = group.collectionName,
+                                                    posterUrl = group.posterUrl,
+                                                    count = group.items.size,
+                                                    onClick = { onSagaClick(group.collectionId) }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -438,11 +309,10 @@ fun WatchlistScreen(
                         }
                     }
                 }
-                }
             }
-        } // end PullToRefreshBox
         }
-    }
+    } // end PullToRefreshBox
+}
 }
 
 /**

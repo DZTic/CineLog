@@ -1,16 +1,43 @@
 package com.example.ui.watchlist
 
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import com.example.ui.CachedSaga
 import com.example.ui.CollectionViewMode
 import com.example.ui.WatchlistSortOrder
+import com.example.ui.components.GroupedDisplay
+import com.example.ui.components.groupBySaga
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+
+@Immutable
+data class WatchlistUiState(
+    val isLoading: Boolean = true,
+    val totalUnwatchedCount: Int = 0,
+    val filteredCount: Int = 0,
+    val availableGenres: List<String> = emptyList(),
+    val availableYears: List<String> = emptyList(),
+    val categoryCounts: Map<TitleType, Int> = emptyMap(),
+    val displayItemsByType: Map<TitleType, List<GroupedDisplay<DbWatchlist>>> = emptyMap(),
+    val unwatchedEntries: List<DbWatchlist> = emptyList()
+) {
+    val isWatchlistEmpty: Boolean get() = !isLoading && totalUnwatchedCount == 0
+    val isFilteredEmpty: Boolean get() = !isLoading && totalUnwatchedCount > 0 && filteredCount == 0
+}
+
+private data class FilterSortParams(
+    val query: String,
+    val sort: WatchlistSortOrder,
+    val typeFilter: TitleType?,
+    val genreFilter: String?,
+    val yearFilter: String?
+)
 
 class WatchlistViewModel(
     private val repository: Repository,
@@ -113,6 +140,145 @@ class WatchlistViewModel(
         setWatchlistTypeFilter(null)
         setWatchlistGenreFilter(null)
         setWatchlistYearFilter(null)
+    }
+
+    private val filterSortParams: Flow<FilterSortParams> = combine(
+        _searchQuery,
+        _watchlistSort,
+        _watchlistTypeFilter,
+        _watchlistGenreFilter,
+        _watchlistYearFilter
+    ) { query, sort, type, genre, year ->
+        FilterSortParams(query, sort, type, genre, year)
+    }
+
+    val uiState: StateFlow<WatchlistUiState> = combine(
+        allWatchlist,
+        allLogs,
+        collectionCache,
+        filterSortParams
+    ) { rawWatchlist, logs, cache, params ->
+        computeWatchlistUiState(rawWatchlist, logs, cache, params)
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = WatchlistUiState(isLoading = true)
+        )
+
+    private fun computeWatchlistUiState(
+        rawWatchlist: List<DbWatchlist>,
+        logs: List<DbLogEntry>,
+        cache: Map<String, CachedSaga>,
+        params: FilterSortParams
+    ): WatchlistUiState {
+        val backfilledWatchlist = rawWatchlist.map { entry ->
+            if (entry.collectionId == null) {
+                cache[entry.titleId]?.let { cached ->
+                    entry.copy(
+                        collectionId = cached.collectionId,
+                        collectionName = cached.collectionName,
+                        collectionPosterUrl = cached.posterUrl
+                    )
+                } ?: entry
+            } else {
+                entry
+            }
+        }
+
+        val watchedTitleIds = logs.map { it.titleId }.toSet()
+        val watchedFiltered = backfilledWatchlist.filter { it.titleId !in watchedTitleIds }
+
+        val typeScopedEntries = watchedFiltered.filter { entry ->
+            params.typeFilter == null ||
+                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == params.typeFilter
+        }
+        val availableGenres = typeScopedEntries
+            .flatMap { it.titleGenres?.split(",")?.map(String::trim) ?: emptyList() }
+            .filter(String::isNotBlank)
+            .distinct()
+            .sorted()
+
+        val availableYears = typeScopedEntries
+            .mapNotNull { it.titleYear?.takeIf(String::isNotBlank) }
+            .distinct()
+            .sortedDescending()
+
+        val trimmedQuery = params.query.trim()
+        val hasQuery = trimmedQuery.isNotBlank()
+
+        val filteredWatchlist = watchedFiltered.filter { entry ->
+            val matchesType = params.typeFilter == null ||
+                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == params.typeFilter
+            val matchesGenre = params.genreFilter == null ||
+                entry.titleGenres?.split(",")?.any { it.trim() == params.genreFilter } == true
+            val matchesYear = params.yearFilter == null || entry.titleYear == params.yearFilter
+            val matchesQuery = !hasQuery ||
+                entry.titleName.contains(trimmedQuery, ignoreCase = true) ||
+                entry.collectionName?.contains(trimmedQuery, ignoreCase = true) == true
+            matchesType && matchesGenre && matchesYear && matchesQuery
+        }
+
+        val groupedWatchlist = filteredWatchlist.groupBy {
+            try {
+                TitleType.valueOf(it.titleType)
+            } catch (e: Exception) {
+                TitleType.FILM
+            }
+        }
+        val categoryCounts = groupedWatchlist.mapValues { (_, items) -> items.size }
+
+        val displayItemsByType = groupedWatchlist.mapValues { (_, items) ->
+            val grouped = items.groupBySaga(
+                collectionId = { it.collectionId },
+                collectionName = { it.collectionName },
+                posterUrl = { it.collectionPosterUrl }
+            )
+            when (params.sort) {
+                WatchlistSortOrder.DATE_ADDED ->
+                    grouped.sortedByDescending { display ->
+                        when (display) {
+                            is GroupedDisplay.Single -> display.item.dateAdded
+                            is GroupedDisplay.Grouped -> display.group.items.maxOf { it.dateAdded }
+                        }
+                    }
+                WatchlistSortOrder.TITLE_AZ ->
+                    grouped.sortedBy { display ->
+                        when (display) {
+                            is GroupedDisplay.Single -> display.item.titleName.lowercase()
+                            is GroupedDisplay.Grouped -> display.group.collectionName.lowercase()
+                        }
+                    }
+                WatchlistSortOrder.RELEASE_YEAR ->
+                    grouped.sortedByDescending { display ->
+                        when (display) {
+                            is GroupedDisplay.Single -> display.item.titleYear?.toIntOrNull() ?: Int.MIN_VALUE
+                            is GroupedDisplay.Grouped ->
+                                display.group.items.mapNotNull { it.titleYear?.toIntOrNull() }.maxOrNull() ?: Int.MIN_VALUE
+                        }
+                    }
+                WatchlistSortOrder.COMMUNITY_RATING ->
+                    grouped.sortedByDescending { display ->
+                        when (display) {
+                            is GroupedDisplay.Single -> display.item.titleVoteAverage ?: Float.MIN_VALUE
+                            is GroupedDisplay.Grouped ->
+                                display.group.items.mapNotNull { it.titleVoteAverage }.maxOrNull() ?: Float.MIN_VALUE
+                        }
+                    }
+            }
+        }
+
+        return WatchlistUiState(
+            isLoading = false,
+            totalUnwatchedCount = watchedFiltered.size,
+            filteredCount = filteredWatchlist.size,
+            availableGenres = availableGenres,
+            availableYears = availableYears,
+            categoryCounts = categoryCounts,
+            displayItemsByType = displayItemsByType,
+            unwatchedEntries = watchedFiltered
+        )
     }
 
     private val attemptedBackfills = ConcurrentHashMap.newKeySet<String>()
