@@ -18,6 +18,16 @@ class BackupRepository(
         .build()
 ) {
 
+    companion object {
+        private const val CSV_DATE_PATTERN = "yyyy-MM-dd HH:mm:ss"
+
+        private val csvDateFormat = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat {
+                return SimpleDateFormat(CSV_DATE_PATTERN, Locale.getDefault())
+            }
+        }
+    }
+
     suspend fun exportBackupJson(): String = withContext(Dispatchers.IO) {
         val backup = CineLogBackup(
             version = 1,
@@ -39,7 +49,7 @@ class BackupRepository(
         val customListTitles = customListDao.getAllCustomListTitlesList()
 
         val sb = StringBuilder()
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val dateFormat = csvDateFormat.get()!!
 
         sb.append("=== LOGS DE VISIONNAGE ===\n")
         sb.append("ID,ID_Titre,Type,Titre,Date_Vue,Note,Critique,Revisionnage,Spoiler,Collection\n")
@@ -229,8 +239,7 @@ class BackupRepository(
         val longVal = str.toLongOrNull()
         if (longVal != null) return longVal
         return try {
-            val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            format.parse(str)?.time ?: System.currentTimeMillis()
+            csvDateFormat.get()?.parse(str)?.time ?: System.currentTimeMillis()
         } catch (e: Exception) {
             System.currentTimeMillis()
         }

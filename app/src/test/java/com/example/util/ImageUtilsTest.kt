@@ -36,6 +36,20 @@ class ImageUtilsTest {
     }
 
     @Test
+    fun testFormatPosterUrl_withTmdbOriginalUrl_replacesWithConfiguredSize() {
+        val input = "https://image.tmdb.org/t/p/original/aeG07bS9Z6g0D8U5I14kY2q0bM5.jpg"
+        val card = formatPosterUrl(input, PosterSize.CARD)
+        assertEquals("https://image.tmdb.org/t/p/w300/aeG07bS9Z6g0D8U5I14kY2q0bM5.jpg", card)
+    }
+
+    @Test
+    fun testFormatPosterUrl_withRelativePathWithoutLeadingSlash_prependsTmdbHostAndSlash() {
+        val input = "aeG07bS9Z6g0D8U5I14kY2q0bM5.jpg"
+        val result = formatPosterUrl(input, PosterSize.CARD)
+        assertEquals("https://image.tmdb.org/t/p/w300/aeG07bS9Z6g0D8U5I14kY2q0bM5.jpg", result)
+    }
+
+    @Test
     fun testFormatPosterUrl_withNonTmdbUrl_returnsUnchanged() {
         val input = "https://cdn.myanimelist.net/images/anime/10/47339.jpg"
         val result = formatPosterUrl(input, PosterSize.CARD)

@@ -247,6 +247,47 @@ class BackupExportTest {
     }
 
     @Test
+    fun testCsvDateParsingAndPreservation() = runBlocking {
+        val logDao = FakeLogDao()
+        val watchlistDao = FakeWatchlistDao()
+
+        // Test with both date string format and raw epoch timestamp
+        val csvContent = """
+            === LOGS DE VISIONNAGE ===
+            ID,ID_Titre,Type,Titre,Date_Vue,Note,Critique,Revisionnage,Spoiler,Collection
+            1,"movie_1","FILM","Inception","2023-11-15 12:00:00",4.5,"Great",false,false,"Nolan"
+            2,"movie_2","FILM","Oppenheimer","1700000000000",5.0,"Masterpiece",false,false,"Nolan"
+
+            === WATCHLIST ===
+            ID_Titre,Type,Titre,Date_Ajout,Annee,Genres,Note_Moyenne,Collection
+            "movie_3","FILM","Dunkirk","2023-11-16 14:30:00","2017","War,Drama",4.0,"Nolan"
+        """.trimIndent()
+
+        val repo = Repository(
+            logDao = logDao,
+            watchlistDao = watchlistDao,
+            customListDao = FakeCustomListDao(),
+            seasonProgressDao = FakeSeasonProgressDao(),
+            collectionCacheDao = FakeCollectionCacheDao(),
+            sagaSizeDao = FakeSagaSizeDao(),
+            preferenceManager = PreferenceManager(testContext)
+        )
+
+        val summary = repo.importBackup(csvContent)
+        assertEquals(2, summary.logsCount)
+        assertEquals(1, summary.watchlistCount)
+
+        assertEquals("Inception", logDao.logs[0].titleName)
+        assertTrue("dateVue should be parsed from formatted date string", logDao.logs[0].dateVue > 0L)
+
+        assertEquals("Oppenheimer", logDao.logs[1].titleName)
+        assertEquals(1700000000000L, logDao.logs[1].dateVue)
+
+        assertEquals("Dunkirk", watchlistDao.watchlist[0].titleName)
+        assertTrue("dateAdded should be parsed from formatted date string", watchlistDao.watchlist[0].dateAdded > 0L)
+    }
+
+    @Test
     fun testTitleMetaCachePersistence() = runBlocking {
         val metaDao = FakeTitleMetaCacheDao()
         metaDao.upsert(DbTitleMetaCache(titleId = "movie_100", genres = "Action,Sci-Fi", studioOrDirector = "Christopher Nolan", voteAverage = 8.8f, runtime = 148))
