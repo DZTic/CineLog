@@ -365,6 +365,24 @@ class Repository(
         )
     }
 
+    suspend fun addAllToWatchlist(titles: List<CineTitle>) = withContext(Dispatchers.IO) {
+        if (titles.isEmpty()) return@withContext
+        val items = titles.map { title ->
+            DbWatchlist(
+                titleId = title.id,
+                titleType = title.type.name,
+                titleName = title.title,
+                titlePosterUrl = title.posterUrl,
+                titleYear = title.year.ifBlank { null },
+                titleGenres = title.genres.takeIf { it.isNotEmpty() }?.joinToString(","),
+                titleVoteAverage = title.voteAverage.takeIf { it > 0f },
+                collectionId = title.collectionId,
+                collectionName = title.collectionName,
+                collectionPosterUrl = title.collectionPosterUrl
+            )
+        }
+        watchlistDao.insertMissingWatchlists(items)
+    }
     suspend fun removeFromWatchlist(titleId: String) = withContext(Dispatchers.IO) {
         watchlistDao.deleteFromWatchlist(titleId)
     }
@@ -450,6 +468,10 @@ class Repository(
 
     suspend fun updateCustomListTitleOrder(id: Int, newOrderIndex: Int) = withContext(Dispatchers.IO) {
         customListDao.updateCustomListTitleOrder(id, newOrderIndex)
+    }
+    suspend fun reorderCustomListTitles(items: List<DbCustomListTitle>) = withContext(Dispatchers.IO) {
+        if (items.isEmpty()) return@withContext
+        customListDao.updateCustomListTitlesOrder(items)
     }
 
     private fun getTmdbKey(): String {

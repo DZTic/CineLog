@@ -40,4 +40,10 @@ class CustomListRepository(
     }
 
     suspend fun deleteListTitleById(id: Int) = customListDao.deleteCustomListTitleById(id)
+
+    suspend fun updateCustomListTitleOrder(id: Int, newOrderIndex: Int) =
+        customListDao.updateCustomListTitleOrder(id, newOrderIndex)
+
+    suspend fun reorderCustomListTitles(items: List<DbCustomListTitle>) =
+        customListDao.updateCustomListTitlesOrder(items)
 }
