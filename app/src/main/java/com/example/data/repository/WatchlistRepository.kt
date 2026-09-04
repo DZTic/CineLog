@@ -17,6 +17,12 @@ class WatchlistRepository(
 
     suspend fun addToWatchlistBatch(items: List<DbWatchlist>) = watchlistDao.insertWatchlists(items)
 
+    suspend fun getExistingTitleIds(titleIds: List<String>): List<String> =
+        if (titleIds.isEmpty()) emptyList() else watchlistDao.getExistingTitleIds(titleIds)
+
+    suspend fun insertMissingWatchlists(items: List<DbWatchlist>) =
+        watchlistDao.insertMissingWatchlists(items)
+
     suspend fun removeFromWatchlist(titleId: String) = watchlistDao.deleteFromWatchlist(titleId)
 
     suspend fun updateMetadata(titleId: String, year: String?, genres: String?, voteAverage: Float?) =
