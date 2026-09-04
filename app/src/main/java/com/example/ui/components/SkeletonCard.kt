@@ -37,6 +37,12 @@ import androidx.compose.ui.unit.dp
 // Shimmer brush helper
 // ---------------------------------------------------------------------------
 
+private val SHIMMER_COLORS = listOf(
+    Color(0xFF2A2A2A),
+    Color(0xFF3D3D3D),
+    Color(0xFF2A2A2A),
+)
+
 /**
  * Retourne un [Brush] anime en degrade horizontal (shimmer) qui se deplace
  * en continu de gauche a droite, donnant l'illusion d'une lumiere qui balaie
@@ -55,14 +61,8 @@ fun shimmerBrush(): Brush {
         label = "shimmer_translate"
     )
 
-    val shimmerColors = listOf(
-        Color(0xFF2A2A2A),
-        Color(0xFF3D3D3D),
-        Color(0xFF2A2A2A),
-    )
-
     return Brush.linearGradient(
-        colors = shimmerColors,
+        colors = SHIMMER_COLORS,
         start = Offset(translateAnim - 300f, 0f),
         end = Offset(translateAnim, 0f)
     )
