@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -76,8 +77,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val settingsViewModel: SettingsViewModel = koinViewModel()
-            val themeMode by settingsViewModel.themeMode.collectAsState()
-            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
+            val themeMode by settingsViewModel.themeMode.collectAsStateWithLifecycle()
+            val dynamicColor by settingsViewModel.dynamicColor.collectAsStateWithLifecycle()
 
             MyApplicationTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
                 MainAppScaffold(networkMonitor = networkMonitor)
@@ -193,7 +194,7 @@ fun MainAppScaffold(
     val navController = rememberNavController()
 
     val isOnline by (networkMonitor?.isOnline ?: remember { mutableStateOf(true) })
-        .let { if (it is kotlinx.coroutines.flow.Flow<*>) (it as kotlinx.coroutines.flow.Flow<Boolean>).collectAsState(initial = true) else it as State<Boolean> }
+        .let { if (it is kotlinx.coroutines.flow.Flow<*>) (it as kotlinx.coroutines.flow.Flow<Boolean>).collectAsStateWithLifecycle(initialValue = true) else it as State<Boolean> }
 
     // Logging sheet dialog trigger state
     var loggingTitle by remember { mutableStateOf<CineTitle?>(null) }

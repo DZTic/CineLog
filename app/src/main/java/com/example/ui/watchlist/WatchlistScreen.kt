@@ -23,7 +23,7 @@ import com.example.ui.components.SkeletonWatchlistGrid
 import com.example.ui.components.SkeletonWatchlistList
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,17 +72,17 @@ fun WatchlistScreen(
     onSagaClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val watchlistRaw by viewModel.allWatchlist.collectAsState()
-    val collectionCache by viewModel.collectionCache.collectAsState()
-    val allLogs by viewModel.allLogs.collectAsState()
-    val viewMode by viewModel.watchlistViewMode.collectAsState()
-    val collapsedCategories by viewModel.watchlistCollapsedCategories.collectAsState()
-    val sortOrder by viewModel.watchlistSort.collectAsState()
-    val typeFilter by viewModel.watchlistTypeFilter.collectAsState()
-    val genreFilter by viewModel.watchlistGenreFilter.collectAsState()
-    val yearFilter by viewModel.watchlistYearFilter.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val isRefreshing by viewModel.watchlistRefreshing.collectAsState()
+    val watchlistRaw by viewModel.allWatchlist.collectAsStateWithLifecycle()
+    val collectionCache by viewModel.collectionCache.collectAsStateWithLifecycle()
+    val allLogs by viewModel.allLogs.collectAsStateWithLifecycle()
+    val viewMode by viewModel.watchlistViewMode.collectAsStateWithLifecycle()
+    val collapsedCategories by viewModel.watchlistCollapsedCategories.collectAsStateWithLifecycle()
+    val sortOrder by viewModel.watchlistSort.collectAsStateWithLifecycle()
+    val typeFilter by viewModel.watchlistTypeFilter.collectAsStateWithLifecycle()
+    val genreFilter by viewModel.watchlistGenreFilter.collectAsStateWithLifecycle()
+    val yearFilter by viewModel.watchlistYearFilter.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.watchlistRefreshing.collectAsStateWithLifecycle()
     val pullToRefreshState = rememberPullToRefreshState()
 
     // Entries added before the saga cache existed (or via the "Tout

@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,10 +42,10 @@ fun ProfileScreen(
     onNavigateToLists: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val logs by viewModel.allLogs.collectAsState()
-    val watchlist by viewModel.allWatchlist.collectAsState()
-    val customLists by viewModel.allCustomLists.collectAsState()
-    val isRefreshing by viewModel.profileRefreshing.collectAsState()
+    val logs by viewModel.allLogs.collectAsStateWithLifecycle()
+    val watchlist by viewModel.allWatchlist.collectAsStateWithLifecycle()
+    val customLists by viewModel.allCustomLists.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.profileRefreshing.collectAsStateWithLifecycle()
     val pullToRefreshState = rememberPullToRefreshState()
 
     Scaffold(
@@ -137,7 +138,7 @@ fun ProfileScreen(
                             )
                         }
                     } else {
-                        val stats by viewModel.profileStats.collectAsState()
+                        val stats by viewModel.profileStats.collectAsStateWithLifecycle()
 
                         // Key Stats Rows
                         StatsOverviewPanel(logs = logs, watchlistCount = watchlist.size)

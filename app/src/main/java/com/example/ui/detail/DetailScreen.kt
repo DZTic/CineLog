@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,15 +64,15 @@ fun DetailScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val currentTitle by viewModel.currentTitle.collectAsState()
-    val logs by viewModel.currentTitleLogs.collectAsState()
-    val loading by viewModel.detailLoading.collectAsState()
-    val error by viewModel.detailError.collectAsState()
-    val customLists by viewModel.allCustomLists.collectAsState()
+    val currentTitle by viewModel.currentTitle.collectAsStateWithLifecycle()
+    val logs by viewModel.currentTitleLogs.collectAsStateWithLifecycle()
+    val loading by viewModel.detailLoading.collectAsStateWithLifecycle()
+    val error by viewModel.detailError.collectAsStateWithLifecycle()
+    val customLists by viewModel.allCustomLists.collectAsStateWithLifecycle()
 
-    val watchlist by viewModel.allWatchlist.collectAsState()
-    val collectionTitles by viewModel.collectionTitles.collectAsState()
-    val seasonProgress by viewModel.currentSeasonProgress.collectAsState()
+    val watchlist by viewModel.allWatchlist.collectAsStateWithLifecycle()
+    val collectionTitles by viewModel.collectionTitles.collectAsStateWithLifecycle()
+    val seasonProgress by viewModel.currentSeasonProgress.collectAsStateWithLifecycle()
     val isInWatchlist = remember(watchlist, titleId) {
         watchlist.any { it.titleId == titleId }
     }
