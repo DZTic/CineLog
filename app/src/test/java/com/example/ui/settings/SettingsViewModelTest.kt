@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.PreferenceManager
 import com.example.ui.theme.AppThemeMode
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -31,37 +33,42 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun testThemeModePersistence() {
+    fun testThemeModePersistence() = runBlocking {
         assertEquals(AppThemeMode.DARK, viewModel.themeMode.value)
 
         viewModel.setThemeMode(AppThemeMode.LIGHT)
         assertEquals(AppThemeMode.LIGHT, viewModel.themeMode.value)
+        preferenceManager.themeModeFlow.first { it == "LIGHT" }
         assertEquals("LIGHT", preferenceManager.getThemeMode())
 
         viewModel.setThemeMode(AppThemeMode.SYSTEM)
         assertEquals(AppThemeMode.SYSTEM, viewModel.themeMode.value)
+        preferenceManager.themeModeFlow.first { it == "SYSTEM" }
         assertEquals("SYSTEM", preferenceManager.getThemeMode())
     }
 
     @Test
-    fun testDynamicColorPersistence() {
+    fun testDynamicColorPersistence() = runBlocking {
         assertFalse(viewModel.dynamicColor.value)
 
         viewModel.setDynamicColor(true)
         assertTrue(viewModel.dynamicColor.value)
+        preferenceManager.dynamicColorFlow.first { it }
         assertTrue(preferenceManager.isDynamicColorEnabled())
 
         viewModel.setDynamicColor(false)
         assertFalse(viewModel.dynamicColor.value)
+        preferenceManager.dynamicColorFlow.first { !it }
         assertFalse(preferenceManager.isDynamicColorEnabled())
     }
 
     @Test
-    fun testTmdbApiKeyPersistence() {
+    fun testTmdbApiKeyPersistence() = runBlocking {
         assertEquals("", viewModel.tmdbApiKey.value)
 
         viewModel.setTmdbApiKey("test_key_123")
         assertEquals("test_key_123", viewModel.tmdbApiKey.value)
+        preferenceManager.tmdbApiKeyFlow.first { it == "test_key_123" }
         assertEquals("test_key_123", preferenceManager.getTmdbApiKey())
     }
 }

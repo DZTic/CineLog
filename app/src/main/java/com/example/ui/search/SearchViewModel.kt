@@ -117,18 +117,18 @@ class SearchViewModel(
         if (q.length < 2) return
         val updated = (listOf(q) + _searchHistory.value.filterNot { it.equals(q, ignoreCase = true) }).take(10)
         _searchHistory.value = updated
-        preferenceManager.setSearchHistory(updated)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateSearchHistory(updated) }
     }
 
     fun removeSearchHistory(query: String) {
         val updated = _searchHistory.value.filterNot { it.equals(query, ignoreCase = true) }
         _searchHistory.value = updated
-        preferenceManager.setSearchHistory(updated)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateSearchHistory(updated) }
     }
 
     fun clearSearchHistory() {
         _searchHistory.value = emptyList()
-        preferenceManager.setSearchHistory(emptyList())
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateSearchHistory(emptyList()) }
     }
 
     fun togglePinSearch(query: String) {
@@ -142,7 +142,7 @@ class SearchViewModel(
             current.add(0, q)
         }
         _pinnedSearches.value = current
-        preferenceManager.setPinnedSearches(current)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updatePinnedSearches(current) }
     }
 
     fun performSearch(query: String, filter: TitleType? = null, debounceMs: Long = 0L) {

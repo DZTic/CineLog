@@ -42,7 +42,7 @@ class HomeViewModel(
 
     fun setHomeViewMode(mode: CollectionViewMode) {
         _homeViewMode.value = mode
-        preferenceManager.setHomeViewMode(mode.name)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateHomeViewMode(mode.name) }
     }
 
     private val _searchQuery = MutableStateFlow("")
@@ -62,7 +62,7 @@ class HomeViewModel(
             if (!add(categoryKey)) remove(categoryKey)
         }
         _homeCollapsedCategories.value = updated
-        preferenceManager.setHomeCollapsedCategories(updated)
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateHomeCollapsedCategories(updated) }
     }
 
     private val _tmdbApiKey = MutableStateFlow(preferenceManager.getTmdbApiKey())
@@ -72,8 +72,8 @@ class HomeViewModel(
     val hasDismissedOnboarding: StateFlow<Boolean> = _hasDismissedOnboarding.asStateFlow()
 
     fun dismissOnboarding() {
-        preferenceManager.setHasDismissedOnboarding(true)
         _hasDismissedOnboarding.value = true
+        viewModelScope.launch(Dispatchers.IO) { preferenceManager.updateHasDismissedOnboarding(true) }
     }
 
     private val _trendingFilms = MutableStateFlow<List<CineTitle>>(emptyList())
