@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(
     tableName = "log_entries",
     indices = [Index(value = ["titleId"])]
@@ -29,6 +30,7 @@ data class DbLogEntry(
 )
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(
     tableName = "watchlist",
     indices = [Index(value = ["collectionId"])]
@@ -87,6 +89,7 @@ data class DbTitleMetaCache(
 
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(tableName = "custom_lists")
 data class DbCustomList(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -96,6 +99,7 @@ data class DbCustomList(
 )
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(
     tableName = "custom_list_titles",
     indices = [
@@ -116,6 +120,7 @@ data class DbCustomListTitle(
 // Tracks per-season watch progress for series/anime (movies have no seasons).
 // status is one of SeasonStatus's enum names: NOT_WATCHED, WATCHING, WATCHED.
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(tableName = "season_progress", primaryKeys = ["titleId", "seasonNumber"])
 data class DbSeasonProgress(
     val titleId: String,
@@ -136,6 +141,7 @@ data class CineLogBackup(
 )
 
 @Immutable
+@JsonClass(generateAdapter = true)
 data class ImportSummary(
     val logsCount: Int,
     val watchlistCount: Int,

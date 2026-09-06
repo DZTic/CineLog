@@ -1,6 +1,7 @@
 package com.example.data
 
 import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -9,23 +10,28 @@ import retrofit2.http.Query
 // JIKAN (ANIME) API MODELS & INTERFACE
 // ==========================================
 
+@JsonClass(generateAdapter = true)
 data class JikanGenre(
     @Json(name = "name") val name: String? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class JikanStudio(
     @Json(name = "name") val name: String? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class JikanImageJpg(
     @Json(name = "image_url") val imageUrl: String? = null,
     @Json(name = "large_image_url") val largeImageUrl: String? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class JikanImages(
     @Json(name = "jpg") val jpg: JikanImageJpg? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class JikanAnimeData(
     @Json(name = "mal_id") val malId: Int = 0,
     @Json(name = "title") val title: String? = null,
@@ -38,10 +44,12 @@ data class JikanAnimeData(
     @Json(name = "episodes") val episodes: Int? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class JikanAnimeSearchResponse(
     @Json(name = "data") val data: List<JikanAnimeData>? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class JikanAnimeDetailResponse(
     @Json(name = "data") val data: JikanAnimeData? = null
 )
@@ -70,6 +78,7 @@ interface JikanApiService {
 // TMDB (MOVIES & SERIES) API MODELS & INTERFACE
 // ==========================================
 
+@JsonClass(generateAdapter = true)
 data class TmdbMovieResult(
     @Json(name = "id") val id: Int,
     @Json(name = "title") val title: String,
@@ -79,10 +88,12 @@ data class TmdbMovieResult(
     @Json(name = "vote_average") val voteAverage: Float?
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbMovieSearchResponse(
     @Json(name = "results") val results: List<TmdbMovieResult>
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbTvResult(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
@@ -96,15 +107,18 @@ data class TmdbTvResult(
     @Json(name = "episode_run_time") val episodeRunTime: List<Int>? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbTvSearchResponse(
     @Json(name = "results") val results: List<TmdbTvResult>
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbGenre(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbCast(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
@@ -112,10 +126,12 @@ data class TmdbCast(
     @Json(name = "profile_path") val profilePath: String?
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbCredits(
     @Json(name = "cast") val cast: List<TmdbCast>?
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbSeason(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
@@ -124,12 +140,14 @@ data class TmdbSeason(
     @Json(name = "poster_path") val posterPath: String?
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbCollectionRef(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
     @Json(name = "poster_path") val posterPath: String?
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbMovieDetail(
     @Json(name = "id") val id: Int,
     @Json(name = "title") val title: String,
@@ -143,6 +161,7 @@ data class TmdbMovieDetail(
     @Json(name = "belongs_to_collection") val belongsToCollection: TmdbCollectionRef? = null
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbCollectionDetail(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
@@ -151,6 +170,7 @@ data class TmdbCollectionDetail(
     @Json(name = "parts") val parts: List<TmdbMovieResult>
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbTvDetail(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
@@ -167,10 +187,12 @@ data class TmdbTvDetail(
 )
 
 // Standard Trending responses
+@JsonClass(generateAdapter = true)
 data class TmdbTrendingMovieResponse(
     @Json(name = "results") val results: List<TmdbMovieResult>
 )
 
+@JsonClass(generateAdapter = true)
 data class TmdbTrendingTvResponse(
     @Json(name = "results") val results: List<TmdbTvResult>
 )
