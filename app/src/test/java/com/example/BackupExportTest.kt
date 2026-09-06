@@ -43,6 +43,7 @@ class BackupExportTest {
         override suspend fun insertWatchlist(item: DbWatchlist) { watchlist.add(item) }
         override suspend fun insertWatchlists(items: List<DbWatchlist>) { watchlist.addAll(items) }
         override suspend fun deleteFromWatchlist(titleId: String) { watchlist.removeAll { it.titleId == titleId } }
+        override suspend fun getExistingTitleIds(titleIds: List<String>): List<String> = watchlist.filter { it.titleId in titleIds }.map { it.titleId }
         override suspend fun updateWatchlistMetadata(titleId: String, year: String?, genres: String?, voteAverage: Float?) {}
     }
 

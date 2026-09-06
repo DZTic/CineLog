@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -51,6 +52,19 @@ interface WatchlistDao {
     @Query("DELETE FROM watchlist WHERE titleId = :titleId")
     suspend fun deleteFromWatchlist(titleId: String)
 
+    @Query("SELECT titleId FROM watchlist WHERE titleId IN (:titleIds)")
+    suspend fun getExistingTitleIds(titleIds: List<String>): List<String>
+
+    @Transaction
+    suspend fun insertMissingWatchlists(items: List<DbWatchlist>) {
+        if (items.isEmpty()) return
+        val existingIds = getExistingTitleIds(items.map { it.titleId }).toSet()
+        val toInsert = items.filterNot { it.titleId in existingIds }
+        if (toInsert.isNotEmpty()) {
+            insertWatchlists(toInsert)
+        }
+    }
+
     // Re-remplit les metadonnees de tri/filtre pour une entree existante
     // (ajoutee avant l'arrivee de ces colonnes, voir issue #33).
     @Query("UPDATE watchlist SET titleYear = :year, titleGenres = :genres, titleVoteAverage = :voteAverage WHERE titleId = :titleId")
@@ -97,6 +111,13 @@ interface CustomListDao {
 
     @Query("UPDATE custom_list_titles SET orderIndex = :newOrderIndex WHERE id = :id")
     suspend fun updateCustomListTitleOrder(id: Int, newOrderIndex: Int)
+
+    @Transaction
+    suspend fun updateCustomListTitlesOrder(items: List<DbCustomListTitle>) {
+        items.forEachIndexed { index, item ->
+            updateCustomListTitleOrder(item.id, index)
+        }
+    }
 }
 
 @Dao
