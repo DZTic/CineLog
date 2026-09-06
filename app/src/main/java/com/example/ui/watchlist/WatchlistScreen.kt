@@ -393,7 +393,8 @@ fun WatchlistScreen(
                                         is GroupedDisplay.Single -> "watchlist_single_${display.item.titleId}"
                                         is GroupedDisplay.Grouped -> "watchlist_saga_${display.group.collectionId}"
                                     }
-                                }
+                                },
+                                contentType = { display -> display::class.java.simpleName }
                             ) { display ->
                                 when (display) {
                                     is GroupedDisplay.Single -> {
