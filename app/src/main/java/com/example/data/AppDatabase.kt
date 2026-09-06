@@ -30,7 +30,7 @@ import androidx.room.RoomDatabase
         DbSagaSize::class,
         DbTitleMetaCache::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -53,7 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "cinelog_database"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 // Safety net only: covers versions with no explicit migration
                 // written yet (or migrations from before this file existed).
                 // Every NEW version bump should get its own MIGRATION_x_y
