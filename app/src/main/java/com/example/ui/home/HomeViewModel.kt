@@ -8,6 +8,7 @@ import com.example.ui.CachedSaga
 import com.example.ui.CollectionViewMode
 import com.example.util.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
@@ -82,36 +83,56 @@ class HomeViewModel(
     private val _trendingSeries = MutableStateFlow<List<CineTitle>>(emptyList())
     val trendingSeries: StateFlow<List<CineTitle>> = _trendingSeries.asStateFlow()
 
+    private val _isLoadingSuggestions = MutableStateFlow(false)
+    val isLoadingSuggestions: StateFlow<Boolean> = _isLoadingSuggestions.asStateFlow()
+
+    private var suggestionsJob: Job? = null
+
     init {
-        loadSuggestions()
         if (networkMonitor != null) {
             viewModelScope.launch {
                 networkMonitor.isOnline
                     .drop(1)
                     .filter { it }
                     .collect {
-                        loadSuggestions()
+                        if (allLogs.value.isEmpty() && (_trendingFilms.value.isEmpty() || _trendingSeries.value.isEmpty())) {
+                            loadSuggestionsIfNeeded()
+                        }
                     }
             }
         }
     }
 
     fun refreshSuggestions() {
-        loadSuggestions()
+        loadSuggestionsIfNeeded(force = true)
     }
 
-    private fun loadSuggestions() {
-        viewModelScope.launch {
-            try {
-                coroutineScope {
-                    val filmsDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.FILM, 10) }
-                    val seriesDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.SERIE, 10) }
-                    _trendingFilms.value = filmsDeferred.await()
-                    _trendingSeries.value = seriesDeferred.await()
-                }
-            } catch (e: Exception) {
-                Log.e(tag, "Error loading home suggestions: ${e.localizedMessage}")
+    fun loadSuggestionsIfNeeded(force: Boolean = false) {
+        if (!force && (_trendingFilms.value.isNotEmpty() || _trendingSeries.value.isNotEmpty())) return
+        if (suggestionsJob?.isActive == true) return
+
+        suggestionsJob = viewModelScope.launch {
+            val currentLogs = repository.allLogs.first()
+            if (!force && currentLogs.isNotEmpty()) {
+                return@launch
             }
+            loadSuggestionsInternal()
+        }
+    }
+
+    private suspend fun loadSuggestionsInternal() {
+        _isLoadingSuggestions.value = true
+        try {
+            coroutineScope {
+                val filmsDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.FILM, 10) }
+                val seriesDeferred = async(Dispatchers.IO) { repository.getUnwatchedTrendingOrPopular(TitleType.SERIE, 10) }
+                _trendingFilms.value = filmsDeferred.await()
+                _trendingSeries.value = seriesDeferred.await()
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error loading home suggestions: ${e.localizedMessage}")
+        } finally {
+            _isLoadingSuggestions.value = false
         }
     }
 
