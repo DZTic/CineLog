@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,15 +69,15 @@ fun HomeScreen(
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val logsRaw by viewModel.allLogs.collectAsState()
-    val watchlist by viewModel.allWatchlist.collectAsState()
-    val collectionCache by viewModel.collectionCache.collectAsState()
-    val sagaSizeCache by viewModel.sagaSizeCache.collectAsState()
-    val viewMode by viewModel.homeViewMode.collectAsState()
-    val collapsedCategories by viewModel.homeCollapsedCategories.collectAsState()
-    val apiKey by viewModel.tmdbApiKey.collectAsState()
-    val hasDismissedOnboarding by viewModel.hasDismissedOnboarding.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
+    val logsRaw by viewModel.allLogs.collectAsStateWithLifecycle()
+    val watchlist by viewModel.allWatchlist.collectAsStateWithLifecycle()
+    val collectionCache by viewModel.collectionCache.collectAsStateWithLifecycle()
+    val sagaSizeCache by viewModel.sagaSizeCache.collectAsStateWithLifecycle()
+    val viewMode by viewModel.homeViewMode.collectAsStateWithLifecycle()
+    val collapsedCategories by viewModel.homeCollapsedCategories.collectAsStateWithLifecycle()
+    val apiKey by viewModel.tmdbApiKey.collectAsStateWithLifecycle()
+    val hasDismissedOnboarding by viewModel.hasDismissedOnboarding.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
@@ -309,8 +310,8 @@ fun HomeScreen(
 
             if (logs.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    val trendingFilms by viewModel.trendingFilms.collectAsState()
-                    val trendingSeries by viewModel.trendingSeries.collectAsState()
+                    val trendingFilms by viewModel.trendingFilms.collectAsStateWithLifecycle()
+                    val trendingSeries by viewModel.trendingSeries.collectAsStateWithLifecycle()
                     val suggestions = remember(trendingFilms, trendingSeries) {
                         (trendingFilms + trendingSeries).distinctBy { it.id }.take(5)
                     }

@@ -28,6 +28,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,21 +61,21 @@ fun SearchScreen(
     onNavigateToSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val query by viewModel.searchQuery.collectAsState()
-    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val query by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     var manualLogTitle by remember { mutableStateOf<CineTitle?>(null) }
     val focusManager = LocalFocusManager.current
 
     val lazyPagingItems = viewModel.searchPagingFlow.collectAsLazyPagingItems()
 
-    val searchHistory by viewModel.searchHistory.collectAsState()
-    val pinnedSearches by viewModel.pinnedSearches.collectAsState()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+    val pinnedSearches by viewModel.pinnedSearches.collectAsStateWithLifecycle()
 
-    val trendingFilms by viewModel.trendingFilms.collectAsState()
-    val trendingSeries by viewModel.trendingSeries.collectAsState()
-    val topAnime by viewModel.topAnime.collectAsState()
+    val trendingFilms by viewModel.trendingFilms.collectAsStateWithLifecycle()
+    val trendingSeries by viewModel.trendingSeries.collectAsStateWithLifecycle()
+    val topAnime by viewModel.topAnime.collectAsStateWithLifecycle()
 
-    val apiKey by viewModel.tmdbApiKey.collectAsState()
+    val apiKey by viewModel.tmdbApiKey.collectAsStateWithLifecycle()
 
     val popularSuggestions = remember(trendingFilms, trendingSeries, topAnime) {
         (trendingFilms.take(3) + trendingSeries.take(3) + topAnime.take(3)).distinctBy { it.id }
