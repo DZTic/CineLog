@@ -8,12 +8,15 @@ import com.example.ui.WatchlistSortOrder
 import com.example.ui.components.GroupedDisplay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,24 +33,28 @@ import org.robolectric.annotation.Config
 @Config(sdk = [36])
 class WatchlistViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var database: AppDatabase
     private lateinit var preferenceManager: PreferenceManager
     private lateinit var repository: Repository
     private lateinit var viewModel: WatchlistViewModel
 
     @Before
-    fun setup() {
+    fun setup() = runTest(testDispatcher) {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<Context>()
         database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
+            .setQueryExecutor { it.run() }
+            .setTransactionExecutor { it.run() }
             .build()
         preferenceManager = PreferenceManager(context)
-        preferenceManager.setWatchlistTypeFilter("")
-        preferenceManager.setWatchlistGenreFilter("")
-        preferenceManager.setWatchlistYearFilter("")
-        preferenceManager.setWatchlistSort("DATE_ADDED")
+        preferenceManager.updateWatchlistTypeFilter("")
+        preferenceManager.updateWatchlistGenreFilter("")
+        preferenceManager.updateWatchlistYearFilter("")
+        preferenceManager.updateWatchlistSort("DATE_ADDED")
+        advanceUntilIdle()
+
         repository = Repository(
             logDao = database.logDao(),
             watchlistDao = database.watchlistDao(),
@@ -59,15 +66,22 @@ class WatchlistViewModelTest {
             preferenceManager = preferenceManager,
             context = context
         )
-        viewModel = WatchlistViewModel(repository, preferenceManager)
+        viewModel = WatchlistViewModel(
+            repository = repository,
+            preferenceManager = preferenceManager,
+            defaultDispatcher = testDispatcher,
+            sharingStarted = SharingStarted.Eagerly
+        )
+        advanceUntilIdle()
     }
 
     @After
-    fun tearDown() {
-        preferenceManager.setWatchlistTypeFilter("")
-        preferenceManager.setWatchlistGenreFilter("")
-        preferenceManager.setWatchlistYearFilter("")
-        preferenceManager.setWatchlistSort("DATE_ADDED")
+    fun tearDown() = runTest(testDispatcher) {
+        preferenceManager.updateWatchlistTypeFilter("")
+        preferenceManager.updateWatchlistGenreFilter("")
+        preferenceManager.updateWatchlistYearFilter("")
+        preferenceManager.updateWatchlistSort("DATE_ADDED")
+        advanceUntilIdle()
         database.close()
         Dispatchers.resetMain()
     }
@@ -100,7 +114,7 @@ class WatchlistViewModelTest {
     }
 
     @Test
-    fun testInitialUiStateWithItems() = runBlocking {
+    fun testInitialUiStateWithItems() = runTest(testDispatcher) {
         val movie1 = createWatchlistEntry("m1", "Inception", "FILM", "2010", "Action, Sci-Fi", 8.8f, 1000L)
         val movie2 = createWatchlistEntry("m2", "Interstellar", "FILM", "2014", "Adventure, Drama, Sci-Fi", 8.7f, 2000L)
         val serie1 = createWatchlistEntry("s1", "Breaking Bad", "SERIE", "2008", "Crime, Drama", 9.5f, 3000L)
@@ -108,8 +122,11 @@ class WatchlistViewModelTest {
         database.watchlistDao().insertWatchlist(movie1)
         database.watchlistDao().insertWatchlist(movie2)
         database.watchlistDao().insertWatchlist(serie1)
+        advanceUntilIdle()
 
-        val state = viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        val state = withTimeout(5_000) {
+            viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        }
         assertEquals(3, state.totalUnwatchedCount)
         assertEquals(3, state.filteredCount)
         assertFalse(state.isWatchlistEmpty)
@@ -121,13 +138,12 @@ class WatchlistViewModelTest {
     }
 
     @Test
-    fun testWatchedTitlesAreExcludedFromUiState() = runBlocking {
+    fun testWatchedTitlesAreExcludedFromUiState() = runTest(testDispatcher) {
         val movie1 = createWatchlistEntry("m1", "Inception")
         val movie2 = createWatchlistEntry("m2", "Interstellar")
         database.watchlistDao().insertWatchlist(movie1)
         database.watchlistDao().insertWatchlist(movie2)
 
-        // Mark movie1 as watched in log_entries
         database.logDao().insertLog(
             DbLogEntry(
                 id = 1,
@@ -142,28 +158,34 @@ class WatchlistViewModelTest {
                 spoiler = false
             )
         )
+        advanceUntilIdle()
 
-        val state = viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 1 }.first()
+        val state = withTimeout(5_000) {
+            viewModel.uiState.filter {
+                !it.isLoading && viewModel.allWatchlist.value.size == 2 && viewModel.allLogs.value.size == 1 && it.totalUnwatchedCount == 1
+            }.first()
+        }
         assertEquals(1, state.totalUnwatchedCount)
         assertEquals(1, state.filteredCount)
         assertEquals("m2", state.unwatchedEntries.first().titleId)
     }
 
     @Test
-    fun testSagaGroupingAndBackfillFromCache() = runBlocking {
-        // Movies in DB without collectionId
+    fun testSagaGroupingAndBackfillFromCache() = runTest(testDispatcher) {
         val hp1 = createWatchlistEntry("hp1", "Harry Potter 1", "FILM", collectionId = null)
         val hp2 = createWatchlistEntry("hp2", "Harry Potter 2", "FILM", collectionId = null)
         database.watchlistDao().insertWatchlist(hp1)
         database.watchlistDao().insertWatchlist(hp2)
 
-        // Saga info in collectionCacheDao
         database.collectionCacheDao().upsert(DbCollectionCache("hp1", 124, "Harry Potter Collection", "https://image.tmdb.org/hp.jpg"))
         database.collectionCacheDao().upsert(DbCollectionCache("hp2", 124, "Harry Potter Collection", "https://image.tmdb.org/hp.jpg"))
+        advanceUntilIdle()
 
-        val state = viewModel.uiState.filter {
-            !it.isLoading && (it.displayItemsByType[TitleType.FILM]?.size ?: 0) == 1
-        }.first()
+        val state = withTimeout(5_000) {
+            viewModel.uiState.filter {
+                !it.isLoading && (it.displayItemsByType[TitleType.FILM]?.size ?: 0) == 1
+            }.first()
+        }
 
         val filmItems = state.displayItemsByType[TitleType.FILM]
         assertNotNull(filmItems)
@@ -176,20 +198,24 @@ class WatchlistViewModelTest {
     }
 
     @Test
-    fun testSearchQueryFiltering() = runBlocking {
+    fun testSearchQueryFiltering() = runTest(testDispatcher) {
         val movie1 = createWatchlistEntry("m1", "The Dark Knight", "FILM")
         val movie2 = createWatchlistEntry("m2", "Spider-Man", "FILM")
         val anime1 = createWatchlistEntry("a1", "Attack on Titan", "ANIME")
         database.watchlistDao().insertWatchlist(movie1)
         database.watchlistDao().insertWatchlist(movie2)
         database.watchlistDao().insertWatchlist(anime1)
+        advanceUntilIdle()
 
-        // Wait initial
-        viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        withTimeout(5_000) {
+            viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        }
 
-        // Search "dark"
         viewModel.setSearchQuery("dark")
-        val searchState = viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        advanceUntilIdle()
+        val searchState = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        }
         assertEquals(1, searchState.filteredCount)
         assertEquals(3, searchState.totalUnwatchedCount)
 
@@ -200,41 +226,52 @@ class WatchlistViewModelTest {
     }
 
     @Test
-    fun testFilterByTypeGenreAndYear() = runBlocking {
+    fun testFilterByTypeGenreAndYear() = runTest(testDispatcher) {
         val film2020 = createWatchlistEntry("f1", "Film 2020", "FILM", year = "2020", genres = "Comedy")
         val film2024 = createWatchlistEntry("f2", "Film 2024", "FILM", year = "2024", genres = "Horror, Sci-Fi")
         val serie2024 = createWatchlistEntry("s1", "Serie 2024", "SERIE", year = "2024", genres = "Drama")
         database.watchlistDao().insertWatchlist(film2020)
         database.watchlistDao().insertWatchlist(film2024)
         database.watchlistDao().insertWatchlist(serie2024)
+        advanceUntilIdle()
 
-        viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        withTimeout(5_000) {
+            viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        }
 
-        // Filter by type FILM
         viewModel.setWatchlistTypeFilter(TitleType.FILM)
-        val filmState = viewModel.uiState.filter { it.filteredCount == 2 }.first()
+        advanceUntilIdle()
+        val filmState = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 2 }.first()
+        }
         assertEquals(listOf("Comedy", "Horror", "Sci-Fi"), filmState.availableGenres)
         assertEquals(listOf("2024", "2020"), filmState.availableYears)
 
-        // Filter by Genre Comedy
         viewModel.setWatchlistGenreFilter("Comedy")
-        val comedyState = viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        advanceUntilIdle()
+        val comedyState = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        }
         assertEquals(1, comedyState.filteredCount)
 
-        // Filter by Year 2020
         viewModel.setWatchlistYearFilter("2020")
-        val yearState = viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        advanceUntilIdle()
+        val yearState = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        }
         assertEquals(1, yearState.filteredCount)
 
-        // Year mismatch
         viewModel.setWatchlistYearFilter("2024")
-        val emptyState = viewModel.uiState.filter { it.filteredCount == 0 }.first()
+        advanceUntilIdle()
+        val emptyState = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 0 }.first()
+        }
         assertTrue(emptyState.isFilteredEmpty)
         assertFalse(emptyState.isWatchlistEmpty)
     }
 
     @Test
-    fun testSortOrders() = runBlocking {
+    fun testSortOrders() = runTest(testDispatcher) {
         val filmA = createWatchlistEntry("fa", "Alpha", "FILM", year = "2010", voteAverage = 6.0f, dateAdded = 100L)
         val filmB = createWatchlistEntry("fb", "Beta", "FILM", year = "2024", voteAverage = 9.0f, dateAdded = 500L)
         val filmC = createWatchlistEntry("fc", "Gamma", "FILM", year = "2018", voteAverage = 7.5f, dateAdded = 300L)
@@ -242,62 +279,95 @@ class WatchlistViewModelTest {
         database.watchlistDao().insertWatchlist(filmA)
         database.watchlistDao().insertWatchlist(filmB)
         database.watchlistDao().insertWatchlist(filmC)
+        advanceUntilIdle()
 
-        viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        withTimeout(5_000) {
+            viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 3 }.first()
+        }
 
         // 1. DATE_ADDED (descending): Beta (500), Gamma (300), Alpha (100)
         viewModel.setWatchlistSort(WatchlistSortOrder.DATE_ADDED)
-        val dateSorted = viewModel.uiState.first().displayItemsByType[TitleType.FILM]!!
+        advanceUntilIdle()
+        val dateSortedState = withTimeout(5_000) {
+            viewModel.uiState.filter {
+                val films = it.displayItemsByType[TitleType.FILM]
+                films?.size == 3 && (films.first() as? GroupedDisplay.Single)?.item?.titleName == "Beta"
+            }.first()
+        }
+        val dateSorted = dateSortedState.displayItemsByType[TitleType.FILM]!!
             .map { (it as GroupedDisplay.Single).item.titleName }
         assertEquals(listOf("Beta", "Gamma", "Alpha"), dateSorted)
 
         // 2. TITLE_AZ (ascending): Alpha, Beta, Gamma
         viewModel.setWatchlistSort(WatchlistSortOrder.TITLE_AZ)
-        val azSorted = viewModel.uiState.filter {
-            it.displayItemsByType[TitleType.FILM]?.firstOrNull()?.let { d ->
-                (d as GroupedDisplay.Single).item.titleName == "Alpha"
-            } == true
-        }.first().displayItemsByType[TitleType.FILM]!!.map { (it as GroupedDisplay.Single).item.titleName }
+        advanceUntilIdle()
+        val azSortedState = withTimeout(5_000) {
+            viewModel.uiState.filter {
+                val films = it.displayItemsByType[TitleType.FILM]
+                films?.size == 3 && (films.first() as? GroupedDisplay.Single)?.item?.titleName == "Alpha"
+            }.first()
+        }
+        val azSorted = azSortedState.displayItemsByType[TitleType.FILM]!!
+            .map { (it as GroupedDisplay.Single).item.titleName }
         assertEquals(listOf("Alpha", "Beta", "Gamma"), azSorted)
 
         // 3. RELEASE_YEAR (descending): Beta (2024), Gamma (2018), Alpha (2010)
         viewModel.setWatchlistSort(WatchlistSortOrder.RELEASE_YEAR)
-        val yearSorted = viewModel.uiState.filter {
-            it.displayItemsByType[TitleType.FILM]?.firstOrNull()?.let { d ->
-                (d as GroupedDisplay.Single).item.titleName == "Beta"
-            } == true
-        }.first().displayItemsByType[TitleType.FILM]!!.map { (it as GroupedDisplay.Single).item.titleName }
+        advanceUntilIdle()
+        val yearSortedState = withTimeout(5_000) {
+            viewModel.uiState.filter {
+                val films = it.displayItemsByType[TitleType.FILM]
+                films?.size == 3 && (films.first() as? GroupedDisplay.Single)?.item?.titleName == "Beta" &&
+                    (films.last() as? GroupedDisplay.Single)?.item?.titleName == "Alpha"
+            }.first()
+        }
+        val yearSorted = yearSortedState.displayItemsByType[TitleType.FILM]!!
+            .map { (it as GroupedDisplay.Single).item.titleName }
         assertEquals(listOf("Beta", "Gamma", "Alpha"), yearSorted)
 
         // 4. COMMUNITY_RATING (descending): Beta (9.0), Gamma (7.5), Alpha (6.0)
         viewModel.setWatchlistSort(WatchlistSortOrder.COMMUNITY_RATING)
-        val ratingSorted = viewModel.uiState.filter {
-            it.displayItemsByType[TitleType.FILM]?.firstOrNull()?.let { d ->
-                (d as GroupedDisplay.Single).item.titleName == "Beta"
-            } == true
-        }.first().displayItemsByType[TitleType.FILM]!!.map { (it as GroupedDisplay.Single).item.titleName }
+        advanceUntilIdle()
+        val ratingSortedState = withTimeout(5_000) {
+            viewModel.uiState.filter {
+                val films = it.displayItemsByType[TitleType.FILM]
+                films?.size == 3 && (films.first() as? GroupedDisplay.Single)?.item?.titleName == "Beta" &&
+                    (films.last() as? GroupedDisplay.Single)?.item?.titleName == "Alpha"
+            }.first()
+        }
+        val ratingSorted = ratingSortedState.displayItemsByType[TitleType.FILM]!!
+            .map { (it as GroupedDisplay.Single).item.titleName }
         assertEquals(listOf("Beta", "Gamma", "Alpha"), ratingSorted)
     }
 
     @Test
-    fun testClearFiltersRestoresFullList() = runBlocking {
+    fun testClearFiltersRestoresFullList() = runTest(testDispatcher) {
         val film1 = createWatchlistEntry("f1", "Film 1", "FILM", year = "2020", genres = "Action")
         val film2 = createWatchlistEntry("f2", "Film 2", "FILM", year = "2024", genres = "Comedy")
         database.watchlistDao().insertWatchlist(film1)
         database.watchlistDao().insertWatchlist(film2)
+        advanceUntilIdle()
 
-        viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 2 }.first()
+        withTimeout(5_000) {
+            viewModel.uiState.filter { !it.isLoading && it.totalUnwatchedCount == 2 }.first()
+        }
 
         viewModel.setSearchQuery("Film 1")
         viewModel.setWatchlistTypeFilter(TitleType.FILM)
         viewModel.setWatchlistGenreFilter("Action")
         viewModel.setWatchlistYearFilter("2020")
+        advanceUntilIdle()
 
-        val filtered = viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        val filtered = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 1 }.first()
+        }
         assertEquals(1, filtered.filteredCount)
 
         viewModel.clearWatchlistFilters()
-        val resetState = viewModel.uiState.filter { it.filteredCount == 2 }.first()
+        advanceUntilIdle()
+        val resetState = withTimeout(5_000) {
+            viewModel.uiState.filter { it.filteredCount == 2 }.first()
+        }
         assertEquals(2, resetState.filteredCount)
     }
 }

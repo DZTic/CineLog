@@ -10,6 +10,7 @@ import com.example.ui.CollectionViewMode
 import com.example.ui.WatchlistSortOrder
 import com.example.ui.components.GroupedDisplay
 import com.example.ui.components.groupBySaga
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -41,19 +42,21 @@ private data class FilterSortParams(
 
 class WatchlistViewModel(
     private val repository: Repository,
-    private val preferenceManager: PreferenceManager
+    private val preferenceManager: PreferenceManager,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    sharingStarted: SharingStarted = SharingStarted.WhileSubscribed(5000)
 ) : ViewModel() {
     private val tag = "WatchlistViewModel"
 
     val allWatchlist: StateFlow<List<DbWatchlist>> = repository.allWatchlist
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, sharingStarted, emptyList())
 
     val allLogs: StateFlow<List<DbLogEntry>> = repository.allLogs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, sharingStarted, emptyList())
 
     val collectionCache: StateFlow<Map<String, CachedSaga>> = repository.collectionCache
         .map { list -> list.associate { it.titleId to CachedSaga(it.collectionId, it.collectionName, it.collectionPosterUrl) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+        .stateIn(viewModelScope, sharingStarted, emptyMap())
 
     private val _watchlistViewMode = MutableStateFlow(
         runCatching { CollectionViewMode.valueOf(preferenceManager.getWatchlistViewMode()) }
@@ -160,10 +163,10 @@ class WatchlistViewModel(
     ) { rawWatchlist, logs, cache, params ->
         computeWatchlistUiState(rawWatchlist, logs, cache, params)
     }
-        .flowOn(Dispatchers.Default)
+        .flowOn(defaultDispatcher)
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = sharingStarted,
             initialValue = WatchlistUiState(isLoading = true)
         )
 
