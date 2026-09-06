@@ -78,6 +78,11 @@ fun HomeScreen(
     val apiKey by viewModel.tmdbApiKey.collectAsStateWithLifecycle()
     val hasDismissedOnboarding by viewModel.hasDismissedOnboarding.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val trendingFilms by viewModel.trendingFilms.collectAsStateWithLifecycle()
+    val trendingSeries by viewModel.trendingSeries.collectAsStateWithLifecycle()
+    val suggestions = remember(trendingFilms, trendingSeries) {
+        (trendingFilms + trendingSeries).distinctBy { it.id }.take(5)
+    }
 
     // Backfill collectionId for log entries recorded before the saga cache
     // existed, so they regroup as soon as their saga is known locally.
@@ -313,11 +318,6 @@ fun HomeScreen(
                     LaunchedEffect(Unit) {
                         viewModel.loadSuggestionsIfNeeded()
                     }
-                    val trendingFilms by viewModel.trendingFilms.collectAsStateWithLifecycle()
-                    val trendingSeries by viewModel.trendingSeries.collectAsStateWithLifecycle()
-                    val suggestions = remember(trendingFilms, trendingSeries) {
-                        (trendingFilms + trendingSeries).distinctBy { it.id }.take(5)
-                    }
                     val isFirstLaunch = watchlist.isEmpty() && !hasDismissedOnboarding
                     val emptyMessage = if (isFirstLaunch) {
                         "Bienvenue sur CineLog ! Votre journal est vide. Explorez nos suggestions ci-dessous ou recherchez vos œuvres préférées."
@@ -372,7 +372,11 @@ fun HomeScreen(
                                             contentPadding = PaddingValues(horizontal = 8.dp),
                                             modifier = Modifier.testTag("empty_state_suggestions_carousel")
                                         ) {
-                                            items(suggestions, key = { "suggestion_${it.id}" }) { item ->
+                                            items(
+                                                suggestions,
+                                                key = { "suggestion_${it.id}" },
+                                                contentType = { "home_suggestion" }
+                                            ) { item ->
                                                 SuggestionItemCard(
                                                     title = item,
                                                     onClick = { onTitleClick(item.id) }
@@ -435,7 +439,8 @@ fun HomeScreen(
                                         is GroupedDisplay.Single -> "log_${display.item.id}"
                                         is GroupedDisplay.Grouped -> "saga_${display.group.collectionId}"
                                     }
-                                }
+                                },
+                                contentType = { display -> display::class.java.simpleName }
                             ) { display ->
                                 when (display) {
                                     is GroupedDisplay.Single -> {
