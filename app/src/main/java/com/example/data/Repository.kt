@@ -200,12 +200,17 @@ class Repository(
     private val sagaSizeDao: SagaSizeDao,
     private val titleMetaCacheDao: TitleMetaCacheDao? = null,
     private val preferenceManager: PreferenceManager,
-    private val context: Context? = null
+    private val context: Context? = null,
+    private val moshi: com.squareup.moshi.Moshi = com.squareup.moshi.Moshi.Builder()
+        .addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+        .build()
 ) {
     val logRepository = com.example.data.repository.LogRepository(logDao)
     val watchlistRepository = com.example.data.repository.WatchlistRepository(watchlistDao)
     val customListRepository = com.example.data.repository.CustomListRepository(customListDao)
-    val backupRepository = com.example.data.repository.BackupRepository(logDao, watchlistDao, customListDao, seasonProgressDao)
+    val backupRepository = com.example.data.repository.BackupRepository(
+        logDao, watchlistDao, customListDao, seasonProgressDao, moshi = moshi
+    )
 
     companion object {
         const val CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000L // 14 jours
@@ -236,12 +241,6 @@ class Repository(
     }
 
     private val tag = "Repository"
-
-    private val moshi: com.squareup.moshi.Moshi by lazy {
-        com.squareup.moshi.Moshi.Builder()
-            .addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
-            .build()
-    }
 
     private val okHttpClient: OkHttpClient by lazy {
         val builder = OkHttpClient.Builder()
