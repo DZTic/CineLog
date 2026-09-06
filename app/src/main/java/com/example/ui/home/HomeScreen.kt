@@ -310,6 +310,9 @@ fun HomeScreen(
 
             if (logs.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
+                    LaunchedEffect(Unit) {
+                        viewModel.loadSuggestionsIfNeeded()
+                    }
                     val trendingFilms by viewModel.trendingFilms.collectAsStateWithLifecycle()
                     val trendingSeries by viewModel.trendingSeries.collectAsStateWithLifecycle()
                     val suggestions = remember(trendingFilms, trendingSeries) {
