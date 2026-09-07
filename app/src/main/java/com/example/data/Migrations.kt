@@ -83,3 +83,15 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+// v9 -> v10: ajoute les index sur dateVue (log_entries), dateAdded (watchlist)
+// et cachedAt (collection_cache, title_meta_cache) pour accelerer les tris et purges.
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_log_entries_dateVue` ON `log_entries` (`dateVue`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_watchlist_dateAdded` ON `watchlist` (`dateAdded`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_collection_cache_cachedAt` ON `collection_cache` (`cachedAt`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_title_meta_cache_cachedAt` ON `title_meta_cache` (`cachedAt`)")
+    }
+}
+
+

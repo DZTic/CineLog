@@ -139,15 +139,10 @@ class DetailViewModel(
 
     fun addAllToWatchlist(titles: List<CineTitle>) {
         viewModelScope.launch {
-            titles.forEach { title ->
-                try {
-                    val alreadyIn = repository.isInWatchlist(title.id).first()
-                    if (!alreadyIn) {
-                        repository.addToWatchlist(title)
-                    }
-                } catch (e: Exception) {
-                    Log.e(tag, "Error adding ${title.title} to watchlist: ${e.localizedMessage}")
-                }
+            try {
+                repository.addAllToWatchlist(titles)
+            } catch (e: Exception) {
+                Log.e(tag, "Error adding titles to watchlist: ${e.localizedMessage}")
             }
         }
     }

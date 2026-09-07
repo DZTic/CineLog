@@ -16,12 +16,15 @@ enum class PosterSize(val sizePath: String) {
     DETAIL("w500")      // Detail screen poster
 }
 
+private val TMDB_POSTER_REGEX = Regex("/t/p/w[0-9]+/")
+private const val TMDB_ORIGINAL_PATH = "/t/p/original/"
+
 fun formatPosterUrl(urlOrPath: String?, size: PosterSize = PosterSize.CARD): String? {
     if (urlOrPath.isNullOrBlank()) return null
     return if (urlOrPath.startsWith("http://") || urlOrPath.startsWith("https://")) {
         if (urlOrPath.contains("image.tmdb.org/t/p/")) {
-            urlOrPath.replace(Regex("/t/p/w[0-9]+/"), "/t/p/${size.sizePath}/")
-                .replace("/t/p/original/", "/t/p/${size.sizePath}/")
+            urlOrPath.replace(TMDB_POSTER_REGEX, "/t/p/${size.sizePath}/")
+                .replace(TMDB_ORIGINAL_PATH, "/t/p/${size.sizePath}/")
         } else {
             urlOrPath
         }

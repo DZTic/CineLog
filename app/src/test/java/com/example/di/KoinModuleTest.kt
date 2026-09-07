@@ -12,6 +12,7 @@ import com.example.data.repository.WatchlistRepository
 import com.example.ui.home.HomeViewModel
 import com.example.ui.settings.SettingsViewModel
 import com.example.util.NetworkMonitor
+import com.squareup.moshi.Moshi
 import org.junit.After
 import org.junit.Assert.assertNotNull
 import org.junit.Before
@@ -56,6 +57,12 @@ class KoinModuleTest : KoinTest {
 
         val networkMonitor: NetworkMonitor = get()
         assertNotNull(networkMonitor)
+    }
+
+    @Test
+    fun testNetworkModuleDependencies() {
+        val moshi: Moshi = get()
+        assertNotNull(moshi)
     }
 
     @Test

@@ -29,36 +29,38 @@ class PreferenceManagerTest {
     fun testTmdbApiKey() = runTest {
         preferenceManager.updateTmdbApiKey("my_test_tmdb_key")
         assertEquals("my_test_tmdb_key", preferenceManager.tmdbApiKeyFlow.first())
-        assertEquals("my_test_tmdb_key", preferenceManager.getTmdbApiKey())
+        assertEquals("my_test_tmdb_key", preferenceManager.getTmdbApiKeyAsync())
+        // Reset pour ne pas polluer les autres tests qui appellent l'API TMDB
+        preferenceManager.updateTmdbApiKey("")
     }
 
     @Test
     fun testOnboardingDismissal() = runTest {
         preferenceManager.updateHasDismissedOnboarding(true)
         assertTrue(preferenceManager.hasDismissedOnboardingFlow.first())
-        assertTrue(preferenceManager.hasDismissedOnboarding())
+        assertTrue(preferenceManager.hasDismissedOnboardingAsync())
 
         preferenceManager.updateHasDismissedOnboarding(false)
         assertFalse(preferenceManager.hasDismissedOnboardingFlow.first())
-        assertFalse(preferenceManager.hasDismissedOnboarding())
+        assertFalse(preferenceManager.hasDismissedOnboardingAsync())
     }
 
     @Test
     fun testThemeAndDynamicColors() = runTest {
         preferenceManager.updateThemeMode("LIGHT")
         assertEquals("LIGHT", preferenceManager.themeModeFlow.first())
-        assertEquals("LIGHT", preferenceManager.getThemeMode())
+        assertEquals("LIGHT", preferenceManager.getThemeModeAsync())
 
         preferenceManager.updateDynamicColorEnabled(true)
         assertTrue(preferenceManager.dynamicColorFlow.first())
-        assertTrue(preferenceManager.isDynamicColorEnabled())
+        assertTrue(preferenceManager.isDynamicColorEnabledAsync())
     }
 
     @Test
     fun testLanguage() = runTest {
         preferenceManager.updateAppLanguage("en")
         assertEquals("en", preferenceManager.appLanguageFlow.first())
-        assertEquals("en", preferenceManager.getAppLanguage())
+        assertEquals("en", preferenceManager.getAppLanguageAsync())
     }
 
     @Test

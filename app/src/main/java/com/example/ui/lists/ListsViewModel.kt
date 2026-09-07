@@ -52,9 +52,7 @@ class ListsViewModel(
     fun reorderCustomListTitles(listId: Int, items: List<DbCustomListTitle>) {
         viewModelScope.launch {
             try {
-                items.forEachIndexed { index, item ->
-                    repository.updateCustomListTitleOrder(item.id, index)
-                }
+                repository.reorderCustomListTitles(items)
             } catch (e: Exception) {
                 Log.e(tag, "Error reordering custom list: ${e.localizedMessage}")
             }

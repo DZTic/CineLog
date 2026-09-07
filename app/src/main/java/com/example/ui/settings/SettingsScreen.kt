@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,10 +48,10 @@ fun SettingsScreen(
     onCloseClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val savedKey by viewModel.tmdbApiKey.collectAsState()
-    val currentThemeMode by viewModel.themeMode.collectAsState()
-    val dynamicColorEnabled by viewModel.dynamicColor.collectAsState()
-    val currentLanguage by viewModel.appLanguage.collectAsState()
+    val savedKey by viewModel.tmdbApiKey.collectAsStateWithLifecycle()
+    val currentThemeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val dynamicColorEnabled by viewModel.dynamicColor.collectAsStateWithLifecycle()
+    val currentLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     var inputKey by remember { mutableStateOf(savedKey) }

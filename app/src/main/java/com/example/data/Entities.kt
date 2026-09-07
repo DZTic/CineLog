@@ -8,9 +8,13 @@ import androidx.room.PrimaryKey
 import com.squareup.moshi.JsonClass
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(
     tableName = "log_entries",
-    indices = [Index(value = ["titleId"])]
+    indices = [
+        Index(value = ["titleId"]),
+        Index(value = ["dateVue"])
+    ]
 )
 data class DbLogEntry(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -29,9 +33,13 @@ data class DbLogEntry(
 )
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(
     tableName = "watchlist",
-    indices = [Index(value = ["collectionId"])]
+    indices = [
+        Index(value = ["collectionId"]),
+        Index(value = ["dateAdded"])
+    ]
 )
 data class DbWatchlist(
     @PrimaryKey val titleId: String, // e.g. "movie_123"
@@ -55,7 +63,10 @@ data class DbWatchlist(
 // return belongs_to_collection (only the detail endpoint does), so this
 // cache lets the Search screen group already-seen movies into their saga
 // without an extra network round-trip per result.
-@Entity(tableName = "collection_cache")
+@Entity(
+    tableName = "collection_cache",
+    indices = [Index(value = ["cachedAt"])]
+)
 data class DbCollectionCache(
     @PrimaryKey val titleId: String,
     val collectionId: Int,
@@ -75,7 +86,10 @@ data class DbSagaSize(
 )
 
 
-@Entity(tableName = "title_meta_cache")
+@Entity(
+    tableName = "title_meta_cache",
+    indices = [Index(value = ["cachedAt"])]
+)
 data class DbTitleMetaCache(
     @PrimaryKey val titleId: String,
     val genres: String = "",
@@ -87,6 +101,7 @@ data class DbTitleMetaCache(
 
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(tableName = "custom_lists")
 data class DbCustomList(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -96,6 +111,7 @@ data class DbCustomList(
 )
 
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(
     tableName = "custom_list_titles",
     indices = [
@@ -116,6 +132,7 @@ data class DbCustomListTitle(
 // Tracks per-season watch progress for series/anime (movies have no seasons).
 // status is one of SeasonStatus's enum names: NOT_WATCHED, WATCHING, WATCHED.
 @Immutable
+@JsonClass(generateAdapter = true)
 @Entity(tableName = "season_progress", primaryKeys = ["titleId", "seasonNumber"])
 data class DbSeasonProgress(
     val titleId: String,
@@ -136,6 +153,7 @@ data class CineLogBackup(
 )
 
 @Immutable
+@JsonClass(generateAdapter = true)
 data class ImportSummary(
     val logsCount: Int,
     val watchlistCount: Int,

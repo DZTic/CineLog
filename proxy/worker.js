@@ -73,7 +73,7 @@ function getCacheMaxAge(pathname) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     // Read-only proxy: anything but GET has no business here.
     if (request.method !== "GET") {
       return new Response("Method not allowed", {
@@ -158,7 +158,14 @@ export default {
             "Cache-Control": cacheControlHeader,
           },
         });
-        cache.put(cacheKey, toCache);
+        const putPromise = cache.put(cacheKey, toCache).catch((err) => {
+          console.error("Cache put error:", err);
+        });
+        if (ctx && typeof ctx.waitUntil === "function") {
+          ctx.waitUntil(putPromise);
+        } else {
+          await putPromise;
+        }
       }
       upstreamResponse = fetched;
     }

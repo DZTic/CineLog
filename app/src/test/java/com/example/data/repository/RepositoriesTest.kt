@@ -105,6 +105,41 @@ class RepositoriesTest {
     }
 
     @Test
+    fun testWatchlistRepositoryBatchInsertMissing() = runBlocking {
+        val item1 = DbWatchlist(
+            titleId = "movie_1",
+            titleType = "FILM",
+            titleName = "Title 1",
+            titlePosterUrl = null
+        )
+        val item2 = DbWatchlist(
+            titleId = "movie_2",
+            titleType = "FILM",
+            titleName = "Title 2",
+            titlePosterUrl = null
+        )
+        val item3 = DbWatchlist(
+            titleId = "movie_3",
+            titleType = "FILM",
+            titleName = "Title 3",
+            titlePosterUrl = null
+        )
+
+        watchlistRepository.addToWatchlist(item1)
+        assertEquals(1, watchlistRepository.getWatchlistStream().first().size)
+
+        // Tente d'insérer item1, item2, item3 en lot (item1 déjà présent)
+        watchlistRepository.insertMissingWatchlists(listOf(item1, item2, item3))
+
+        val allItems = watchlistRepository.getWatchlistStream().first()
+        assertEquals(3, allItems.size)
+        val ids = allItems.map { it.titleId }.toSet()
+        assertTrue(ids.contains("movie_1"))
+        assertTrue(ids.contains("movie_2"))
+        assertTrue(ids.contains("movie_3"))
+    }
+
+    @Test
     fun testCustomListRepositoryOperations() = runBlocking {
         val listId = customListRepository.createCustomList("SF Favorites", "Best Sci-Fi")
         val lists = customListRepository.getCustomListsStream().first()
@@ -119,6 +154,31 @@ class RepositoriesTest {
         customListRepository.deleteCustomList(listId.toInt())
         val listsAfterDelete = customListRepository.getCustomListsStream().first()
         assertTrue(listsAfterDelete.isEmpty())
+    }
+
+    @Test
+    fun testCustomListRepositoryReorderTitles() = runBlocking {
+        val listId = customListRepository.createCustomList("Top Films", "Classement").toInt()
+        customListRepository.addTitleToList(listId, "m1", "FILM", "Film 1", null)
+        customListRepository.addTitleToList(listId, "m2", "FILM", "Film 2", null)
+        customListRepository.addTitleToList(listId, "m3", "FILM", "Film 3", null)
+
+        val initialTitles = customListRepository.getTitlesForListStream(listId).first()
+        assertEquals("Film 1", initialTitles[0].titleName)
+        assertEquals("Film 2", initialTitles[1].titleName)
+        assertEquals("Film 3", initialTitles[2].titleName)
+
+        // Réordonne : Film 3 en 1er (index 0), Film 2 (index 1), Film 1 (index 2)
+        val reversed = listOf(initialTitles[2], initialTitles[1], initialTitles[0])
+        customListRepository.reorderCustomListTitles(reversed)
+
+        val reorderedTitles = customListRepository.getTitlesForListStream(listId).first()
+        assertEquals("Film 3", reorderedTitles[0].titleName)
+        assertEquals(0, reorderedTitles[0].orderIndex)
+        assertEquals("Film 2", reorderedTitles[1].titleName)
+        assertEquals(1, reorderedTitles[1].orderIndex)
+        assertEquals("Film 1", reorderedTitles[2].titleName)
+        assertEquals(2, reorderedTitles[2].orderIndex)
     }
 
     @Test

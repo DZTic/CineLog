@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.derivedStateOf
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,12 +53,12 @@ fun SagaDetailScreen(
     onTitleClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val sagaInfo by viewModel.sagaInfo.collectAsState()
-    val sagaTitles by viewModel.sagaTitles.collectAsState()
-    val loading by viewModel.sagaLoading.collectAsState()
-    val error by viewModel.sagaError.collectAsState()
-    val allLogs by viewModel.allLogs.collectAsState()
-    val allWatchlist by viewModel.allWatchlist.collectAsState()
+    val sagaInfo by viewModel.sagaInfo.collectAsStateWithLifecycle()
+    val sagaTitles by viewModel.sagaTitles.collectAsStateWithLifecycle()
+    val loading by viewModel.sagaLoading.collectAsStateWithLifecycle()
+    val error by viewModel.sagaError.collectAsStateWithLifecycle()
+    val allLogs by viewModel.allLogs.collectAsStateWithLifecycle()
+    val allWatchlist by viewModel.allWatchlist.collectAsStateWithLifecycle()
 
     LaunchedEffect(collectionId) {
         viewModel.loadSagaDetail(collectionId)
