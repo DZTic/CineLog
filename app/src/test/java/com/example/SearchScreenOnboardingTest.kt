@@ -19,11 +19,14 @@ class SearchScreenOnboardingTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun preferenceManager_onboardingDismissState() {
+    fun preferenceManager_onboardingDismissState() = kotlinx.coroutines.test.runTest {
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
         val pm = com.example.data.PreferenceManager(context)
-        org.junit.Assert.assertFalse(pm.hasDismissedOnboarding())
-        pm.setHasDismissedOnboarding(true)
-        org.junit.Assert.assertTrue(pm.hasDismissedOnboarding())
+        pm.updateHasDismissedOnboarding(false)
+        org.junit.Assert.assertFalse(pm.hasDismissedOnboardingAsync())
+        pm.updateHasDismissedOnboarding(true)
+        org.junit.Assert.assertTrue(pm.hasDismissedOnboardingAsync())
+        // Reset pour les tests suivants
+        pm.updateHasDismissedOnboarding(false)
     }
 }

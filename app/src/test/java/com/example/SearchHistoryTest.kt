@@ -10,6 +10,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 
+import kotlinx.coroutines.test.runTest
+
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class SearchHistoryTest {
@@ -17,18 +19,18 @@ class SearchHistoryTest {
     private lateinit var preferenceManager: PreferenceManager
 
     @Before
-    fun setUp() {
+    fun setUp() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         preferenceManager = PreferenceManager(context)
-        preferenceManager.setSearchHistory(emptyList())
-        preferenceManager.setPinnedSearches(emptyList())
+        preferenceManager.updateSearchHistory(emptyList())
+        preferenceManager.updatePinnedSearches(emptyList())
     }
 
     @Test
-    fun searchHistory_addAndCapAtTen() {
+    fun searchHistory_addAndCapAtTen() = runTest {
         val items = (1..15).map { "Search Query $it" }
-        preferenceManager.setSearchHistory(items)
-        val saved = preferenceManager.getSearchHistory()
+        preferenceManager.updateSearchHistory(items)
+        val saved = preferenceManager.getSearchHistoryAsync()
 
         assertEquals(10, saved.size)
         assertEquals("Search Query 1", saved.first())
@@ -36,10 +38,10 @@ class SearchHistoryTest {
     }
 
     @Test
-    fun pinnedSearches_addAndRetrieve() {
+    fun pinnedSearches_addAndRetrieve() = runTest {
         val pinned = listOf("Inception", "Interstellar")
-        preferenceManager.setPinnedSearches(pinned)
-        val saved = preferenceManager.getPinnedSearches()
+        preferenceManager.updatePinnedSearches(pinned)
+        val saved = preferenceManager.getPinnedSearchesAsync()
 
         assertEquals(2, saved.size)
         assertTrue(saved.contains("Inception"))

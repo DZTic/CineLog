@@ -4,8 +4,15 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.PreferenceManager
 import com.example.ui.theme.AppThemeMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -15,60 +22,74 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
 class SettingsViewModelTest {
 
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var preferenceManager: PreferenceManager
     private lateinit var viewModel: SettingsViewModel
 
     @Before
-    fun setup() {
+    fun setup() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<Context>()
         preferenceManager = PreferenceManager(context)
-        preferenceManager.setThemeMode("DARK")
-        preferenceManager.setDynamicColorEnabled(false)
-        preferenceManager.setTmdbApiKey("")
-        viewModel = SettingsViewModel(preferenceManager)
+        preferenceManager.updateThemeMode("DARK")
+        preferenceManager.updateDynamicColorEnabled(false)
+        preferenceManager.updateTmdbApiKey("")
+        advanceUntilIdle()
+        viewModel = SettingsViewModel(preferenceManager, ioDispatcher = testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
-    fun testThemeModePersistence() = runBlocking {
+    fun testThemeModePersistence() = runTest(testDispatcher) {
         assertEquals(AppThemeMode.DARK, viewModel.themeMode.value)
 
-        viewModel.setThemeMode(AppThemeMode.LIGHT)
+        viewModel.setThemeMode(AppThemeMode.LIGHT).join()
+        advanceUntilIdle()
         assertEquals(AppThemeMode.LIGHT, viewModel.themeMode.value)
-        preferenceManager.themeModeFlow.first { it == "LIGHT" }
-        assertEquals("LIGHT", preferenceManager.getThemeMode())
+        assertEquals("LIGHT", preferenceManager.themeModeFlow.first())
+        assertEquals("LIGHT", preferenceManager.getThemeModeAsync())
 
-        viewModel.setThemeMode(AppThemeMode.SYSTEM)
+        viewModel.setThemeMode(AppThemeMode.SYSTEM).join()
+        advanceUntilIdle()
         assertEquals(AppThemeMode.SYSTEM, viewModel.themeMode.value)
-        preferenceManager.themeModeFlow.first { it == "SYSTEM" }
-        assertEquals("SYSTEM", preferenceManager.getThemeMode())
+        assertEquals("SYSTEM", preferenceManager.themeModeFlow.first())
+        assertEquals("SYSTEM", preferenceManager.getThemeModeAsync())
     }
 
     @Test
-    fun testDynamicColorPersistence() = runBlocking {
+    fun testDynamicColorPersistence() = runTest(testDispatcher) {
         assertFalse(viewModel.dynamicColor.value)
 
-        viewModel.setDynamicColor(true)
+        viewModel.setDynamicColor(true).join()
+        advanceUntilIdle()
         assertTrue(viewModel.dynamicColor.value)
-        preferenceManager.dynamicColorFlow.first { it }
-        assertTrue(preferenceManager.isDynamicColorEnabled())
+        assertTrue(preferenceManager.dynamicColorFlow.first())
+        assertTrue(preferenceManager.isDynamicColorEnabledAsync())
 
-        viewModel.setDynamicColor(false)
+        viewModel.setDynamicColor(false).join()
+        advanceUntilIdle()
         assertFalse(viewModel.dynamicColor.value)
-        preferenceManager.dynamicColorFlow.first { !it }
-        assertFalse(preferenceManager.isDynamicColorEnabled())
+        assertFalse(preferenceManager.dynamicColorFlow.first())
+        assertFalse(preferenceManager.isDynamicColorEnabledAsync())
     }
 
     @Test
-    fun testTmdbApiKeyPersistence() = runBlocking {
+    fun testTmdbApiKeyPersistence() = runTest(testDispatcher) {
         assertEquals("", viewModel.tmdbApiKey.value)
 
-        viewModel.setTmdbApiKey("test_key_123")
+        viewModel.setTmdbApiKey("test_key_123").join()
+        advanceUntilIdle()
         assertEquals("test_key_123", viewModel.tmdbApiKey.value)
-        preferenceManager.tmdbApiKeyFlow.first { it == "test_key_123" }
-        assertEquals("test_key_123", preferenceManager.getTmdbApiKey())
+        assertEquals("test_key_123", preferenceManager.tmdbApiKeyFlow.first())
+        assertEquals("test_key_123", preferenceManager.getTmdbApiKeyAsync())
     }
 }
