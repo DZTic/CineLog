@@ -163,27 +163,29 @@ class DiscoverPagingSource(
             val maxPagesToFetch = 5
             var pagesFetched = 0
             val targetSize = params.loadSize.coerceAtLeast(15)
+            var lastPageHadItems = true
 
             while (accumulated.size < targetSize && currentPage <= 500 && pagesFetched < maxPagesToFetch) {
                 val items = repository.getTrendingOrPopularPaged(typeFilter, currentPage)
                 pagesFetched++
-                if (items.isEmpty()) break
+                currentPage++
+
+                if (items.isEmpty()) {
+                    lastPageHadItems = false
+                    break
+                }
 
                 for (item in items) {
                     if (item.id !in watchedIds && seenIds.add(item.id)) {
                         accumulated.add(item)
                     }
                 }
-                currentPage++
-                if (accumulated.size >= 10) {
-                    break
-                }
             }
 
             LoadResult.Page(
                 data = accumulated,
                 prevKey = if (startPage == 1) null else startPage - 1,
-                nextKey = if (accumulated.isEmpty() || currentPage > 500) null else currentPage
+                nextKey = if ((accumulated.isEmpty() && !lastPageHadItems) || currentPage > 500) null else currentPage
             )
         } catch (e: Exception) {
             LoadResult.Error(e)
@@ -246,7 +248,6 @@ class Repository(
         val builder = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
-
         builder.addInterceptor { chain ->
             val request = chain.request().newBuilder()
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 CineLog/1.0")
@@ -261,6 +262,9 @@ class Repository(
         if (BuildConfig.DEBUG) {
             val logging = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
+                // Never let the TMDB v4 access token leak into logcat.
+                redactHeader("Authorization")
+                redactHeader("Cookie")
             }
             builder.addInterceptor(logging)
         }
@@ -270,7 +274,7 @@ class Repository(
             val response = chain.proceed(request)
             val path = request.url.encodedPath
             val maxAge = when {
-                path.contains("trending") || path.contains("top/anime") -> 3600
+                path.contains("trending") || path.contains("discover") || path.contains("top/anime") -> 3600
                 path.contains("search") || path.endsWith("/anime") -> 300
                 path.contains("movie/") || path.contains("tv/") || path.contains("collection/") || path.contains("/full") -> 86400
                 else -> 300
@@ -298,16 +302,35 @@ class Repository(
             .create(JikanApiService::class.java)
     }
 
-    private fun buildTmdbApi(baseUrl: String): TmdbApiService {
+    private fun buildTmdbApi(baseUrl: String, bearerTokenProvider: (() -> String)? = null): TmdbApiService {
+        val client = if (bearerTokenProvider != null) {
+            okHttpClient.newBuilder()
+                .addInterceptor { chain ->
+                    val token = bearerTokenProvider()
+                    val request = if (token.isEmpty()) {
+                        chain.request()
+                    } else {
+                        chain.request().newBuilder()
+                            .header("Authorization", "Bearer $token")
+                            .build()
+                    }
+                    chain.proceed(request)
+                }
+                .build()
+        } else {
+            okHttpClient
+        }
         return Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(okHttpClient)
+            .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(TmdbApiService::class.java)
     }
 
-    private val tmdbDirectApi: TmdbApiService by lazy { buildTmdbApi("https://api.themoviedb.org/3/") }
+    private val tmdbDirectApi: TmdbApiService by lazy {
+        buildTmdbApi("https://api.themoviedb.org/3/") { getTmdbKey() }
+    }
 
     private val tmdbProxyApi: TmdbApiService by lazy {
         buildTmdbApi(BuildConfig.TMDB_PROXY_BASE_URL.ifBlank { "https://api.themoviedb.org/3/" })
@@ -494,12 +517,10 @@ class Repository(
     suspend fun searchTitlesPaged(query: String, typeFilter: TitleType? = null, page: Int = 1): List<CineTitle> = coroutineScope {
         if (query.trim().isEmpty()) return@coroutineScope emptyList()
 
-        val tmdbKey = getTmdbKey()
-
         val filmsDeferred = if (typeFilter == null || typeFilter == TitleType.FILM) {
             async(Dispatchers.IO) {
                 try {
-                    val response = tmdbApi.searchMovie(tmdbKey, query, page = page)
+                    val response = tmdbApi.searchMovie(query, page = page)
                     response.results.map { it.toCineTitle() }
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB movie: ${e.localizedMessage}")
@@ -511,7 +532,7 @@ class Repository(
         val seriesResultDeferred = if (typeFilter == null || typeFilter == TitleType.SERIE || typeFilter == TitleType.ANIME) {
             async(Dispatchers.IO) {
                 try {
-                    tmdbApi.searchTv(tmdbKey, query, page = page).results
+                    tmdbApi.searchTv(query, page = page).results
                 } catch (e: Exception) {
                     Log.e(tag, "Error searching TMDB TV: ${e.localizedMessage}")
                     emptyList<TmdbTvResult>()
@@ -557,15 +578,13 @@ class Repository(
 
         when (prefix) {
             "movie" -> {
-                val tmdbKey = getTmdbKey()
-                val movie = tmdbApi.getMovieDetail(rawId, tmdbKey)
+                val movie = tmdbApi.getMovieDetail(rawId)
                 val cineTitle = movie.toCineTitle()
                 cacheCollectionInfo(cineTitle.id, cineTitle.collectionId, cineTitle.collectionName, cineTitle.collectionPosterUrl)
                 cineTitle
             }
             "tv" -> {
-                val tmdbKey = getTmdbKey()
-                val tv = tmdbApi.getTvDetail(rawId, tmdbKey)
+                val tv = tmdbApi.getTvDetail(rawId)
                 tv.toCineTitle()
             }
             "anime" -> {
@@ -577,9 +596,8 @@ class Repository(
     }
 
     private suspend fun fetchCollectionDetail(collectionId: Int): TmdbCollectionDetail? {
-        val tmdbKey = getTmdbKey()
         return try {
-            tmdbApi.getCollection(collectionId, tmdbKey)
+            tmdbApi.getCollection(collectionId)
         } catch (e: Exception) {
             Log.e(tag, "Error fetching collection $collectionId: ${e.localizedMessage}")
             null
@@ -680,49 +698,84 @@ class Repository(
     }
 
     suspend fun getTrendingOrPopularPaged(type: TitleType, page: Int = 1): List<CineTitle> = withContext(Dispatchers.IO) {
-        val tmdbKey = getTmdbKey()
         when (type) {
             TitleType.FILM -> {
                 try {
-                    tmdbApi.getTrendingMovies(tmdbKey, page = page).results.map { it.toCineTitle() }
+                    val discover = tmdbApi.discoverMovies(page = page).results.map { it.toCineTitle() }
+                    if (discover.isNotEmpty()) discover else tmdbApi.getTrendingMovies(page = page).results.map { it.toCineTitle() }
                 } catch (e: Exception) {
-                    Log.e(tag, "Error fetching trending movies: ${e.localizedMessage}")
-                    if (page == 1) getFallbackFilms() else emptyList()
+                    try {
+                        tmdbApi.getTrendingMovies(page = page).results.map { it.toCineTitle() }
+                    } catch (e2: Exception) {
+                        Log.e(tag, "Error fetching trending movies: ${e2.localizedMessage}")
+                        getFallbackFilmsPaged(page)
+                    }
                 }
             }
             TitleType.SERIE -> {
                 try {
-                    tmdbApi.getTrendingTv(tmdbKey, page = page).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
+                    val discover = tmdbApi.discoverTv(
+                        withoutGenres = "16",
+                        page = page
+                    ).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
+                    if (discover.isNotEmpty()) discover else tmdbApi.getTrendingTv(page = page).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
                 } catch (e: Exception) {
-                    Log.e(tag, "Error fetching trending TV: ${e.localizedMessage}")
-                    if (page == 1) getFallbackSeries() else emptyList()
+                    try {
+                        tmdbApi.getTrendingTv(page = page).results.filterNot { it.isLikelyAnime() }.map { it.toCineTitle() }
+                    } catch (e2: Exception) {
+                        Log.e(tag, "Error fetching trending TV: ${e2.localizedMessage}")
+                        getFallbackSeriesPaged(page)
+                    }
                 }
             }
             TitleType.ANIME -> {
                 try {
                     val jikanAnime = withJikanRateLimit { jikanApi.getTopAnime(page = page) }.data?.map { it.toCineTitle() } ?: emptyList()
                     if (jikanAnime.isNotEmpty()) {
-                        jikanAnime
-                    } else {
-                        getAnimeFromTmdbFallback(tmdbKey, page)
+                        return@withContext jikanAnime
                     }
                 } catch (e: Exception) {
                     Log.e(tag, "Error fetching top anime from Jikan: ${e.localizedMessage}")
-                    getAnimeFromTmdbFallback(tmdbKey, page)
                 }
+                try {
+                    val tmdbAnime = tmdbApi.discoverTv(
+                        withGenres = "16",
+                        withOriginalLanguage = "ja",
+                        page = page
+                    ).results.map { it.toAnimeCineTitle() }
+                    if (tmdbAnime.isNotEmpty()) {
+                        return@withContext tmdbAnime
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "Error fetching TMDB discover anime: ${e.localizedMessage}")
+                }
+                getAnimeFromTmdbFallback(page)
             }
         }
     }
 
-    private suspend fun getAnimeFromTmdbFallback(tmdbKey: String, page: Int): List<CineTitle> {
+    private suspend fun getAnimeFromTmdbFallback(page: Int): List<CineTitle> {
+        val searchKeywords = listOf(
+            "anime", "naruto", "one piece", "dragon ball", "attack on titan",
+            "demon slayer", "bleach", "jujutsu kaisen", "hunter x hunter", "my hero academia"
+        )
         return try {
-            val tmdbAnime = tmdbApi.getTrendingTv(tmdbKey, page = page).results
-                .filter { it.isLikelyAnime() }
+            val query = searchKeywords.getOrElse((page - 1) % searchKeywords.size) { "anime" }
+            val searchPage = ((page - 1) / searchKeywords.size) + 1
+            val searchResults = tmdbApi.searchTv(query = query, page = searchPage).results
+                .filter { it.isLikelyAnime() || it.originalLanguage == "ja" }
                 .map { it.toAnimeCineTitle() }
-            if (tmdbAnime.isNotEmpty()) tmdbAnime else if (page == 1) getFallbackAnime() else emptyList()
+            if (searchResults.isNotEmpty()) {
+                searchResults
+            } else {
+                val trending = tmdbApi.getTrendingTv(page = page).results
+                    .filter { it.isLikelyAnime() }
+                    .map { it.toAnimeCineTitle() }
+                if (trending.isNotEmpty()) trending else getFallbackAnimePaged(page)
+            }
         } catch (e: Exception) {
             Log.e(tag, "Error fetching TMDB fallback anime: ${e.localizedMessage}")
-            if (page == 1) getFallbackAnime() else emptyList()
+            getFallbackAnimePaged(page)
         }
     }
 
@@ -840,17 +893,52 @@ class Repository(
         )
     }
 
+    private fun getFallbackFilmsPaged(page: Int): List<CineTitle> {
+        val films = getFallbackFilms()
+        val pageSize = 5
+        val fromIndex = (page - 1) * pageSize
+        if (fromIndex >= films.size) return emptyList()
+        return films.subList(fromIndex, minOf(fromIndex + pageSize, films.size))
+    }
+
+    private fun getFallbackSeriesPaged(page: Int): List<CineTitle> {
+        val series = getFallbackSeries()
+        val pageSize = 5
+        val fromIndex = (page - 1) * pageSize
+        if (fromIndex >= series.size) return emptyList()
+        return series.subList(fromIndex, minOf(fromIndex + pageSize, series.size))
+    }
+
+    private fun getFallbackAnimePaged(page: Int): List<CineTitle> {
+        val anime = getFallbackAnime()
+        val pageSize = 5
+        val fromIndex = (page - 1) * pageSize
+        if (fromIndex >= anime.size) return emptyList()
+        return anime.subList(fromIndex, minOf(fromIndex + pageSize, anime.size))
+    }
+
     private fun getFallbackFilms(): List<CineTitle> = listOf(
         CineTitle("movie_27205", TitleType.FILM, "Inception", "2010", "https://image.tmdb.org/t/p/w500/aeG07bS9Z6g0D8U5I14kY2q0bM5.jpg", "Un voleur de secrets industriels utilise le subconscient.", listOf("Action", "Science-Fiction"), 4.4f, "Christopher Nolan"),
         CineTitle("movie_157336", TitleType.FILM, "Interstellar", "2014", "https://image.tmdb.org/t/p/w500/gEU2vYvKext9hqg6vXXndccOWmO.jpg", "Un voyage interstellaire pour sauver l'humanité.", listOf("Aventure", "Science-Fiction"), 4.3f, "Christopher Nolan"),
         CineTitle("movie_680", TitleType.FILM, "Pulp Fiction", "1994", "https://image.tmdb.org/t/p/w500/fIE3lYTE9An6Y8Zg8f2clg6cuyp.jpg", "L'odyssée sanglante et ironique de truands de bas étage.", listOf("Thriller", "Crime"), 4.5f, "Quentin Tarantino"),
-        CineTitle("movie_129", TitleType.FILM, "Le Voyage de Chihiro", "2001", "https://image.tmdb.org/t/p/w500/39wmItIWsg6s9XRY7gZg92zAsas.jpg", "Une jeune fille se retrouve bloquée dans le monde des esprits.", listOf("Animation", "Fantastique"), 4.6f, "Hayao Miyazaki")
+        CineTitle("movie_129", TitleType.FILM, "Le Voyage de Chihiro", "2001", "https://image.tmdb.org/t/p/w500/39wmItIWsg6s9XRY7gZg92zAsas.jpg", "Une jeune fille se retrouve bloquée dans le monde des esprits.", listOf("Animation", "Fantastique"), 4.6f, "Hayao Miyazaki"),
+        CineTitle("movie_155", TitleType.FILM, "The Dark Knight", "2008", "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg", "Batman face au Joker dans Gotham City.", listOf("Action", "Crime", "Drame"), 4.5f, "Christopher Nolan"),
+        CineTitle("movie_550", TitleType.FILM, "Fight Club", "1999", "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", "Un employé de bureau insomniaque fonde un club de combat clandestin.", listOf("Drame", "Thriller"), 4.4f, "David Fincher"),
+        CineTitle("movie_603", TitleType.FILM, "The Matrix", "1999", "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg", "Un pirate informatique découvre la véritable nature de sa réalité.", listOf("Action", "Science-Fiction"), 4.4f, "Lana Wachowski"),
+        CineTitle("movie_13", TitleType.FILM, "Forrest Gump", "1994", "https://image.tmdb.org/t/p/w500/arw2VCBveWOVZr6pxd9XTd1TdQa.jpg", "L'histoire touchante d'un homme simple d'esprit à travers l'histoire américaine.", listOf("Comédie", "Drame", "Romance"), 4.4f, "Robert Zemeckis"),
+        CineTitle("movie_98", TitleType.FILM, "Gladiator", "2000", "https://image.tmdb.org/t/p/w500/ty8TGRuvJLPUmAR1H1nRIsgwvim.jpg", "Un général romain trahi cherche vengeance en tant que gladiateur.", listOf("Action", "Aventure", "Drame"), 4.3f, "Ridley Scott"),
+        CineTitle("movie_496243", TitleType.FILM, "Parasite", "2019", "https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", "Toute la famille de Ki-taek est au chômage et s'infiltre dans une riche famille.", listOf("Comédie", "Drame", "Thriller"), 4.5f, "Bong Joon-ho")
     )
 
     private fun getFallbackSeries(): List<CineTitle> = listOf(
         CineTitle("tv_1396", TitleType.SERIE, "Breaking Bad", "2008", "https://image.tmdb.org/t/p/w500/ztk6scNlh6g69gXv7qPG9836g9n.jpg", "Un prof de chimie malade devient baron de la drogue.", listOf("Drame", "Crime"), 4.5f, "Vince Gilligan"),
         CineTitle("tv_1399", TitleType.SERIE, "Game of Thrones", "2011", "https://image.tmdb.org/t/p/w500/1XS19CfS3Z79YvHG6go4gH6gX4C.jpg", "Lutte de pouvoir pour le trône de fer de Westeros.", listOf("Drame", "Fantastique"), 4.2f, "David Benioff"),
-        CineTitle("tv_456", TitleType.SERIE, "The Simpsons", "1989", "https://image.tmdb.org/t/p/w500/77u7S2bAt795X8p66A59fXnJ8jX.jpg", "Le quotidien déjanté d'une famille de Springfield.", listOf("Animation", "Comédie"), 4.0f, "Matt Groening")
+        CineTitle("tv_456", TitleType.SERIE, "The Simpsons", "1989", "https://image.tmdb.org/t/p/w500/77u7S2bAt795X8p66A59fXnJ8jX.jpg", "Le quotidien déjanté d'une famille de Springfield.", listOf("Animation", "Comédie"), 4.0f, "Matt Groening"),
+        CineTitle("tv_66732", TitleType.SERIE, "Stranger Things", "2016", "https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg", "Dans une petite ville, un jeune garçon disparaît mystérieusement.", listOf("Drame", "Fantastique", "Mystère"), 4.3f, "The Duffer Brothers"),
+        CineTitle("tv_94605", TitleType.SERIE, "Arcane", "2021", "https://image.tmdb.org/t/p/w500/fqldf2t8ztc9aiwn3k6mlX3tvRT.jpg", "Au milieu du conflit entre les villes jumelles de Piltover et Zaun, deux sœurs se battent.", listOf("Animation", "Action", "Science-Fiction"), 4.6f, "Christian Linke"),
+        CineTitle("tv_87108", TitleType.SERIE, "Chernobyl", "2019", "https://image.tmdb.org/t/p/w500/hlLXt2tOPT6RRnjiUmoxyG1LTFi.jpg", "L'histoire de la catastrophe nucléaire de 1986 et les sacrifices consentis.", listOf("Drame", "Histoire"), 4.5f, "Craig Mazin"),
+        CineTitle("tv_60059", TitleType.SERIE, "Better Call Saul", "2015", "https://image.tmdb.org/t/p/w500/fC2HDm5t0kHl7mTm7jxMR31b7by.jpg", "Les péripéties de l'avocat véreux Jimmy McGill avant Breaking Bad.", listOf("Comédie", "Crime", "Drame"), 4.3f, "Vince Gilligan"),
+        CineTitle("tv_100088", TitleType.SERIE, "The Last of Us", "2023", "https://image.tmdb.org/t/p/w500/uKvVjHNqB5VmOrdxqAt2V7JMrRI.jpg", "Un survivant endurci escorte une jeune fille à travers une Amérique ravagée.", listOf("Action", "Aventure", "Drame"), 4.3f, "Craig Mazin")
     )
 
     private fun getFallbackAnime(): List<CineTitle> = listOf(
@@ -1173,7 +1261,15 @@ private fun TitleMeta.toDbTitleMetaCache(titleId: String): DbTitleMetaCache {
     }
 
     private fun escapeCsv(text: String): String {
-        return text.replace("\"", "\"\"")
+        val escaped = text.replace("\"", "\"\"")
+        // CSV formula injection: a cell starting with =, +, -, @ or tab
+        // would be interpreted as a formula by Excel/LibreOffice.
+        // Prefixing with a single quote neutralizes it.
+        return if (escaped.isNotEmpty() && "=-+@\t".contains(escaped.first())) {
+            "'" + escaped
+        } else {
+            escaped
+        }
     }
 
     suspend fun importBackup(content: String): ImportSummary = withContext(Dispatchers.IO) {

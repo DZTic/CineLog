@@ -28,6 +28,8 @@ const ALLOWED_PATHS = [
   /^\/collection\/\d+$/,
   /^\/trending\/movie\/week$/,
   /^\/trending\/tv\/week$/,
+  /^\/discover\/movie$/,
+  /^\/discover\/tv$/,
 ];
 
 // Only these query params are forwarded upstream. Anything else sent by a
@@ -39,8 +41,12 @@ const ALLOWED_PARAMS = new Set([
   "language",
   "page",
   "append_to_response",
+  "with_genres",
+  "without_genres",
+  "with_original_language",
+  "sort_by",
 ]);
-const MAX_PAGE = 5;
+const MAX_PAGE = 500;
 
 // append_to_response is restricted to the cheap sub-resources the app can
 // plausibly request. Kept as a whitelist so a comma-separated abuse value
@@ -59,7 +65,7 @@ const ALLOWED_APPEND_TO_RESPONSE = new Set([
  * Durations match client-side Repository cache rules.
  */
 function getCacheMaxAge(pathname) {
-  if (pathname.startsWith("/trending/")) {
+  if (pathname.startsWith("/trending/") || pathname.startsWith("/discover/")) {
     return 3600;
   }
   if (
@@ -74,6 +80,21 @@ function getCacheMaxAge(pathname) {
 
 export default {
   async fetch(request, env, ctx) {
+    // Per-IP rate limiting: the worker URL is extractable from any public
+    // APK, so this endpoint must not be usable as a free unlimited TMDB
+    // relay. Cloudflare's rate limit binding is per-edge-location and
+    // eventually consistent, which is fine for quota-drain protection.
+    const clientIp =
+      request.headers.get("CF-Connecting-IP") ?? "unknown";
+    if (env.RATE_LIMITER) {
+      const { success } = await env.RATE_LIMITER.limit({ key: clientIp });
+      if (!success) {
+        return new Response("Too many requests", {
+          status: 429,
+          headers: { "Retry-After": "60" },
+        });
+      }
+    }
     // Read-only proxy: anything but GET has no business here.
     if (request.method !== "GET") {
       return new Response("Method not allowed", {

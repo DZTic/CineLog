@@ -1,3 +1,14 @@
 name = "cinelog-tmdb-proxy"
 main = "worker.js"
 compatibility_date = "2026-08-01"
+
+# Per-IP rate limiting: the worker URL is public (bundled in the APK), so
+# without this anyone could drain the shared TMDB quota. 60 req/min/IP is
+# far above what the app itself ever needs (it batches and caches).
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

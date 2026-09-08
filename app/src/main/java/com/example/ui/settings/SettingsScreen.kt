@@ -406,7 +406,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "L'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre clé API ci-dessous.\n\n" +
+                        text = "L'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre jeton d'accès TMDB (v4) ci-dessous.\n\n" +
                                 "💡 Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -417,7 +417,7 @@ fun SettingsScreen(
 
             // Key Input Box
             Text(
-                text = "Clé API TMDB (v3)",
+                text = "Jeton d'accès TMDB (v4)",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -430,7 +430,7 @@ fun SettingsScreen(
                     .testTag("tmdb_api_key_field"),
                 placeholder = {
                     Text(
-                        "Collez votre clé API TMDB ici...",
+                        "Collez votre jeton d'accès TMDB (Read Access Token) ici...",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -446,7 +446,7 @@ fun SettingsScreen(
                     IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
                         Icon(
                             imageVector = if (isKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (isKeyVisible) "Masquer la clé" else "Afficher la clé"
+                            contentDescription = if (isKeyVisible) "Masquer le jeton" else "Afficher le jeton"
                         )
                     }
                 },
@@ -472,7 +472,7 @@ fun SettingsScreen(
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = "✓ Clé API TMDB personnelle active",
+                        text = "✓ Jeton d'accès TMDB personnel actif",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -498,7 +498,7 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     viewModel.setTmdbApiKey(inputKey.trim())
-                    Toast.makeText(context, "Clé API enregistrée avec succès !", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Jeton d'accès enregistré avec succès !", Toast.LENGTH_SHORT).show()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 modifier = Modifier
@@ -521,7 +521,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Comment obtenir une clé ?",
+                        text = "Comment obtenir un jeton ?",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -530,7 +530,7 @@ fun SettingsScreen(
                         text = "1. Créez un compte gratuit sur themoviedb.org\n" +
                                 "2. Allez dans les Paramètres de votre profil, puis section 'API'\n" +
                                 "3. Demandez une clé d'accès développeur\n" +
-                                "4. Copiez la clé API (v3 auth) et collez-la ci-dessus !",
+                                "4. Copiez le 'API Read Access Token' (v4) et collez-le ci-dessus !",
                         style = MaterialTheme.typography.bodySmall,
                         color = GrayText,
                         lineHeight = 16.sp
