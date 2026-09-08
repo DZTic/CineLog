@@ -25,9 +25,9 @@
 
     <!-- TMDB & Proxy -->
     <string name="tmdb_config_title">Configuration de la source TMDB</string>
-    <string name="tmdb_config_desc">L\'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre clé API ci-dessous.\n\n💡 Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.</string>
-    <string name="tmdb_api_key_label">Clé API TMDB (v3)</string>
-    <string name="tmdb_api_key_placeholder">Collez votre clé API TMDB ici...</string>
+    <string name="tmdb_config_desc">L\'application fonctionne sans configuration : les films et séries passent par un proxy intégré qui fournit la clé TMDB. Vous pouvez optionnellement renseigner votre propre jeton d\'accès TMDB ci-dessous.\n\n💡 Les animes (Jikan/MyAnimeList) fonctionnent gratuitement sans clé.</string>
+    <string name="tmdb_api_key_label">Jeton d\'accès TMDB (v4)</string>
+    <string name="tmdb_api_key_placeholder">Collez votre jeton d\'accès TMDB (Read Access Token) ici...</string>
     <string name="tmdb_proxy_active">✓ Proxy TMDB Cloudflare actif (mode standard)</string>
     <string name="tmdb_custom_key_active">✓ Clé API TMDB personnelle active</string>
     <string name="save_changes">Enregistrer les modifications</string>

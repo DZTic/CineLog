@@ -59,7 +59,7 @@ describe("Cloudflare Worker TMDB Proxy", () => {
     assert.match(body, /missing TMDB_API_KEY/);
   });
 
-  it("should reject page numbers out of bounds (0 or > 5) with 404", async () => {
+  it("should reject page numbers out of bounds (0 or > 500) with 404", async () => {
     const env = { TMDB_API_KEY: "dummy-key" };
 
     const res0 = await worker.fetch(
@@ -68,11 +68,11 @@ describe("Cloudflare Worker TMDB Proxy", () => {
     );
     assert.equal(res0.status, 404);
 
-    const res6 = await worker.fetch(
-      new Request("http://localhost:8787/search/movie?query=Avatar&page=6"),
+    const res501 = await worker.fetch(
+      new Request("http://localhost:8787/search/movie?query=Avatar&page=501"),
       env
     );
-    assert.equal(res6.status, 404);
+    assert.equal(res501.status, 404);
   });
 
   it("should reject disallowed append_to_response values with 404", async () => {

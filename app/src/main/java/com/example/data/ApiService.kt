@@ -200,7 +200,6 @@ data class TmdbTrendingTvResponse(
 interface TmdbApiService {
     @GET("search/movie")
     suspend fun searchMovie(
-        @Query("api_key") apiKey: String,
         @Query("query") query: String,
         @Query("language") language: String = "fr-FR",
         @Query("page") page: Int = 1
@@ -208,7 +207,6 @@ interface TmdbApiService {
 
     @GET("search/tv")
     suspend fun searchTv(
-        @Query("api_key") apiKey: String,
         @Query("query") query: String,
         @Query("language") language: String = "fr-FR",
         @Query("page") page: Int = 1
@@ -217,7 +215,6 @@ interface TmdbApiService {
     @GET("movie/{id}")
     suspend fun getMovieDetail(
         @Path("id") id: Int,
-        @Query("api_key") apiKey: String,
         @Query("append_to_response") appendToResponse: String = "credits",
         @Query("language") language: String = "fr-FR"
     ): TmdbMovieDetail
@@ -225,7 +222,6 @@ interface TmdbApiService {
     @GET("tv/{id}")
     suspend fun getTvDetail(
         @Path("id") id: Int,
-        @Query("api_key") apiKey: String,
         @Query("append_to_response") appendToResponse: String = "credits",
         @Query("language") language: String = "fr-FR"
     ): TmdbTvDetail
@@ -233,21 +229,35 @@ interface TmdbApiService {
     @GET("collection/{id}")
     suspend fun getCollection(
         @Path("id") id: Int,
-        @Query("api_key") apiKey: String,
         @Query("language") language: String = "fr-FR"
     ): TmdbCollectionDetail
 
     @GET("trending/movie/week")
     suspend fun getTrendingMovies(
-        @Query("api_key") apiKey: String,
         @Query("language") language: String = "fr-FR",
         @Query("page") page: Int = 1
     ): TmdbTrendingMovieResponse
 
     @GET("trending/tv/week")
     suspend fun getTrendingTv(
-        @Query("api_key") apiKey: String,
         @Query("language") language: String = "fr-FR",
+        @Query("page") page: Int = 1
+    ): TmdbTrendingTvResponse
+
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("language") language: String = "fr-FR",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("page") page: Int = 1
+    ): TmdbTrendingMovieResponse
+
+    @GET("discover/tv")
+    suspend fun discoverTv(
+        @Query("language") language: String = "fr-FR",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("with_genres") withGenres: String? = null,
+        @Query("without_genres") withoutGenres: String? = null,
+        @Query("with_original_language") withOriginalLanguage: String? = null,
         @Query("page") page: Int = 1
     ): TmdbTrendingTvResponse
 }

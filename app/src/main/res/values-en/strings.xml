@@ -25,9 +25,9 @@
 
     <!-- TMDB & Proxy -->
     <string name="tmdb_config_title">TMDB Source Configuration</string>
-    <string name="tmdb_config_desc">The application works without configuration: movies and TV series go through a built-in proxy providing the TMDB key. You can optionally enter your own API key below.\n\n💡 Anime (Jikan/MyAnimeList) works freely without any key.</string>
-    <string name="tmdb_api_key_label">TMDB API Key (v3)</string>
-    <string name="tmdb_api_key_placeholder">Paste your TMDB API key here...</string>
+    <string name="tmdb_config_desc">The application works without configuration: movies and TV series go through a built-in proxy providing the TMDB key. You can optionally enter your own TMDB access token below.\n\n💡 Anime (Jikan/MyAnimeList) works freely without any key.</string>
+    <string name="tmdb_api_key_label">TMDB Access Token (v4)</string>
+    <string name="tmdb_api_key_placeholder">Paste your TMDB Read Access Token here...</string>
     <string name="tmdb_proxy_active">✓ Cloudflare TMDB Proxy active (standard mode)</string>
     <string name="tmdb_custom_key_active">✓ Personal TMDB API key active</string>
     <string name="save_changes">Save Changes</string>

@@ -81,7 +81,15 @@ class BackupRepository(
     }
 
     private fun escapeCsv(text: String): String {
-        return text.replace("\"", "\"\"")
+        val escaped = text.replace("\"", "\"\"")
+        // CSV formula injection: a cell starting with =, +, -, @ or tab
+        // would be interpreted as a formula by Excel/LibreOffice.
+        // Prefixing with a single quote neutralizes it.
+        return if (escaped.isNotEmpty() && "=-+@\t".contains(escaped.first())) {
+            "'" + escaped
+        } else {
+            escaped
+        }
     }
 
     suspend fun importBackup(content: String): ImportSummary = withContext(Dispatchers.IO) {
