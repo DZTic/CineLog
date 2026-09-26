@@ -29,6 +29,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The default ("tools platform-tools") fails since cmdline-tools 16:
+          # the legacy `tools` package no longer exists.
+          packages: platform-tools
 
       - name: Install required SDK platform & build-tools
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
@@ -76,6 +80,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The default ("tools platform-tools") fails since cmdline-tools 16:
+          # the legacy `tools` package no longer exists.
+          packages: platform-tools
 
       - name: Install required SDK platform & build-tools
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
