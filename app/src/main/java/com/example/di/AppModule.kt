@@ -20,7 +20,6 @@ import com.example.ui.watchlist.WatchlistViewModel
 import com.example.util.ConnectivityNetworkMonitor
 import com.example.util.NetworkMonitor
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -39,11 +38,9 @@ val databaseModule = module {
 }
 
 val networkModule = module {
-    single<Moshi> {
-        Moshi.Builder()
-            .addLast(KotlinJsonAdapterFactory())
-            .build()
-    }
+    // Every model has a codegen adapter (@JsonClass(generateAdapter = true)),
+    // so no reflective KotlinJsonAdapterFactory (and no kotlin-reflect) is needed.
+    single<Moshi> { Moshi.Builder().build() }
 }
 
 val repositoryModule = module {

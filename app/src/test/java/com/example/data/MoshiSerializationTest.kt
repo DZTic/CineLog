@@ -1,10 +1,14 @@
 package com.example.data
 
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.lang.reflect.Modifier
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Type
+import java.lang.reflect.WildcardType
+import kotlin.coroutines.Continuation
 
 class MoshiSerializationTest {
 
@@ -12,9 +16,9 @@ class MoshiSerializationTest {
 
     @Before
     fun setup() {
-        moshi = Moshi.Builder()
-            .addLast(KotlinJsonAdapterFactory())
-            .build()
+        // Same setup as the app: codegen adapters only, no reflection fallback.
+        // A model missing @JsonClass(generateAdapter = true) makes these tests fail.
+        moshi = Moshi.Builder().build()
     }
 
     @Test
@@ -216,5 +220,28 @@ class MoshiSerializationTest {
         assertEquals("Game of Thrones", deserialized.watchlist[0].titleName)
         assertEquals(1, deserialized.customLists.size)
         assertEquals(1, deserialized.seasonProgress.size)
+    }
+
+    @Test
+    fun everySerializedTypeHasAGeneratedAdapter() {
+        // `suspend fun f(): T` compiles to `f(..., Continuation<? super T>): Object`.
+        val responseTypes = listOf(JikanApiService::class.java, TmdbApiService::class.java)
+            .flatMap { it.declaredMethods.toList() }
+            // Skip the static `$default` helpers generated for default arguments.
+            .filter { !Modifier.isStatic(it.modifiers) && it.parameterTypes.lastOrNull() == Continuation::class.java }
+            .map { method ->
+                val continuation = method.genericParameterTypes.last() as ParameterizedType
+                val typeArgument = continuation.actualTypeArguments.single()
+                (typeArgument as? WildcardType)?.lowerBounds?.single() ?: typeArgument
+            }
+        assertEquals(12, responseTypes.size)
+
+        (responseTypes + listOf<Type>(CineLogBackup::class.java)).forEach { type ->
+            val adapter = moshi.adapter<Any>(type)
+            assertTrue(
+                "$type must be annotated with @JsonClass(generateAdapter = true), got $adapter",
+                adapter.toString().startsWith("GeneratedJsonAdapter(")
+            )
+        }
     }
 }

@@ -43,9 +43,22 @@
 }
 
 # ------------------------------------------------------------------------------
-# Retrofit 2 & OkHttp 3
+# Type-safe Navigation routes (kotlinx.serialization)
+# Navigation looks up each route's serializer reflectively (`INSTANCE.serializer()`
+# for objects). kotlinx-serialization's bundled rule only keeps those members when
+# INSTANCE is already used by the code, so a route that is registered in the
+# NavHost but never instantiated (ScreenDestination.Search) crashed at startup.
 # ------------------------------------------------------------------------------
--keep class retrofit2.** { *; }
+-keepclassmembers @kotlinx.serialization.Serializable class com.example.** {
+    public static ** INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+# ------------------------------------------------------------------------------
+# Retrofit 2 & OkHttp 3
+# Retrofit (>= 2.10) and OkHttp ship their own R8 consumer rules, including the
+# ones that keep the generic signatures of suspend service methods.
+# ------------------------------------------------------------------------------
 -dontwarn retrofit2.**
 -keepclassmembers class * {
     @retrofit2.http.** <methods>;
@@ -57,13 +70,12 @@
 
 # ------------------------------------------------------------------------------
 # Moshi (JSON Serialization)
+# Every model uses @JsonClass(generateAdapter = true): moshi-kotlin-codegen emits
+# per-class rules (META-INF/proguard/moshi-*.pro) that keep each model's name and
+# its generated JsonAdapter, and the moshi artifact ships the rest. Never use a
+# global `-keep class * { ... }` here: it turns every class into an R8 seed.
 # ------------------------------------------------------------------------------
--keep class com.squareup.moshi.** { *; }
 -dontwarn com.squareup.moshi.**
--keep class * {
-    @com.squareup.moshi.Json <fields>;
-    @com.squareup.moshi.JsonClass <fields>;
-}
 -keepclassmembers class * {
     @com.squareup.moshi.FromJson <methods>;
     @com.squareup.moshi.ToJson <methods>;
@@ -72,13 +84,5 @@
 # ------------------------------------------------------------------------------
 # Coil (Image Loading)
 # ------------------------------------------------------------------------------
--keep class coil.** { *; }
 -dontwarn coil.**
 -dontwarn coil.compose.**
-
-# ------------------------------------------------------------------------------
-# CineLog Data Layer Models
-# ------------------------------------------------------------------------------
--keep class com.example.data.** { *; }
--keep class com.example.model.** { *; }
--keep class * implements java.io.Serializable { *; }
