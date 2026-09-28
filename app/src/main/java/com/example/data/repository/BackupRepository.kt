@@ -13,9 +13,7 @@ class BackupRepository(
     private val watchlistDao: WatchlistDao,
     private val customListDao: CustomListDao,
     private val seasonProgressDao: SeasonProgressDao,
-    private val moshi: Moshi = Moshi.Builder()
-        .addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
-        .build()
+    private val moshi: Moshi = Moshi.Builder().build()
 ) {
 
     companion object {

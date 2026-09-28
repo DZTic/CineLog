@@ -203,9 +203,7 @@ class Repository(
     private val titleMetaCacheDao: TitleMetaCacheDao? = null,
     private val preferenceManager: PreferenceManager,
     private val context: Context? = null,
-    private val moshi: com.squareup.moshi.Moshi = com.squareup.moshi.Moshi.Builder()
-        .addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
-        .build()
+    private val moshi: com.squareup.moshi.Moshi = com.squareup.moshi.Moshi.Builder().build()
 ) {
     val logRepository = com.example.data.repository.LogRepository(logDao)
     val watchlistRepository = com.example.data.repository.WatchlistRepository(watchlistDao)
