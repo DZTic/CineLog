@@ -118,6 +118,22 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # KSP exports the schema of the current Room `version` to app/schemas
+      # during compilation, and only rewrites it when the schema changed.
+      # Any diff here means a version bump whose <version>.json was not
+      # committed, or an entity change that edited an existing schema in
+      # place instead of bumping the version. MigrationTest covers the
+      # matching MIGRATION_x_y (#147).
+      - name: Check Room schemas are committed
+        run: |
+          changes=$(git status --porcelain -- app/schemas)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            git diff --stat -- app/schemas
+            echo "::error title=Room schema::Commit the generated schema as a NEW app/schemas/.../<version>.json (bump AppDatabase.version and add its migration) instead of changing an existing one."
+            exit 1
+          fi
+
       - name: Upload test reports
         uses: actions/upload-artifact@v4
         if: always()

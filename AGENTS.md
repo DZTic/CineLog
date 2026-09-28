@@ -30,8 +30,9 @@ Ce document définit les règles, conventions et directives architecturales que 
 - Tout changement de schéma dans les entités Room requiert :
   1. L'incrémentation de la version dans `AppDatabase.kt` (`version = CURRENT_VERSION + 1`).
   2. L'export du schéma JSON dans `app/schemas/com.example.data.AppDatabase/`.
-  3. L'écriture d'un objet `Migration(X, X+1)` explicite et son enregistrement dans le builder Room.
+  3. L'écriture d'un objet `Migration(X, X+1)` explicite dans `Migrations.kt` et son ajout à `ALL_MIGRATIONS` (liste enregistrée par le builder Room).
   4. L'ajout d'un test unitaire de migration dans `app/src/test/java/com/example/data/MigrationTest.kt`.
+- Aucun repli destructif (`fallbackToDestructiveMigration`) à partir de la version 4, ni en rétrogradation : une migration manquante doit faire échouer l'ouverture, jamais effacer les données. `MigrationTest` et la CI (`verify.yml`) échouent si la chaîne de migrations a un trou ou si un schéma généré n'est pas commité.
 - Indexation : Ajouter des index (`@Index`) sur les clés étrangères et les colonnes fréquemment requêtées (ex: `titleId`, `mediaType`, `status`).
 
 ### 4. Réseau, Rate-Limiting & Gestion des Secrets

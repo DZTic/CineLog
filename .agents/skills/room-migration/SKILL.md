@@ -52,18 +52,21 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 ```
-Ajouter la migration dans le builder de base de données :
+L'ajouter à la fin de `ALL_MIGRATIONS` (`Migrations.kt`), la liste que `AppDatabase.build()` enregistre :
 ```kotlin
-Room.databaseBuilder(context, AppDatabase::class.java, "cinelog.db")
-    .addMigrations(MIGRATION_1_2)
-    .build()
+internal val ALL_MIGRATIONS = arrayOf(
+    // ...
+    MIGRATION_1_2,
+)
 ```
+Ne jamais ajouter de `fallbackToDestructiveMigration()` : sans migration, l'ouverture doit échouer plutôt qu'effacer les données (#147). `migrationChainCoversEveryVersionSince4` échoue si une étape manque.
 
 ### Étape 4 : Exporter le nouveau schéma
 Compiler le projet pour que le processeur KSP/KAPT génère le nouveau fichier JSON dans `app/schemas/` :
 ```bash
 ./gradlew kspDebugKotlin # ou ./gradlew compileDebugKotlin
 ```
+Commiter le nouveau `<version>.json` sans modifier les fichiers existants : la CI (`verify.yml`) échoue si `app/schemas/` diffère après la compilation.
 
 ### Étape 5 : Écrire et exécuter le test de migration
 Dans `MigrationTest.kt`, utiliser `MigrationTestHelper` pour vérifier que la transition d'un schéma à l'autre préserve les enregistrements existants :
