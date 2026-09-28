@@ -5,15 +5,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Explicit Room migrations, one per version bump. Adding a migration here
- * (instead of relying on fallbackToDestructiveMigration) lets existing users
- * keep their local data — their logs, watchlist, ratings, etc. — when the
- * app updates the database schema.
+ * lets existing users keep their local data — their logs, watchlist,
+ * ratings, etc. — when the app updates the database schema.
  *
  * Rule of thumb: every time AppDatabase's `version` increases, add a new
- * `MIGRATION_x_y` here describing the exact SQL change, and register it in
- * AppDatabase's `.addMigrations(...)`. If a version bump ships without a
- * matching migration, fallbackToDestructiveMigration() silently wipes the
- * local database for anyone updating from that version.
+ * `MIGRATION_x_y` here describing the exact SQL change and append it to
+ * [ALL_MIGRATIONS]. There is no destructive fallback for versions >= 4: a
+ * version bump shipped without its migration makes the app fail at startup
+ * (data kept) instead of wiping it, and MigrationTest fails before that.
  */
 
 // v4 -> v5: adds the saga_size_cache table (total film count per TMDB saga,
@@ -94,4 +93,16 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
-
+/**
+ * Every migration registered on the database builder, in order. Single
+ * source of truth: AppDatabase registers exactly this list and MigrationTest
+ * checks that it covers every version from 4 up to the current one.
+ */
+internal val ALL_MIGRATIONS = arrayOf(
+    MIGRATION_4_5,
+    MIGRATION_5_6,
+    MIGRATION_6_7,
+    MIGRATION_7_8,
+    MIGRATION_8_9,
+    MIGRATION_9_10,
+)

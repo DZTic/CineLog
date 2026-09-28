@@ -10,14 +10,16 @@ import androidx.room.RoomDatabase
 // colonne, renommage, etc.), les 3 étapes ci-dessous vont ensemble :
 //   1. Ajouter/modifier l'@Entity concerné (Entities.kt).
 //   2. Incrémenter `version` juste en dessous.
-//   3. Écrire un `MIGRATION_x_y` dans Migrations.kt et l'enregistrer dans
-//      `.addMigrations(...)` plus bas.
+//   3. Écrire un `MIGRATION_x_y` dans Migrations.kt et l'ajouter à
+//      `ALL_MIGRATIONS` (même fichier).
 // Oublier l'étape 2 ou 3 fait planter l'app au lancement pour un appareil
-// qui a déjà des données locales (Room valide le schéma à l'ouverture), ou,
-// pire, silencieusement effacer les données via fallbackToDestructiveMigration.
+// qui a déjà des données locales (Room valide le schéma à l'ouverture). Il
+// n'y a volontairement aucun repli destructif à partir de la version 4 :
+// mieux vaut un plantage (données intactes) qu'un effacement silencieux.
+// MigrationTest échoue si la chaîne de migrations a un trou.
 // `exportSchema = true` laisse une trace dans schemas/ à chaque version :
-// vérifier qu'un commit ajoute bien un NOUVEAU fichier <version>.json plutôt
-// que de modifier un fichier existant en place.
+// commiter le NOUVEAU fichier <version>.json, ne jamais modifier un fichier
+// existant en place (la CI échoue dans les deux cas).
 // ─────────────────────────────────────────────────────────────────────────
 @Database(
     entities = [
@@ -43,26 +45,33 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun titleMetaCacheDao(): TitleMetaCacheDao
 
     companion object {
+        private const val DATABASE_NAME = "cinelog_database"
+
+        // Versions publiées avant l'écriture de la première migration
+        // (MIGRATION_4_5) : aucun chemin n'existe pour elles, la base est
+        // recréée. Ne jamais ajouter ici une version >= 4.
+        private val VERSIONS_WITHOUT_MIGRATION = intArrayOf(1, 2, 3)
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "cinelog_database"
-                )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
-                // Safety net only: covers versions with no explicit migration
-                // written yet (or migrations from before this file existed).
-                // Every NEW version bump should get its own MIGRATION_x_y
-                // above and registered here, so this never has to run for it.
-                .fallbackToDestructiveMigration()
-                .build()
+                val instance = build(context, DATABASE_NAME)
                 INSTANCE = instance
                 instance
             }
         }
+
+        // Configuration réelle du builder, exposée pour MigrationTest.
+        // Pas de fallbackToDestructiveMigration() global ni sur
+        // rétrogradation : une migration manquante, invalide ou une build
+        // plus ancienne installée par-dessus lève une exception à
+        // l'ouverture au lieu d'effacer journal, watchlist et listes.
+        internal fun build(context: Context, name: String): AppDatabase =
+            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, name)
+                .addMigrations(*ALL_MIGRATIONS)
+                .fallbackToDestructiveMigrationFrom(dropAllTables = true, *VERSIONS_WITHOUT_MIGRATION)
+                .build()
     }
 }
