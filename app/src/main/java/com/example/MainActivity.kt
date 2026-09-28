@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -42,6 +41,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.data.*
 import com.example.navigation.ScreenDestination
+import com.example.navigation.isResumed
+import com.example.navigation.navigateFrom
+import com.example.navigation.navigateToTab
+import com.example.navigation.popBackStackFrom
 import com.example.ui.CineViewModelFactory
 import com.example.ui.detail.DetailScreen
 import com.example.ui.detail.DetailViewModel
@@ -135,13 +138,7 @@ fun CineBottomNavigationBar(
                                 indication = null
                             ) {
                                 if (!selected) {
-                                    navController.navigate(screen) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                                    navController.navigateToTab(screen)
                                 }
                             },
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -239,95 +236,95 @@ fun MainAppScaffold(
                 }
             ) {
                 // Home View
-                composable<ScreenDestination.Home> {
+                composable<ScreenDestination.Home> { entry ->
                     val homeViewModel: HomeViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     HomeScreen(
                         viewModel = homeViewModel,
                         onTitleClick = { titleId ->
-                            navController.navigate(ScreenDestination.Detail(titleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(titleId))
                         },
                         onSagaClick = { collectionId ->
-                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                            navController.navigateFrom(entry, ScreenDestination.SagaDetail(collectionId))
                         },
                         onNavigateToDiscover = {
-                            navController.navigate(ScreenDestination.Discover)
+                            if (entry.isResumed()) navController.navigateToTab(ScreenDestination.Discover)
                         },
                         onNavigateToSettings = {
-                            navController.navigate(ScreenDestination.Settings)
+                            navController.navigateFrom(entry, ScreenDestination.Settings) { launchSingleTop = true }
                         }
                     )
                 }
 
                 // Discover Carousel / Grids & Embedded Search View
-                composable<ScreenDestination.Discover> {
+                composable<ScreenDestination.Discover> { entry ->
                     val discoverViewModel: DiscoverViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     DiscoverScreen(
                         viewModel = discoverViewModel,
                         onTitleClick = { titleId ->
-                            navController.navigate(ScreenDestination.Detail(titleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(titleId))
                         },
                         onSagaClick = { collectionId ->
-                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                            navController.navigateFrom(entry, ScreenDestination.SagaDetail(collectionId))
                         }
                     )
                 }
 
                 // Global Search View (Direct route)
-                composable<ScreenDestination.Search> {
+                composable<ScreenDestination.Search> { entry ->
                     val searchViewModel: SearchViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     val logViewModel: LogViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     SearchScreen(
                         viewModel = searchViewModel,
                         logViewModel = logViewModel,
                         onTitleClick = { titleId ->
-                            navController.navigate(ScreenDestination.Detail(titleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(titleId))
                         },
                         onSagaClick = { collectionId ->
-                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                            navController.navigateFrom(entry, ScreenDestination.SagaDetail(collectionId))
                         },
                         onNavigateToSettings = {
-                            navController.navigate(ScreenDestination.Settings)
+                            navController.navigateFrom(entry, ScreenDestination.Settings) { launchSingleTop = true }
                         }
                     )
                 }
 
                 // Watchlist View
-                composable<ScreenDestination.Watchlist> {
+                composable<ScreenDestination.Watchlist> { entry ->
                     val watchlistViewModel: WatchlistViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     WatchlistScreen(
                         viewModel = watchlistViewModel,
                         onTitleClick = { titleId ->
-                            navController.navigate(ScreenDestination.Detail(titleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(titleId))
                         },
                         onSagaClick = { collectionId ->
-                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                            navController.navigateFrom(entry, ScreenDestination.SagaDetail(collectionId))
                         }
                     )
                 }
 
                 // Custom user Lists View
-                composable<ScreenDestination.Lists> {
+                composable<ScreenDestination.Lists> { entry ->
                     val listsViewModel: ListsViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     ListsScreen(
                         viewModel = listsViewModel,
                         onTitleClick = { titleId ->
-                            navController.navigate(ScreenDestination.Detail(titleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(titleId))
                         },
                         onBackClick = {
-                            navController.popBackStack()
+                            navController.popBackStackFrom(entry)
                         }
                     )
                 }
 
                 // Profile Screen with Settings trigger & List shortcut
-                composable<ScreenDestination.Profile> {
+                composable<ScreenDestination.Profile> { entry ->
                     Scaffold(
                         contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
                         topBar = {
                             TopAppBar(
                                 title = { Text("Mon Profil CinéLog") },
                                 actions = {
-                                    IconButton(onClick = { navController.navigate(ScreenDestination.Settings) }) {
+                                    IconButton(onClick = { navController.navigateFrom(entry, ScreenDestination.Settings) { launchSingleTop = true } }) {
                                         Icon(
                                             imageVector = Icons.Default.Settings,
                                             contentDescription = "Paramètres de la clé API",
@@ -345,7 +342,7 @@ fun MainAppScaffold(
                         ProfileScreen(
                             viewModel = profileViewModel,
                             onNavigateToLists = {
-                                navController.navigate(ScreenDestination.Lists)
+                                navController.navigateFrom(entry, ScreenDestination.Lists) { launchSingleTop = true }
                             },
                             modifier = Modifier.padding(padding)
                         )
@@ -353,31 +350,31 @@ fun MainAppScaffold(
                 }
 
                 // Settings View (API configuration)
-                composable<ScreenDestination.Settings> {
+                composable<ScreenDestination.Settings> { entry ->
                     val settingsViewModel: SettingsViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     SettingsScreen(
                         viewModel = settingsViewModel,
-                        onCloseClick = { navController.popBackStack() }
+                        onCloseClick = { navController.popBackStackFrom(entry) }
                     )
                 }
 
                 // Detail View
-                composable<ScreenDestination.Detail> { backStackEntry ->
-                    val detail: ScreenDestination.Detail = backStackEntry.toRoute()
+                composable<ScreenDestination.Detail> { entry ->
+                    val detail: ScreenDestination.Detail = entry.toRoute()
                     val detailViewModel: DetailViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     DetailScreen(
                         titleId = detail.titleId,
                         viewModel = detailViewModel,
-                        onBackClick = { navController.popBackStack() },
+                        onBackClick = { navController.popBackStackFrom(entry) },
                         onLogClick = { title ->
                             editingLog = null
                             loggingTitle = title
                         },
                         onTitleClick = { otherTitleId ->
-                            navController.navigate(ScreenDestination.Detail(otherTitleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(otherTitleId))
                         },
                         onSagaClick = { collectionId ->
-                            navController.navigate(ScreenDestination.SagaDetail(collectionId))
+                            navController.navigateFrom(entry, ScreenDestination.SagaDetail(collectionId))
                         },
                         onEditLogClick = { title, log ->
                             loggingTitle = title
@@ -387,15 +384,15 @@ fun MainAppScaffold(
                 }
 
                 // Saga (TMDB collection) Detail View
-                composable<ScreenDestination.SagaDetail> { backStackEntry ->
-                    val saga: ScreenDestination.SagaDetail = backStackEntry.toRoute()
+                composable<ScreenDestination.SagaDetail> { entry ->
+                    val saga: ScreenDestination.SagaDetail = entry.toRoute()
                     val sagaDetailViewModel: SagaDetailViewModel = if (viewModelFactory != null) viewModel(factory = viewModelFactory) else koinViewModel()
                     SagaDetailScreen(
                         collectionId = saga.collectionId,
                         viewModel = sagaDetailViewModel,
-                        onBackClick = { navController.popBackStack() },
+                        onBackClick = { navController.popBackStackFrom(entry) },
                         onTitleClick = { titleId ->
-                            navController.navigate(ScreenDestination.Detail(titleId))
+                            navController.navigateFrom(entry, ScreenDestination.Detail(titleId))
                         }
                     )
                 }
