@@ -569,11 +569,7 @@ fun ListsScreen(
 }
 
 private fun DbCustomListTitle.toCineTitle(): CineTitle {
-    val tType = try {
-        TitleType.valueOf(titleType)
-    } catch (e: Exception) {
-        TitleType.FILM
-    }
+    val tType = TitleType.fromDb(titleType)
     return CineTitle(
         id = titleId,
         type = tType,

@@ -318,4 +318,89 @@ class BackupExportTest {
         assertEquals(148, stats.totalRuntimeMinutes)
     }
 
+
+    private fun repoWith(logDao: FakeLogDao, watchlistDao: FakeWatchlistDao = FakeWatchlistDao(), customListDao: FakeCustomListDao = FakeCustomListDao()) = Repository(
+        logDao = logDao,
+        watchlistDao = watchlistDao,
+        customListDao = customListDao,
+        seasonProgressDao = FakeSeasonProgressDao(),
+        collectionCacheDao = FakeCollectionCacheDao(),
+        sagaSizeDao = FakeSagaSizeDao(),
+        preferenceManager = PreferenceManager(testContext)
+    )
+
+    // #148: a Letterboxd diary.csv (8 columns, no "===" section) used to be imported as
+    // logs with titleType = "Year"/"2019", crashing Home at every launch.
+    @Test
+    fun testLetterboxdCsvIsRejectedWithoutInsertingAnything() = runBlocking {
+        val logDao = FakeLogDao()
+        val csvContent = """
+            Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date
+            2024-01-02,Parasite,2019,https://boxd.it/abc,4.5,,,2024-01-01
+            2024-01-05,Dune,2021,https://boxd.it/def,4,Yes,,2024-01-04
+        """.trimIndent()
+
+        val error = runCatching { repoWith(logDao).importBackup(csvContent) }.exceptionOrNull()
+
+        assertTrue("Expected IllegalArgumentException, got $error", error is IllegalArgumentException)
+        assertTrue(logDao.logs.isEmpty())
+    }
+
+    @Test
+    fun testCsvImportSkipsRowsWithUnknownTitleType() = runBlocking {
+        val logDao = FakeLogDao()
+        val watchlistDao = FakeWatchlistDao()
+        val csvContent = """
+            === LOGS DE VISIONNAGE ===
+            ID,ID_Titre,Type,Titre,Date_Vue,Note,Critique,Revisionnage,Spoiler,Collection
+            1,"movie_1","FILM","Inception","2023-11-15 12:00:00",4.5,"",false,false,""
+            2,"movie_2","2019","Parasite","2023-11-15 12:00:00",4.5,"",false,false,""
+            3,"tv_3","serie","Dark","2023-11-15 12:00:00",4.0,"",false,false,""
+
+            === WATCHLIST ===
+            ID_Titre,Type,Titre,Date_Ajout,Annee,Genres,Note_Moyenne,Collection
+            "movie_4","DOCUMENTARY","Free Solo","2023-11-16 14:30:00","2018","",4.0,""
+        """.trimIndent()
+
+        val summary = repoWith(logDao, watchlistDao).importBackup(csvContent)
+
+        assertEquals(2, summary.logsCount)
+        assertEquals(0, summary.watchlistCount)
+        assertEquals(2, summary.skippedCount)
+        assertEquals(listOf("FILM", "SERIE"), logDao.logs.map { it.titleType })
+        assertTrue(watchlistDao.watchlist.isEmpty())
+    }
+
+    @Test
+    fun testJsonImportSkipsEntriesWithUnknownTitleType() = runBlocking {
+        val json = """
+            {
+              "version": 1,
+              "exportedAt": 1700000000000,
+              "logs": [
+                {"id": 1, "titleId": "movie_1", "titleType": "FILM", "titleName": "Inception", "dateVue": 1700000000000, "note": 4.5, "critique": "", "revisionnage": false, "spoiler": false},
+                {"id": 2, "titleId": "movie_2", "titleType": "2019", "titleName": "Parasite", "dateVue": 1700000000000, "note": 4.5, "critique": "", "revisionnage": false, "spoiler": false}
+              ],
+              "watchlist": [
+                {"titleId": "anime_3", "titleType": "anime", "titleName": "Frieren", "dateAdded": 1700000000000}
+              ],
+              "customListTitles": [
+                {"id": 1, "listId": 1, "titleId": "x", "titleType": "Year", "titleName": "X", "orderIndex": 0}
+              ]
+            }
+        """.trimIndent()
+        val logDao = FakeLogDao()
+        val watchlistDao = FakeWatchlistDao()
+        val customListDao = FakeCustomListDao()
+
+        val summary = repoWith(logDao, watchlistDao, customListDao).importBackup(json)
+
+        assertEquals(1, summary.logsCount)
+        assertEquals(1, summary.watchlistCount)
+        assertEquals(2, summary.skippedCount)
+        assertEquals("Inception", logDao.logs.single().titleName)
+        assertEquals("ANIME", watchlistDao.watchlist.single().titleType)
+        assertTrue(customListDao.titles.isEmpty())
+    }
+
 }

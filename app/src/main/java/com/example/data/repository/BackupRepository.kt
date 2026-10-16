@@ -95,34 +95,61 @@ class BackupRepository(
         if (trimmed.startsWith("{")) {
             val adapter = moshi.adapter(CineLogBackup::class.java)
             val backup = adapter.fromJson(trimmed) ?: throw IllegalArgumentException("Format JSON invalide")
-            if (backup.logs.isNotEmpty()) logDao.insertLogs(backup.logs)
-            if (backup.watchlist.isNotEmpty()) watchlistDao.insertWatchlists(backup.watchlist)
-            if (backup.customLists.isNotEmpty()) customListDao.insertCustomLists(backup.customLists)
-            if (backup.customListTitles.isNotEmpty()) customListDao.insertCustomListTitles(backup.customListTitles)
-            if (backup.seasonProgress.isNotEmpty()) seasonProgressDao.upsertAll(backup.seasonProgress)
 
-            ImportSummary(
-                logsCount = backup.logs.size,
-                watchlistCount = backup.watchlist.size,
-                customListsCount = backup.customLists.size,
-                seasonProgressCount = backup.seasonProgress.size
-            )
-        } else {
-            val (logs, watchlist) = parseCsvImport(trimmed)
-            if (logs.isEmpty() && watchlist.isEmpty()) {
-                throw IllegalArgumentException("Fichier CSV non reconnu ou vide")
-            }
+            // Every titleType is validated before it reaches Room: the UI used to
+            // crash at launch on a value outside TitleType (#148).
+            val logs = backup.logs.mapNotNull { e -> normalizeType(e.titleType)?.let { e.copy(titleType = it) } }
+            val watchlist = backup.watchlist.mapNotNull { w -> normalizeType(w.titleType)?.let { w.copy(titleType = it) } }
+            val listTitles = backup.customListTitles.mapNotNull { t -> normalizeType(t.titleType)?.let { t.copy(titleType = it) } }
+            val skipped = (backup.logs.size - logs.size) +
+                (backup.watchlist.size - watchlist.size) +
+                (backup.customListTitles.size - listTitles.size)
+
             if (logs.isNotEmpty()) logDao.insertLogs(logs)
             if (watchlist.isNotEmpty()) watchlistDao.insertWatchlists(watchlist)
+            if (backup.customLists.isNotEmpty()) customListDao.insertCustomLists(backup.customLists)
+            if (listTitles.isNotEmpty()) customListDao.insertCustomListTitles(listTitles)
+            if (backup.seasonProgress.isNotEmpty()) seasonProgressDao.upsertAll(backup.seasonProgress)
 
             ImportSummary(
                 logsCount = logs.size,
                 watchlistCount = watchlist.size,
+                customListsCount = backup.customLists.size,
+                seasonProgressCount = backup.seasonProgress.size,
+                skippedCount = skipped
+            )
+        } else {
+            val parsed = parseCsvImport(trimmed)
+            if (parsed.logs.isEmpty() && parsed.watchlist.isEmpty()) {
+                if (parsed.skipped > 0) {
+                    throw IllegalArgumentException(
+                        "Fichier CSV non reconnu : ${parsed.skipped} ligne(s) ignorée(s). " +
+                            "Seuls les exports CSV de CinéLog sont pris en charge."
+                    )
+                }
+                throw IllegalArgumentException("Fichier CSV non reconnu ou vide")
+            }
+            if (parsed.logs.isNotEmpty()) logDao.insertLogs(parsed.logs)
+            if (parsed.watchlist.isNotEmpty()) watchlistDao.insertWatchlists(parsed.watchlist)
+
+            ImportSummary(
+                logsCount = parsed.logs.size,
+                watchlistCount = parsed.watchlist.size,
                 customListsCount = 0,
-                seasonProgressCount = 0
+                seasonProgressCount = 0,
+                skippedCount = parsed.skipped
             )
         }
     }
+
+    /** Canonical TitleType name for [raw], or `null` when the row must be rejected. */
+    private fun normalizeType(raw: String?): String? = TitleType.parseOrNull(raw)?.name
+
+    private class CsvImport(
+        val logs: List<DbLogEntry>,
+        val watchlist: List<DbWatchlist>,
+        val skipped: Int
+    )
 
     private fun parseCsvLine(line: String): List<String> {
         val result = mutableListOf<String>()
@@ -150,9 +177,10 @@ class BackupRepository(
         return result
     }
 
-    private fun parseCsvImport(content: String): Pair<List<DbLogEntry>, List<DbWatchlist>> {
+    private fun parseCsvImport(content: String): CsvImport {
         val logs = mutableListOf<DbLogEntry>()
         val watchlist = mutableListOf<DbWatchlist>()
+        var skipped = 0
 
         var currentSection = ""
         val lines = content.lines()
@@ -178,8 +206,12 @@ class BackupRepository(
             if (currentSection == "LOGS" || (currentSection == "" && cols.size >= 8)) {
                 try {
                     val id = cols.getOrNull(0)?.toIntOrNull() ?: 0
-                    val titleId = cols.getOrNull(1) ?: continue
-                    val type = cols.getOrNull(2) ?: "FILM"
+                    val titleId = cols.getOrNull(1)?.trim()
+                    val type = normalizeType(cols.getOrNull(2))
+                    if (titleId.isNullOrEmpty() || type == null) {
+                        skipped++
+                        continue
+                    }
                     val name = cols.getOrNull(3) ?: ""
                     val dateStr = cols.getOrNull(4) ?: ""
                     val dateVue = parseDateOrTimestamp(dateStr)
@@ -205,12 +237,16 @@ class BackupRepository(
                         )
                     )
                 } catch (e: Exception) {
-                    // Ignore malformed lines
+                    skipped++
                 }
             } else if (currentSection == "WATCHLIST") {
                 try {
-                    val titleId = cols.getOrNull(0) ?: continue
-                    val type = cols.getOrNull(1) ?: "FILM"
+                    val titleId = cols.getOrNull(0)?.trim()
+                    val type = normalizeType(cols.getOrNull(1))
+                    if (titleId.isNullOrEmpty() || type == null) {
+                        skipped++
+                        continue
+                    }
                     val name = cols.getOrNull(2) ?: ""
                     val dateStr = cols.getOrNull(3) ?: ""
                     val dateAdded = parseDateOrTimestamp(dateStr)
@@ -233,12 +269,12 @@ class BackupRepository(
                         )
                     )
                 } catch (e: Exception) {
-                    // Ignore malformed lines
+                    skipped++
                 }
             }
         }
 
-        return Pair(logs, watchlist)
+        return CsvImport(logs, watchlist, skipped)
     }
 
     private fun parseDateOrTimestamp(str: String): Long {
