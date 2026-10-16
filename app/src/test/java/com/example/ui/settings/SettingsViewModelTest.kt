@@ -15,12 +15,16 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -91,5 +95,47 @@ class SettingsViewModelTest {
         assertEquals("test_key_123", viewModel.tmdbApiKey.value)
         assertEquals("test_key_123", preferenceManager.tmdbApiKeyFlow.first())
         assertEquals("test_key_123", preferenceManager.getTmdbApiKeyAsync())
+    }
+
+    // #158: the file is read off the UI thread with a size cap, and the outcome is
+    // exposed as state instead of Toasts fired from a composition-scoped coroutine.
+    @Test
+    fun importBackupFrom_rejectsOversizedFile() = runTest(testDispatcher) {
+        val tooBig = ByteArray(SettingsViewModel.MAX_IMPORT_BYTES + 1)
+
+        viewModel.importBackupFrom { ByteArrayInputStream(tooBig) }.join()
+
+        assertEquals(BackupResult.FileTooLarge, viewModel.backupResult.value)
+        assertFalse(viewModel.backupInProgress.value)
+        viewModel.onBackupResultShown()
+        assertNull(viewModel.backupResult.value)
+    }
+
+    @Test
+    fun importBackupFrom_reportsFailureWhenFileCannotBeOpened() = runTest(testDispatcher) {
+        viewModel.importBackupFrom { null }.join()
+
+        assertTrue(viewModel.backupResult.value is BackupResult.ImportFailed)
+    }
+
+    @Test
+    fun exportBackup_reportsFailureWithoutRepository() = runTest(testDispatcher) {
+        val out = ByteArrayOutputStream()
+
+        viewModel.exportBackup(BackupFormat.JSON) { out }.join()
+
+        assertTrue(viewModel.backupResult.value is BackupResult.ExportFailed)
+        assertEquals(0, out.size())
+    }
+
+    @Test
+    fun readBoundedUtf8_readsUpToLimitAndRejectsBeyond() {
+        val text = "Amélie,FILM"
+        val bytes = text.toByteArray(Charsets.UTF_8)
+
+        assertEquals(text, readBoundedUtf8(ByteArrayInputStream(bytes), bytes.size))
+        assertThrows(BackupFileTooLargeException::class.java) {
+            readBoundedUtf8(ByteArrayInputStream(bytes), bytes.size - 1)
+        }
     }
 }

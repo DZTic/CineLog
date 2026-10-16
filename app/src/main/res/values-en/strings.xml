@@ -55,4 +55,11 @@
     <string name="watchlist_sort_title_az">Name (A-Z)</string>
     <string name="watchlist_sort_release_year">Release year</string>
     <string name="watchlist_sort_community_rating">Community rating</string>
+    <string name="backup_export_json_success">JSON backup exported successfully!</string>
+    <string name="backup_export_csv_success">CSV export saved successfully!</string>
+    <string name="backup_export_error">Export failed: %1$s</string>
+    <string name="backup_import_success">Restore complete: %1$d logs, %2$d to watch, %3$d lists</string>
+    <string name="backup_import_skipped">%1$d invalid row(s) skipped.</string>
+    <string name="backup_import_error">Import failed: %1$s</string>
+    <string name="backup_import_too_large">File is too large to be a CinéLog backup.</string>
 </resources>
