@@ -34,11 +34,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.CinemaSurfaceVariant
 import com.example.ui.theme.GrayText
 import com.example.util.LocaleHelper
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +52,6 @@ fun SettingsScreen(
     val currentThemeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val dynamicColorEnabled by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val currentLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
 
     var inputKey by remember { mutableStateOf(savedKey) }
     var isKeyVisible by remember { mutableStateOf(false) }
@@ -61,24 +60,14 @@ fun SettingsScreen(
         inputKey = savedKey
     }
 
-    // Launchers for Backup Export & Restore
+    // Launchers for Backup Export & Restore. The file I/O runs in the ViewModel on
+    // Dispatchers.IO (#158); the app context's resolver avoids leaking the Activity.
+    val contentResolver = context.applicationContext.contentResolver
     val createJsonLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            scope.launch {
-                val json = viewModel.generateJsonBackup()
-                if (json != null) {
-                    try {
-                        context.contentResolver.openOutputStream(uri)?.use { stream ->
-                            stream.write(json.toByteArray(Charsets.UTF_8))
-                        }
-                        Toast.makeText(context, "Sauvegarde JSON exportée avec succès !", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Erreur lors de la sauvegarde : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
+            viewModel.exportBackup(BackupFormat.JSON) { contentResolver.openOutputStream(uri) }
         }
     }
 
@@ -86,19 +75,7 @@ fun SettingsScreen(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
         if (uri != null) {
-            scope.launch {
-                val csv = viewModel.generateCsvExport()
-                if (csv != null) {
-                    try {
-                        context.contentResolver.openOutputStream(uri)?.use { stream ->
-                            stream.write(csv.toByteArray(Charsets.UTF_8))
-                        }
-                        Toast.makeText(context, "Export CSV enregistré avec succès !", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Erreur d'export CSV : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
+            viewModel.exportBackup(BackupFormat.CSV) { contentResolver.openOutputStream(uri) }
         }
     }
 
@@ -106,27 +83,29 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            scope.launch {
-                try {
-                    val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                    if (!content.isNullOrBlank()) {
-                        val result = viewModel.importBackup(content)
-                        if (result.isSuccess) {
-                            val summary = result.getOrThrow()
-                            Toast.makeText(
-                                context,
-                                "Restauration réussie : ${summary.logsCount} logs, ${summary.watchlistCount} à voir, ${summary.customListsCount} listes",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        } else {
-                            Toast.makeText(context, "Erreur d'import : ${result.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Erreur lors de la lecture du fichier : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
-            }
+            viewModel.importBackupFrom { contentResolver.openInputStream(uri) }
         }
+    }
+
+    val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
+    LaunchedEffect(backupResult) {
+        val result = backupResult ?: return@LaunchedEffect
+        val (message, duration) = when (result) {
+            is BackupResult.Exported -> context.getString(
+                if (result.format == BackupFormat.JSON) R.string.backup_export_json_success else R.string.backup_export_csv_success
+            ) to Toast.LENGTH_SHORT
+            is BackupResult.ExportFailed -> context.getString(R.string.backup_export_error, result.message.orEmpty()) to Toast.LENGTH_LONG
+            is BackupResult.Imported -> {
+                val s = result.summary
+                val base = context.getString(R.string.backup_import_success, s.logsCount, s.watchlistCount, s.customListsCount)
+                val text = if (s.skippedCount > 0) base + " " + context.getString(R.string.backup_import_skipped, s.skippedCount) else base
+                text to Toast.LENGTH_LONG
+            }
+            is BackupResult.ImportFailed -> context.getString(R.string.backup_import_error, result.message.orEmpty()) to Toast.LENGTH_LONG
+            BackupResult.FileTooLarge -> context.getString(R.string.backup_import_too_large) to Toast.LENGTH_LONG
+        }
+        Toast.makeText(context, message, duration).show()
+        viewModel.onBackupResultShown()
     }
 
     Scaffold(
@@ -229,7 +208,7 @@ fun SettingsScreen(
 
                     OutlinedButton(
                         onClick = {
-                            openDocumentLauncher.launch(arrayOf("application/json", "text/csv", "text/plain", "*/*"))
+                            openDocumentLauncher.launch(IMPORT_MIME_TYPES)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -539,4 +518,15 @@ fun SettingsScreen(
             }
         }
     }
-}
+}
+
+// No "*/*": the picker used to offer images and videos (#158). Some providers
+// label CSV/JSON files with a generic type, hence the extra entries.
+private val IMPORT_MIME_TYPES = arrayOf(
+    "application/json",
+    "text/*",
+    "text/csv",
+    "text/comma-separated-values",
+    "application/csv",
+    "application/octet-stream"
+)

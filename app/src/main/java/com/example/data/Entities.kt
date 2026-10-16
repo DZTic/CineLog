@@ -158,5 +158,7 @@ data class ImportSummary(
     val logsCount: Int,
     val watchlistCount: Int,
     val customListsCount: Int,
-    val seasonProgressCount: Int
+    val seasonProgressCount: Int,
+    // Rows rejected at import (e.g. unknown titleType, missing titleId) — #148.
+    val skippedCount: Int = 0
 )

@@ -329,11 +329,7 @@ private fun WatchlistRow(
 ) {
     val formattedDate = remember(entry.dateAdded) { DateFormatter.formatDayMonthYear(entry.dateAdded) }
     val titleType = remember(entry.titleType) {
-        try {
-            TitleType.valueOf(entry.titleType)
-        } catch (e: Exception) {
-            TitleType.FILM
-        }
+        TitleType.fromDb(entry.titleType)
     }
 
     val typeLabel = remember(titleType) {
@@ -688,11 +684,7 @@ private fun FilterMenuButton(
 }
 
 private fun DbWatchlist.toCineTitle(): CineTitle {
-    val tType = try {
-        TitleType.valueOf(titleType)
-    } catch (e: Exception) {
-        TitleType.FILM
-    }
+    val tType = TitleType.fromDb(titleType)
     return CineTitle(
         id = titleId,
         type = tType,

@@ -103,7 +103,7 @@ class WatchlistViewModel(
     private val _watchlistTypeFilter = MutableStateFlow(
         preferenceManager.getWatchlistTypeFilter()
             .takeIf { it.isNotBlank() }
-            ?.let { runCatching { TitleType.valueOf(it) }.getOrNull() }
+            ?.let { TitleType.parseOrNull(it) }
     )
     val watchlistTypeFilter: StateFlow<TitleType?> = _watchlistTypeFilter.asStateFlow()
 
@@ -195,7 +195,7 @@ class WatchlistViewModel(
 
         val typeScopedEntries = watchedFiltered.filter { entry ->
             params.typeFilter == null ||
-                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == params.typeFilter
+                TitleType.fromDb(entry.titleType) == params.typeFilter
         }
         val availableGenres = typeScopedEntries
             .flatMap { it.titleGenres?.split(",")?.map(String::trim) ?: emptyList() }
@@ -213,7 +213,7 @@ class WatchlistViewModel(
 
         val filteredWatchlist = watchedFiltered.filter { entry ->
             val matchesType = params.typeFilter == null ||
-                runCatching { TitleType.valueOf(entry.titleType) }.getOrNull() == params.typeFilter
+                TitleType.fromDb(entry.titleType) == params.typeFilter
             val matchesGenre = params.genreFilter == null ||
                 entry.titleGenres?.split(",")?.any { it.trim() == params.genreFilter } == true
             val matchesYear = params.yearFilter == null || entry.titleYear == params.yearFilter
@@ -224,11 +224,7 @@ class WatchlistViewModel(
         }
 
         val groupedWatchlist = filteredWatchlist.groupBy {
-            try {
-                TitleType.valueOf(it.titleType)
-            } catch (e: Exception) {
-                TitleType.FILM
-            }
+            TitleType.fromDb(it.titleType)
         }
         val categoryCounts = groupedWatchlist.mapValues { (_, items) -> items.size }
 

@@ -128,7 +128,7 @@ fun HomeScreen(
     val groupedLogs = remember(filteredLogs) {
         filteredLogs
             .sortedByDescending { it.dateVue }
-            .groupBy { TitleType.valueOf(it.titleType) }
+            .groupBy { TitleType.fromDb(it.titleType) }
     }
     // Within each category, movies from the same TMDB saga are collapsed
     // into a single "Activité Récente" row instead of one row per film.
@@ -498,11 +498,7 @@ fun HomeScreen(
 }
 
 private fun DbLogEntry.toCineTitle(): CineTitle {
-    val tType = try {
-        TitleType.valueOf(titleType)
-    } catch (e: Exception) {
-        TitleType.FILM
-    }
+    val tType = TitleType.fromDb(titleType)
     return CineTitle(
         id = titleId,
         type = tType,
@@ -563,7 +559,7 @@ fun RecentActivityRow(
     modifier: Modifier = Modifier
 ) {
     val formattedDate = remember(log.dateVue) { DateFormatter.formatDayMonthYear(log.dateVue) }
-    val titleType = remember(log.titleType) { TitleType.valueOf(log.titleType) }
+    val titleType = remember(log.titleType) { TitleType.fromDb(log.titleType) }
 
     Card(
         modifier = modifier
